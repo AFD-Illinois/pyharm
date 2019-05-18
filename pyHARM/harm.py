@@ -33,6 +33,7 @@ logger.setLevel(logging.INFO)
 # Later sources override earlier
 params = parameters.defaults()
 params = parameters.parse_argv(params, sys.argv)
+print("Using parameter file {}".format(params['paramfile']))
 params = parameters.parse_dat(params, params['paramfile'])
 params = parameters.override_from_argv(params, sys.argv)
 params = parameters.fix(params)

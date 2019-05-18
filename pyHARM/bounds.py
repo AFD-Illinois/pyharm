@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from phys import ucon_calc, mhd_gamma_calc
-from defs import Loci
+from pyHARM.phys import ucon_calc, mhd_gamma_calc
+from pyHARM.defs import Loci
 
 
 user_bound_l = None

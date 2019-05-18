@@ -4,7 +4,7 @@ import numpy as np
 import loopy as lp
 from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
-from defs import Var
+from pyHARM.defs import Var
 
 # TODO param stuff like this for easy testing?
 lsize = (32, 1, 1)

@@ -5,9 +5,9 @@ import numpy as np
 
 import pyopencl.array as cl_array
 import pyopencl.clmath as clm
-from loopy_tools import *
+from pyHARM.loopy_tools import *
 
-from defs import Loci
+from pyHARM.defs import Loci
 
 from datetime import datetime
 

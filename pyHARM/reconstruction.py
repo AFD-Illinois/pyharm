@@ -13,7 +13,7 @@ import pyopencl.array as cl_array
 import loopy as lp
 from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
-from loopy_tools import primsArrayArgs, add_ghosts
+from pyHARM.loopy_tools import primsArrayArgs, add_ghosts
 
 from datetime import datetime
 

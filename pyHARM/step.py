@@ -2,12 +2,13 @@
 
 import numpy as np
 from scipy import linalg as la
+
 import pyopencl as cl
 import pyopencl.array as cl_array
 import loopy as lp
 from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
-from loopy_tools import tune_prims_kernel, add_ghosts, primsArrayArgs
+from pyHARM.loopy_tools import tune_prims_kernel, add_ghosts, primsArrayArgs
 
 from pyHARM.defs import Loci
 from pyHARM.bounds import set_bounds  # , fix_flux

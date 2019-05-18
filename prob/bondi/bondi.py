@@ -2,12 +2,12 @@
 
 import numpy as np
 
-from bounds import set_bounds, register_user_bound
-from fixup import fixup
-from coordinates import BL
-from defs import Loci
+from pyHARM.bounds import set_bounds, register_user_bound
+from pyHARM.fixup import fixup
+from pyHARM.coordinates import BL
+from pyHARM.defs import Loci
 
-from debug_tools import plot, plot_all_prims
+from pyHARM.debug_tools import plot_var, plot_prims
 
 
 # Adapted from M. Chandra

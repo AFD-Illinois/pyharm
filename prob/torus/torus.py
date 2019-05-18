@@ -2,9 +2,9 @@
 
 import numpy as np
 
-from defs import Loci
-from phys import get_state
-from bounds import set_bounds
+from pyHARM.defs import Loci
+from pyHARM.phys import get_state
+from pyHARM.bounds import set_bounds
 
 # Different MAD initializations
 #define SANE 0

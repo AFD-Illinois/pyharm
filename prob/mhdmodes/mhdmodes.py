@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from bounds import set_bounds
-from defs import Loci
+from pyHARM.bounds import set_bounds
+from pyHARM.defs import Loci
 
 
 def init(params, G, P):

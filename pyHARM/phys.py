@@ -6,9 +6,9 @@ import pyopencl.array as cl_array
 import pyopencl.clmath as clm
 import loopy as lp
 from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
-from loopy_tools import *
+from pyHARM.loopy_tools import *
 
-from defs import Loci
+from pyHARM.defs import Loci
 
 knl_prim_to_flux = None
 knl_Tmhd_vec = None

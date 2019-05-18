@@ -2,7 +2,6 @@
 
 import os
 import h5py
-
 import numpy as np
 
 # This gets used from wherever, so delay OpenCL errors/dependencies
