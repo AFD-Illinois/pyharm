@@ -1,0 +1,17 @@
+name: pyHARM
+
+channels:
+ - conda-forge
+
+dependencies:
+ - pip
+ - psutil
+ - numpy
+ - scipy
+ - matplotlib
+ - h5py
+ - pyopencl
+ - pocl
+ # Get latest loopy from github, as pyPI is out of date
+ - pip:
+    - "--editable=git+ssh://git@github.com/inducer/loopy.git@master#egg=loo.py"
