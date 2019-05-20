@@ -9,9 +9,6 @@ class CoordinateSystem(object):
      * r,th,phi in spherical KS coordinates (or just spherical coordinates in the case of Minkowski)
      * A transformation matrix, dxdX, for tensors from one system to the other
      * The forms and determinant of the metric, gcov, gcon, & gdet
-
-     Keeping coordinate systems as classes allows them to carry around parameters and possibly cache results.
-     This class contains some utility and functions common among coordinate systems
     """
 
     def native_startx(cls, met_params):
@@ -101,7 +98,7 @@ class CoordinateSystem(object):
 
     def gcon(self, gcov):
         """Return contravariant form of the metric, given the covariant form.
-        As with all Grid functions, the matrix/vector indices are _first_.  Specifically, gcon_func expects
+        As with all Grid functions, the matrix/vector indices are *first*.  Specifically, gcon_func expects
         exactly zero grid indices (i.e. a single 4x4 matrix) or two grid indices (i.e. 4x4xN1xN2).
         """
         # TODO also make available as a function of X by nesting with above?
@@ -115,8 +112,7 @@ class CoordinateSystem(object):
             raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2".format(gcov.shape))
 
     def gdet(self, gcov):
-        """Return the negative root determinant of the metric, given the covariant form.
-        """
+        """Return the negative root determinant of the metric, given the covariant form."""
         # TODO could share more code w/above. Worth it?
         if len(gcov.shape) == 2:
             return np.sqrt(-la.det(gcov))
@@ -129,7 +125,8 @@ class CoordinateSystem(object):
 
     # TODO Einsum this too
     def conn_func(self, x, delta=1e-5):
-        """Calculate connection coefficient \Gamma ^ {i}_{j, k} = conn[i,j,k,...]"""
+        r"""Calculate all connection coefficients :math:`\Gamma^{i}_{j, k}`.
+        Returns a 3+N dimensional array conn[i,j,k,...]"""
 
         conn = np.zeros([4, 4, 4, *(x.shape[1:])])
         tmp = np.zeros_like(conn)
