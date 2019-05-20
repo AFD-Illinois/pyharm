@@ -21,6 +21,7 @@ project = 'pyHARM'
 copyright = '2019, Ben Prather, George Wong, Charles Gammie, and the Astrophysical Fluids Group at UIUC'
 author = 'Ben Prather, George Wong, Charles Gammie, and the Astrophysical Fluids Group at UIUC'
 
+master_doc = 'index'
 
 # -- General configuration ---------------------------------------------------
 
