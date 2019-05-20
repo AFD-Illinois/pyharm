@@ -9,8 +9,8 @@ version: 2
 sphinx:
   configuration: docs/conf.py
 
-# Optionally build your docs in additional formats such as PDF and ePub
-formats: html
+# Non-HTML is useless until the docs are much longer
+formats: []
 
 conda:
   environment: environment.yml
