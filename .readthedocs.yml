@@ -16,7 +16,7 @@ python:
   version: 3.7
   install:
      - method: setuptools
-     - path: .
+       path: .
   system_packages: true
 
 # This is _very slow_
