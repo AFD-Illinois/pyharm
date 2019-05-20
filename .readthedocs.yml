@@ -12,5 +12,13 @@ sphinx:
 # Non-HTML is useless until the docs are much longer
 formats: []
 
-conda:
-  environment: environment.yml
+python:
+  version: 3.7
+  install:
+     - method: setuptools
+     - path: .
+  system_packages: true
+
+# This is _very slow_
+#conda:
+#  environment: environment.yml

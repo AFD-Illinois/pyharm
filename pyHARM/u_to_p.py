@@ -5,7 +5,11 @@ import numpy as np
 
 import pyopencl.array as cl_array
 import pyopencl.clmath as clm
+import loopy as lp
+
+
 from pyHARM.loopy_tools import *
+use_2018_2()
 
 from pyHARM.defs import Loci
 

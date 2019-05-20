@@ -2,11 +2,13 @@
 
 import numpy as np
 
+# Pass import errors up the chain
 import pyopencl.array as cl_array
 import pyopencl.clmath as clm
 import loopy as lp
-from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
+
 from pyHARM.loopy_tools import *
+use_2018_2()
 
 from pyHARM.defs import Loci
 

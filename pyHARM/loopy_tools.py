@@ -1,10 +1,17 @@
 # Tools for compiling loopy kernels
 
 import numpy as np
-import loopy as lp
-from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
+import loopy as _lp
 
 from pyHARM.defs import Var
+
+def use_2018_2():
+    try:
+        from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
+    except ImportError:
+        print("Using old version of loopy! Please use 2018_2 from github!")
+
+use_2018_2()
 
 # TODO param stuff like this for easy testing?
 lsize = (32, 1, 1)
@@ -19,9 +26,9 @@ def make_run_kernel():
 
 def spec_prims_kernel(knl, shape=None, ng=None):
     if shape is not None:
-        knl = lp.fix_parameters(knl, nprim=int(shape[0]), n1=int(shape[1]), n2=int(shape[2]), n3=int(shape[3]))
+        knl = _lp.fix_parameters(knl, nprim=int(shape[0]), n1=int(shape[1]), n2=int(shape[2]), n3=int(shape[3]))
     if ng is not None:
-        knl = lp.fix_parameters(knl, ng=ng)
+        knl = _lp.fix_parameters(knl, ng=ng)
     return knl
 
 
@@ -29,12 +36,12 @@ def tune_prims_kernel(knl, shape=None, ng=None, prefetch_args=()):
     """Parameters for 3D"""
     knl = spec_prims_kernel(knl, shape, ng)
     # This assumes linear, see above
-    knl = lp.split_iname(knl, "k", lsize[0], outer_tag=otags[0], inner_tag=itags[0])
-    knl = lp.split_iname(knl, "j", lsize[1], outer_tag=otags[1], inner_tag=itags[1])
-    knl = lp.split_iname(knl, "i", lsize[2], outer_tag=otags[2], inner_tag=itags[2])
-    knl = lp.set_loop_priority(knl, "p,i_outer,j_outer,k_outer,i_inner,j_inner,k_inner")
+    knl = _lp.split_iname(knl, "k", lsize[0], outer_tag=otags[0], inner_tag=itags[0])
+    knl = _lp.split_iname(knl, "j", lsize[1], outer_tag=otags[1], inner_tag=itags[1])
+    knl = _lp.split_iname(knl, "i", lsize[2], outer_tag=otags[2], inner_tag=itags[2])
+    knl = _lp.set_loop_priority(knl, "p,i_outer,j_outer,k_outer,i_inner,j_inner,k_inner")
     for arg in prefetch_args:
-        knl = lp.add_prefetch(knl, arg, "i_inner,j_inner,k_inner", default_tag="l.auto")
+        knl = _lp.add_prefetch(knl, arg, "i_inner,j_inner,k_inner", default_tag="l.auto")
 
     #knl = lp.set_options(knl, no_numpy=True)
     return knl
@@ -44,16 +51,16 @@ def tune_grid_kernel(knl, shape=None, ng=None, prefetch_args=()):
     """Parameters for 3D"""
     if shape is not None:
         if len(shape) > 3:
-            knl = lp.fix_parameters(knl, ndim=int(shape[0]), n1=int(shape[1]), n2=int(shape[2]), n3=int(shape[3]))
+            knl = _lp.fix_parameters(knl, ndim=int(shape[0]), n1=int(shape[1]), n2=int(shape[2]), n3=int(shape[3]))
         else:
-            knl = lp.fix_parameters(knl, n1=int(shape[0]), n2=int(shape[1]), n3=int(shape[2]))
+            knl = _lp.fix_parameters(knl, n1=int(shape[0]), n2=int(shape[1]), n3=int(shape[2]))
     if ng is not None:
-        knl = lp.fix_parameters(knl, ng=ng)
-    knl = lp.split_iname(knl, "k", lsize[0], outer_tag=otags[0], inner_tag=itags[0])
-    knl = lp.split_iname(knl, "j", lsize[1], outer_tag=otags[1], inner_tag=itags[1])
-    knl = lp.split_iname(knl, "i", lsize[2], outer_tag=otags[2], inner_tag=itags[2])
+        knl = _lp.fix_parameters(knl, ng=ng)
+    knl = _lp.split_iname(knl, "k", lsize[0], outer_tag=otags[0], inner_tag=itags[0])
+    knl = _lp.split_iname(knl, "j", lsize[1], outer_tag=otags[1], inner_tag=itags[1])
+    knl = _lp.split_iname(knl, "i", lsize[2], outer_tag=otags[2], inner_tag=itags[2])
     for arg in prefetch_args:
-        knl = lp.add_prefetch(knl, arg, "i_inner,j_inner,k_inner", default_tag="l.auto")
+        knl = _lp.add_prefetch(knl, arg, "i_inner,j_inner,k_inner", default_tag="l.auto")
 
     #knl = lp.set_options(knl, no_numpy=True)
     return knl
@@ -65,19 +72,19 @@ def tune_geom_kernel(knl, shape=None, ng=None):
     if shape is not None:
         pass # Deal with various vectros/tensors
         #knl = lp.fix_parameters(knl, n1=int(shape[0]), n2=int(shape[1]), n3=int(shape[2]))
-    knl = lp.split_iname(knl, "k", lsize[0], outer_tag="for", inner_tag="unr") # Worthwhile to cache so explicitly?
+    knl = _lp.split_iname(knl, "k", lsize[0], outer_tag="for", inner_tag="unr") # Worthwhile to cache so explicitly?
     #knl = lp.split_iname(knl, "k", lsize[0], outer_tag=otags[0], inner_tag=itags[0])
-    knl = lp.split_iname(knl, "j", lsize[1], outer_tag=otags[0], inner_tag=itags[0])
-    knl = lp.split_iname(knl, "i", lsize[2], outer_tag=otags[1], inner_tag=itags[1])
+    knl = _lp.split_iname(knl, "j", lsize[1], outer_tag=otags[0], inner_tag=itags[0])
+    knl = _lp.split_iname(knl, "i", lsize[2], outer_tag=otags[1], inner_tag=itags[1])
 
     # TODO caching geom values is especially important. Try things here...
     if shape is not None:
         if len(shape) > 4:
-            knl = lp.prioritize_loops(knl, "mu, nu,i_outer,i_inner,j_outer,j_inner,k_outer,k_inner")
+            knl = _lp.prioritize_loops(knl, "mu, nu,i_outer,i_inner,j_outer,j_inner,k_outer,k_inner")
         elif len(shape) > 3:
-            knl = lp.prioritize_loops(knl, "mu,i_outer,i_inner,j_outer,j_inner,k_outer,k_inner")
+            knl = _lp.prioritize_loops(knl, "mu,i_outer,i_inner,j_outer,j_inner,k_outer,k_inner")
         else:
-            knl = lp.prioritize_loops(knl, "i_outer,i_inner,j_outer,j_inner,k_outer,k_inner")
+            knl = _lp.prioritize_loops(knl, "i_outer,i_inner,j_outer,j_inner,k_outer,k_inner")
 
     # Currently these functions get used on frontend, too
     #knl = lp.set_options(knl, no_numpy=True)
@@ -92,8 +99,8 @@ def vecArrayArgs(*names, ghosts=True):
             shape_sym = "(ndim, n1 + 2*ng, n2 + 2*ng, n3 + 2*ng)"
         else:
             shape_sym = "(ndim, n1, n2, n3)"
-        space = lp.AddressSpace.GLOBAL
-        args.append(lp.ArrayArg(name, dtype=np.float64, shape=shape_sym, address_space=space))
+        space = _lp.AddressSpace.GLOBAL
+        args.append(_lp.ArrayArg(name, dtype=np.float64, shape=shape_sym, address_space=space))
     return args
 
 
@@ -104,8 +111,8 @@ def primsArrayArgs(*names, ghosts=True, dtype=np.float64):
             shape_sym = "(nprim, n1 + 2*ng, n2 + 2*ng, n3 + 2*ng)"
         else:
             shape_sym = "(nprim, n1, n2, n3)"
-        space = lp.AddressSpace.GLOBAL
-        args.append(lp.ArrayArg(name, dtype=dtype, shape=shape_sym, address_space=space))
+        space = _lp.AddressSpace.GLOBAL
+        args.append(_lp.ArrayArg(name, dtype=dtype, shape=shape_sym, address_space=space))
     return args
 
 
@@ -116,8 +123,8 @@ def scalarArrayArgs(*names, ghosts=True, dtype=np.float64):
             shape_sym = "(n1 + 2*ng, n2 + 2*ng, n3 + 2*ng)"
         else:
             shape_sym = "(n1, n2, n3)"
-        space = lp.AddressSpace.GLOBAL
-        args.append(lp.ArrayArg(name, dtype=dtype, shape=shape_sym, address_space=space))
+        space = _lp.AddressSpace.GLOBAL
+        args.append(_lp.ArrayArg(name, dtype=dtype, shape=shape_sym, address_space=space))
     return args
 
 
@@ -128,9 +135,9 @@ def gscalarArrayArgs(*names, ghosts=True, dtype=np.float64):
             shape_sym = "(n1 + 2*ng, n2 + 2*ng)"
         else:
             shape_sym = "(n1, n2)"
-        space = lp.AddressSpace.GLOBAL
-        args.append(lp.ArrayArg(name, dtype=dtype, shape=shape_sym,
-                                address_space=space, offset=lp.auto))
+        space = _lp.AddressSpace.GLOBAL
+        args.append(_lp.ArrayArg(name, dtype=dtype, shape=shape_sym,
+                                 address_space=space, offset=_lp.auto))
     return args
 
 
@@ -141,9 +148,9 @@ def gvectorArrayArgs(*names, ghosts=True, dtype=np.float64):
             shape_sym = "(ndim, n1 + 2*ng, n2 + 2*ng)"
         else:
             shape_sym = "(ndim, n1, n2)"
-        space = lp.AddressSpace.GLOBAL
-        args.append(lp.ArrayArg(name, dtype=dtype, shape=shape_sym,
-                                address_space=space, offset=lp.auto))
+        space = _lp.AddressSpace.GLOBAL
+        args.append(_lp.ArrayArg(name, dtype=dtype, shape=shape_sym,
+                                 address_space=space, offset=_lp.auto))
     return args
 
 
@@ -154,9 +161,9 @@ def gtensorArrayArgs(*names, ghosts=True, dtype=np.float64):
             shape_sym = "(ndim, ndim, n1 + 2*ng, n2 + 2*ng)"
         else:
             shape_sym = "(ndim, ndim, n1, n2)"
-        space = lp.AddressSpace.GLOBAL
-        args.append(lp.ArrayArg(name, dtype=dtype, shape=shape_sym,
-                                address_space=space, offset=lp.auto))
+        space = _lp.AddressSpace.GLOBAL
+        args.append(_lp.ArrayArg(name, dtype=dtype, shape=shape_sym,
+                                 address_space=space, offset=_lp.auto))
     return args
 
 # TODO friends don't let friends write their own preprocessors

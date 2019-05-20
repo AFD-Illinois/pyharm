@@ -5,9 +5,9 @@ import numpy as np
 try:
     import pyopencl.array as cl_array
     import loopy as lp
-    from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
-    from pyHARM.loopy_tools import tune_grid_kernel, tune_geom_kernel
+    from pyHARM.loopy_tools import *
+    use_2018_2()
 except ModuleNotFoundError:
     #print("Loading grid.py without OpenCL array support.")
     pass
