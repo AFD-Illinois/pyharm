@@ -24,7 +24,7 @@ for i,file in enumerate(files):
 
 null_groups = []
 copy_groups = ['header', 'diag', 'avg', 'coord']
-avg_groups = ['r', 'th', 'hth', 'phi', 'rth', 'rphi', 'thphi', 'pdf']
+avg_groups = ['r', 'th', 'hth', 'phi', 'rth', 'rhth', 'rphi', 'thphi', 'pdf']
 t_groups = ['t', 'rt', 'tht', 'phit', 'pdft']
 groups = null_groups + copy_groups + avg_groups + t_groups
 # Extra base-level keys, all 1D time-based vars

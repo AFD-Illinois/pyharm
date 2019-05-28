@@ -184,10 +184,17 @@ def avg_dump(n):
             for var in ['betainv', 'sigma']:
                 out['th/' + var + '_25'] = theta_av(dump, var, i_of(r1d, 25), 5, fold=False)
 
-            # TODO make Fcov01 and Fcov13 into d_fns
+
             Fcov01, Fcov13 = Fcov(dump, 0, 1), Fcov(dump, 1, 3)
-            out['hth/omega'] = theta_av(dump, Fcov01, iEH, 1) / theta_av(dump, Fcov13, iEH, 1)
-            out['hth/omega_av'] = theta_av(dump, Fcov01, iEH, 5) / theta_av(dump, Fcov13, iEH, 5)
+            up, ut = dump['u^phi'], dump['u^t']
+            out['rhth/omega'] = np.zeros((hdr['n1'],hdr['n2']//2))
+            out['rhth/vphi'] = np.zeros((hdr['n1'],hdr['n2']//2))
+            out['rhth/F13'] = np.zeros((hdr['n1'],hdr['n2']//2))
+            for i in range(hdr['n1']):
+                out['rhth/F13'][i] = theta_av(dump, Fcov13, i, 1)
+                out['rhth/omega'][i] = theta_av(dump, Fcov01, i, 1) / theta_av(dump, Fcov13, i, 1)
+                out['rhth/vphi'][i] = theta_av(dump, up, i, 1) / theta_av(dump, ut, i, 1)
+            del Fcov01, Fcov13, up, ut
 
     if calc_basic:
         # FIELD STRENGTHS
@@ -323,12 +330,12 @@ def merge_dict(n, out, out_full):
                 out_full[key] = np.zeros((ND, hdr['n2'], hdr['n3']))
             elif tag == 'pdft':
                 out_full[key] = np.zeros((ND, pdf_nbins))
-            elif tag in ['r', 'hth', 'th', 'phi', 'rth', 'rphi', 'thphi', 'pdf']:
+            elif tag in ['r', 'hth', 'rhth', 'th', 'phi', 'rth', 'rphi', 'thphi', 'pdf']:
                 out_full[key] = np.zeros_like(out[key])
             else:
                 out_full[key] = np.zeros(ND)
         # Average the averaged tags, slot in the time-dep tags
-        if tag in ['r', 'hth', 'th', 'phi', 'rth', 'rphi', 'thphi', 'pdf']:
+        if tag in ['r', 'hth', 'th', 'phi', 'rth', 'rhth', 'rphi', 'thphi', 'pdf']:
             # Weight the average correctly for _us_.  Full weighting will be done on merge w/the key 'avg/w'
             if my_avg_range > 0:
                 try:

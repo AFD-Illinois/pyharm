@@ -129,6 +129,8 @@ class IharmDump:
             return getattr(self.grid.coords, key)(self.grid.coord_all())
         elif key in ['x', 'y', 'z']:
             return getattr(self.grid.coords, 'cart_' + key)(self.grid.coord_all())
+        elif key in ['X1', 'X2', 'X3']:
+            return self.grid.coord_all()[int(key[-1:])]
         elif key in self.header:
             return self.header[key]
         elif key in vars.fns_dict:

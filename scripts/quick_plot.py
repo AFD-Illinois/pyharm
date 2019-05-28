@@ -8,9 +8,9 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-from iharm_dump import IharmDump
-import plotting_fns as bplt
-from units import get_units_M87
+from pyHARM.ana.iharm_dump import IharmDump
+import pyHARM.ana.plot as bplt
+from pyHARM.ana.units import get_units_M87
 
 # TODO parse these instead of hard-coding
 USEARRSPACE = False
