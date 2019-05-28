@@ -7,6 +7,18 @@ from pyHARM.h5io import hdf5_to_dict
 from pyHARM.grid import Grid
 from pyHARM.ana.util import i_of
 
+"""
+Tools for dealing with the results computed by scripts/analysis.py.  Results are organized by remaining independent
+variable -- so, a phi- and time-average will be under 'rth' since these are its remaining independent variables.
+
+This is more logical than it sounds: this way, most quantity names contain all the info needed to plot them.
+Also, multiple reductions of the same quantity can be stored with logical names, e.g. a phi,t average of rho in
+'rth/rho' and a further average over th in 'r/rho'.
+
+The one exception is variables containing th but not r.  These must have a radius specified, at least in FMKS coords
+where th is mildly r-dependent.
+We ignore this for informal plots, but for figures it can be specified with 'at_r'
+"""
 
 def get_header_var(infile, var):
     if ',' in var:
@@ -41,19 +53,13 @@ def get_quiescence(infile, diag=False, set_time=None):
 
 
 def get_result(infile, ivar, var, qui=False, only_nonzero=True, **kwargs):
-    # TODO rethink caching. Hash of contents?
-    # Read from cache if it exists
-    # flux, spin, tag = get_header_var(infile, '')
-    # cachefname = "cache_{}_{}_{}_{}_{}.npz".format(flux, spin, tag, ivar, var)
-    # if os.path.exists(cachefname):
-    #     cachefile = np.load(cachefname)
-    #     return cachefile['ret_i'], cachefile['ret_v']
-
+    """Get the values of a variable, and of the independent variable against which to plot it.
+    Various common slicing options:
+    :arg qui Get only "quiescence" time, i.e. range over which time-averages were taken
+    :arg only_nonzero Get only nonzero values
+    """
     ret_i = get_ivar(infile, ivar, **kwargs)
     ret_v = infile[ivar][var][()]
-
-    # # Cache (full, not quiescent) results to save time next time
-    # np.savez(cachefname, ret_i=ret_i, ret_v=ret_v)
 
     if qui:
         qui_slc = get_quiescence(infile)
@@ -75,7 +81,11 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=True, **kwargs):
 
 
 def get_ivar(infile, ivar, th_r=None, i_xy=False):
+    """Given an input file and the string of independent variable name(s) ('r', 'rth', 'rt', etc),
+    return a grid of those variables' values.
+    """
     ret_i = []
+    # TODO avoid reading/dicting whole header, just grab grid stuff
     params = hdf5_to_dict(infile, path="header")
     G = Grid(params)
     if ivar[-1:] == 't':
@@ -95,7 +105,12 @@ def get_ivar(infile, ivar, th_r=None, i_xy=False):
     if 'phi' in ivar:
         ret_i.append(G.coords.phi(G.coord_all())[0, 0, :])
 
-    # Assemble the independent variables for easy plotting of the result
+    # TODO handle converting 'thphi' to x-y with at_r
+    # TODO handle th's r-dependence in 'rth'
+    # TODO think about how to treat slices this nicely
+    # TODO option for meshgrid of corners instead of zone center vals, for better-looking plots
+
+    # Make a meshgrid of
     ret_grids = np.meshgrid(*reversed(ret_i))
     ret_grids.reverse()
     if i_xy and 'r' in ivar and 'th' in ivar:
@@ -132,6 +147,7 @@ def get_lc(infile, angle=163, rhigh=20, add_pol=False, qui=False):
             #print("Found ", fpath)
             cols = np.loadtxt(fpath).transpose()
             # Normalize to same # elements as analysis by cheaply extending the last value for a few steps
+            # TODO put this behind a default option for transparency
             f_len = cols.shape[1]
             if f_len >= t_len:
                 lightcurve[:] = cols[2][:t_len]

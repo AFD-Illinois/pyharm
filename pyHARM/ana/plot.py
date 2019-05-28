@@ -8,11 +8,32 @@ import matplotlib
 matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
+from matplotlib import colors, ticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import numpy as np
 from scipy.integrate import trapz
 
+
+def pcolormesh_symlog(ax, X, Y, Z, linthresh=None, linscale=0.01, cmap='RdBu_r', **kwargs):
+    vmax = np.abs(np.nanmax(Z))
+    vmin = -vmax
+
+    int_min_pow, int_max_pow = int(np.ceil(np.log10(-vmin))), int(np.ceil(np.log10(vmax)))
+
+    if linthresh is None:
+        linthresh = vmax * 1.0e-4
+
+    logthresh = -int(np.ceil(np.log10(linthresh)))
+    tick_locations = ([vmin]
+                      + [-(10.0 ** x) for x in range(int_min_pow - 1, -logthresh - 1, -1)]
+                      + [0.0]
+                      + [(10.0 ** x) for x in range(-logthresh, int_max_pow)]
+                      + [vmax])
+    pcm = ax.pcolormesh(X, Y, Z, norm=colors.SymLogNorm(linthresh=linthresh, linscale=linscale),
+                         cmap=cmap, vmin=-vmax, vmax=vmax, **kwargs)
+    plt.colorbar(pcm, ax=ax, ticks=tick_locations, format=ticker.LogFormatterMathtext())
+    return pcm
 
 # Get xz slice of 3D data
 def flatten_xz(array, patch_pole=False, average=False):
