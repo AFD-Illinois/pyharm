@@ -32,6 +32,7 @@ def pcolormesh_symlog(ax, X, Y, Z, linthresh=None, linscale=0.01, cmap='RdBu_r',
                       + [vmax])
     pcm = ax.pcolormesh(X, Y, Z, norm=colors.SymLogNorm(linthresh=linthresh, linscale=linscale),
                          cmap=cmap, vmin=-vmax, vmax=vmax, **kwargs)
+    # TODO more ticks with these labels
     plt.colorbar(pcm, ax=ax, ticks=tick_locations, format=ticker.LogFormatterMathtext())
     return pcm
 

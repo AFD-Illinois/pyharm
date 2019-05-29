@@ -80,35 +80,43 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=True, **kwargs):
     return ret_i, ret_v
 
 
-def get_ivar(infile, ivar, th_r=None, i_xy=False):
+def get_ivar(infile, ivar, th_r=None, i_xy=False, mesh=True):
     """Given an input file and the string of independent variable name(s) ('r', 'rth', 'rt', etc),
     return a grid of those variables' values.
     """
     ret_i = []
     # TODO avoid reading/dicting whole header, just grab grid stuff
     params = hdf5_to_dict(infile, path="header")
+
     G = Grid(params)
+    if mesh:
+        native_coords = G.coord_all_mesh()
+    else:
+        native_coords = G.coord_all()
+
     if ivar[-1:] == 't':
-        ret_i.append(infile['coord']['t'][()])
+        t = infile['coord']['t'][()]
+        if mesh:
+            t = np.append(t, t[-1] + (t[-1] - t[0]) / t.shape[0])
+        ret_i.append(t)
     if 'r' in ivar:
-        ret_i.append(G.coords.r(G.coord_all())[:, 0, 0])
+        ret_i.append(G.coords.r(native_coords)[:, 0, 0])
     if 'th' in ivar:
-        r1d = G.coords.r(G.coord_all())[:, 0, 0]
+        r1d = G.coords.r(native_coords)[:, 0, 0]
         if th_r is not None:
-            th = G.coords.th(G.coord_all())[i_of(r1d, th_r), :, 0]
+            th = G.coords.th(native_coords)[i_of(r1d, th_r), :, 0]
         else:
             #print("Guessing r for computing th!")
-            th = G.coords.th(G.coord_all())[-1, :, 0]
+            th = G.coords.th(native_coords)[-1, :, 0]
         if 'hth' in ivar:
             th = th[:len(th)//2]
         ret_i.append(th)
     if 'phi' in ivar:
-        ret_i.append(G.coords.phi(G.coord_all())[0, 0, :])
+        ret_i.append(G.coords.phi(native_coords)[0, 0, :])
 
     # TODO handle converting 'thphi' to x-y with at_r
     # TODO handle th's r-dependence in 'rth'
     # TODO think about how to treat slices this nicely
-    # TODO option for meshgrid of corners instead of zone center vals, for better-looking plots
 
     # Make a meshgrid of
     ret_grids = np.meshgrid(*reversed(ret_i))
@@ -127,6 +135,9 @@ def get_ivar(infile, ivar, th_r=None, i_xy=False):
     # Squash single-variable lists for convenience
     if len(ret_grids) == 1:
         ret_grids = ret_grids[0]
+        if mesh:
+            # Probably no one actually wants a 1D mesh
+            ret_grids = ret_grids[:-1]
 
     return ret_grids
 

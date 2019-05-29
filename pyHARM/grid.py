@@ -169,7 +169,7 @@ class Grid:
     def coord(self, i, j, k, loc=Loci.CENT):
         """Get the position x of zone(s) i,j,k, in _native_ coordinates
 
-        If given lists of i,j,k, this should return x[NDIM,len(i),len(j),len(k)] via np.meshgrid().
+        If given lists of i,j,k, this returns x[NDIM,len(i),len(j),len(k)] via np.meshgrid().
         Any index given as a single value is suppressed on output, down to x[NDIM]
 
         All functions in coordinates.py which take coordinates "x" also accept a grid of the form this returns.
@@ -224,10 +224,24 @@ class Grid:
                           np.arange(self.N[2])+self.NG,
                           np.arange(self.N[3])+self.NG, loc=loc)
 
+    def coord_bulk_mesh(self):
+        """Returns zone corners for plotting a variable in the bulk
+        """
+        return self.coord(np.arange(self.N[1]+1)+self.NG,
+                          np.arange(self.N[2]+1)+self.NG,
+                          np.arange(self.N[3]+1)+self.NG, loc=Loci.CORN)
+
     def coord_all(self, loc=Loci.CENT):
+        """Like coord_bulk, but including ghost zones"""
         return self.coord(np.arange(self.GN[1]),
                           np.arange(self.GN[2]),
                           np.arange(self.GN[3]), loc=loc)
+
+    def coord_all_mesh(self):
+        """Like coord_bulk_mesh, but including ghost zones"""
+        return self.coord(np.arange(self.GN[1]+1),
+                          np.arange(self.GN[2]+1),
+                          np.arange(self.GN[3]+1), loc=Loci.CORN)
 
     def lower_grid(self, vcon, loc=Loci.CENT, ocl=True, out=None):
         """Lower a grid of contravariant rank-1 tensors to covariant ones."""
@@ -257,6 +271,7 @@ class Grid:
             return np.einsum("ij...,j...->i...", self.gcon[loc.value, :, :, :, :, None], vcov)
 
     def dot(self, ucon, ucov, ocl=True, out=None):
+        """Inner product along first index. Exists to make other code OpenCL-agnostic"""
         if self.use_ocl and ocl:
             if out is None:
                 if isinstance(ucon, np.ndarray):

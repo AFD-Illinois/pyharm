@@ -12,8 +12,9 @@ from pyHARM.ana.results import get_ivar
 
 infile = h5py.File(sys.argv[1])
 
-if not os.path.exists("auto_plots"):
-    os.mkdir("auto_plots")
+dirpath = os.path.join(os.path.dirname(infile.filename), "auto_plots")
+if not os.path.exists(dirpath):
+    os.mkdir(dirpath)
 
 for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag', 'header', 'pdf', 'pdft']]:
     # Split independent and dependent variable retrieval for efficiency
@@ -24,7 +25,7 @@ for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag',
         print("Plotting {}".format(fname))
     
         # A bunch of custom sizes here...
-        fig, ax = plt.subplots(1, 1, figsize=(10,10))
+        fig, ax = plt.subplots(1, 1, figsize=(12,10))
         plt.grid(True)
     
         var_d = infile[ivar][var][()]
@@ -60,7 +61,8 @@ for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag',
                     plt.ylabel('y')
                 elif 'th' in ivar:
                     plt.ylabel('z')
-                    fig.set_size_inches((10, 15))
+                    if not 'hth' in ivar:
+                        fig.set_size_inches((10, 15))
                 plt.title(var)
 
             elif ivar == 'thphi':
@@ -71,7 +73,7 @@ for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag',
                 plt.xlabel(ivar)
                 plt.ylabel(var)
 
-        fpath = os.path.join(os.path.dirname(infile.filename), "auto_plots", fname)
+        fpath = os.path.join(dirpath, fname)
         plt.savefig(fpath, dpi=100)
         plt.close()
 
