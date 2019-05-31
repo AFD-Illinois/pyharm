@@ -80,15 +80,19 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=True, **kwargs):
     return ret_i, ret_v
 
 
+def get_grid(infile):
+    # TODO avoid reading/dicting whole header, just grab grid stuff
+    params = hdf5_to_dict(infile, path="header")
+    return Grid(params)
+
+
 def get_ivar(infile, ivar, th_r=None, i_xy=False, mesh=True):
     """Given an input file and the string of independent variable name(s) ('r', 'rth', 'rt', etc),
     return a grid of those variables' values.
     """
     ret_i = []
-    # TODO avoid reading/dicting whole header, just grab grid stuff
-    params = hdf5_to_dict(infile, path="header")
+    G = get_grid(infile)
 
-    G = Grid(params)
     if mesh:
         native_coords = G.coord_all_mesh()
     else:

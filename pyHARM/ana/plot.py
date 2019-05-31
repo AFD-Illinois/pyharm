@@ -15,14 +15,25 @@ import numpy as np
 from scipy.integrate import trapz
 
 
-def pcolormesh_symlog(ax, X, Y, Z, linthresh=None, linscale=0.01, cmap='RdBu_r', **kwargs):
-    vmax = np.abs(np.nanmax(Z))
+def pcolormesh_symlog(ax, X, Y, Z, vmax=None, linthresh=None, decades=4, linscale=0.01, cmap='RdBu_r', **kwargs):
+    """Wrapper for matplotlib's pcolormesh that uses it sensibly, instead of the defaults.
+
+    If linthresh is not specified, it defaults to vmax*10**(-decades), i.e. showing that number of decades each
+    of positive and negative values.
+
+    If not specified, vmax is set automatically
+    In order to keep colors sensible, vmin is always set to -vmax.
+    """
+    if vmax is None:
+        vmax = np.abs(np.nanmax(Z))
+
+    # TODO could probably massage the colormap instead of requiring this, to get more informative cbars
     vmin = -vmax
 
     int_min_pow, int_max_pow = int(np.ceil(np.log10(-vmin))), int(np.ceil(np.log10(vmax)))
 
     if linthresh is None:
-        linthresh = vmax * 1.0e-4
+        linthresh = vmax * 10**(-decades)
 
     logthresh = -int(np.ceil(np.log10(linthresh)))
     tick_locations = ([vmin]
