@@ -45,7 +45,7 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_out=50, para
         params['a'] = a
         params['hslope'] = hslope
         params['r_out'] = r_out
-        if type == 'fmks':
+        if type == 'fmks' or type == 'mmks':
             params['poly_xt'] = 0.82
             params['poly_alpha'] = 14.0
             params['mks_smooth'] = 0.5

@@ -40,7 +40,10 @@ def dump_grid(G, fname="dumps/grid.h5"):
     outf['X3'] = x[3].astype(out_type)
 
     # Return only the CENT values, repeated over the N3 axis
-    b = slice(G.NG, -G.NG)
+    if G.NG > 0:
+        b = slice(G.NG, -G.NG)
+    else:
+        b = slice(None, None)
     gcon3 = G.gcon[Loci.CENT.value, :, :, b, b, None].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
     gcov3 = G.gcov[Loci.CENT.value, :, :, b, b, None].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
     gdet3 = G.gdet[Loci.CENT.value, b, b, None].repeat(G.NTOT[3], axis=-1)
