@@ -57,13 +57,10 @@ def dump_grid(G, fname="dumps/grid.h5"):
     outf.close()
 
 
-def dump(params, G, P, t, dt, fname):
+def dump(params, G, P, t, dt, fname, dump_gamma=True, out_type=np.float32):
     s = G.slices
 
     outf = h5py.File(fname, "w")
-
-    # TODO specify this as param
-    out_type = np.float32
 
     write_hdr(params, outf)
 
@@ -74,9 +71,16 @@ def dump(params, G, P, t, dt, fname):
     outf["full_dump_cadence"] = params['dump_cadence']
 
     # Arrays corresponding to actual data
-    outf["prims"] = np.einsum("p...->...p", P[s.allv + s.bulk]).astype(out_type)
-    P_d = cl_array.to_device(params['queue'], P)
-    outf["gamma"] = mhd_gamma_calc(params['queue'], G, P_d, Loci.CENT).astype(out_type).get()[s.bulk]
+    if G.NG > 0:
+        outf["prims"] = np.einsum("p...->...p", P[s.allv + s.bulk]).astype(out_type)
+    else:
+        outf["prims"] = np.einsum("p...->...p", P).astype(out_type)
+    if 'queue' in params and dump_gamma:
+        P_d = cl_array.to_device(params['queue'], P)
+        outf["gamma"] = mhd_gamma_calc(params['queue'], G, P_d, Loci.CENT).astype(out_type).get()[s.bulk]
+    elif dump_gamma:
+        raise NotImplementedError("Implement gamma calc without OpenCL!")
+
 
     # Extra in-situ calculations or custom debugging additions
     outf.create_group("extras")

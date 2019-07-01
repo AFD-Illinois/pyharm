@@ -28,6 +28,9 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_out=50, para
     params['n1tot'] = n1
     params['n2tot'] = n2
     params['n3tot'] = n3
+    params['n1'] = n1
+    params['n2'] = n2
+    params['n3'] = n3
 
     # Things which should ideally be optional in grid creation,
     # but are not for one reason or another
