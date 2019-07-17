@@ -246,11 +246,15 @@ class MKS(CoordinateSystem):
         self.r_hor = 1. + np.sqrt(1. - self.a ** 2)
 
     def native_startx(self, met_params):
-        # Set startx1
-        return np.array([0,
-                         ((met_params['n1tot'] * np.log(self.r_hor) / 5.5 - np.log(met_params['r_out'])) /
-                          (1. + met_params['n1tot'] / 5.5)),
-                         0, 0])
+        if 'r_in' in met_params:
+            # Set startx1 from r_in
+            return np.array([0, np.log(met_params['r_in']), 0, 0])
+        else:
+            # Else automatically
+            return np.array([0,
+                             ((met_params['n1tot'] * np.log(self.r_hor) / 5.5 - np.log(met_params['r_out'])) /
+                              (1. + met_params['n1tot'] / 5.5)),
+                             0, 0])
 
     def native_stopx(self, met_params):
         return np.array([0, np.log(met_params['r_out']), 1, 2*np.pi])
@@ -344,25 +348,36 @@ class BHAC_MKS(CoordinateSystem):
         self.a = met_params['a']
         self.hslope = met_params['hslope']
 
+        # For avoiding coordinate singularity
+        # We can usually leave this default
+        if 'small_theta' in met_params:
+            self.small_th = met_params['small_theta']
+        else:
+            self.small_th = 1.e-20
+
         # Set radius of horizon
         self.r_hor = 1. + np.sqrt(1. - self.a ** 2)
 
     def native_startx(self, met_params):
-        # Set startx1
-        return np.array([0,
-                         ((met_params['n1tot'] * np.log(self.r_hor) / 5.5 - np.log(met_params['r_out'])) /
-                          (1. + met_params['n1tot'] / 5.5)),
-                         0, 0])
+        if 'r_in' in met_params:
+            # Set startx1 from r_in
+            return np.array([0, np.log(met_params['r_in']), 0, 0])
+        else:
+            # Else automatically
+            return np.array([0,
+                             ((met_params['n1tot'] * np.log(self.r_hor) / 5.5 - np.log(met_params['r_out'])) /
+                              (1. + met_params['n1tot'] / 5.5)),
+                             0, 0])
 
     def native_stopx(self, met_params):
-        return np.array([0, np.log(met_params['r_out']), 2*np.pi, 2*np.pi])
+        return np.array([0, np.log(met_params['r_out']), np.pi, 2*np.pi])
 
     def r(self, x):
         return np.exp(x[1])
 
     def th(self, x):
         # BHAC MKS uses 0<X2<pi
-        return x[2] + 2*self.hslope/(np.pi**2)*x[2]*(np.pi - 2*x[2])*(np.pi-x[2])
+        return self.correct_small_th(x[2] + 2*self.hslope/(np.pi**2)*x[2]*(np.pi - 2*x[2])*(np.pi-x[2]))
 
     def phi(self, x):
         return x[3]
@@ -463,4 +478,3 @@ class BL(CoordinateSystem):
     #     dxdX[1, 1] = 1. / X[1]
     #     dxdX[2, 2] = 1. / np.pi
     #     dxdX[3, 3] = 1.
-

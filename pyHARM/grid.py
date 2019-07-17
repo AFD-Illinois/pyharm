@@ -13,10 +13,10 @@ except ModuleNotFoundError:
     pass
 
 from pyHARM.defs import Loci, Slices, Shapes
-from pyHARM.coordinates import Minkowski, MKS, MMKS, FMKS
+from pyHARM.coordinates import *
 
 
-def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_out=50, params=None):
+def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_out=50, params=None):
     """Convenience function for generating grids with default parameters used at Illinois.
     Type should be one of 'minkowski', 'mks', 'fmks'
     Size and coordinate parameters are optional with somewhat reasonable defaults.
@@ -48,6 +48,8 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_out=50, para
         params['a'] = a
         params['hslope'] = hslope
         params['r_out'] = r_out
+        if r_in is not None:
+            params['r_in'] = r_in
         if type == 'fmks' or type == 'mmks':
             params['poly_xt'] = 0.82
             params['poly_alpha'] = 14.0
@@ -119,6 +121,9 @@ class Grid:
         elif params['coordinates'] == "mmks":
             # MMKS additionally requires poly_xt and poly_alpha
             self.coords = MMKS(params)
+        elif params['coordinates'] == "bhac_mks":
+            # BHAC's MKS
+            self.coords = BHAC_MKS(params)
         elif params['coordinates'] == "mks":
             self.coords = MKS(params)
         else:
