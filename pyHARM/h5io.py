@@ -322,7 +322,7 @@ def hdf5_to_dict(h5grp):
     decode_all(ans)
     return ans
 
-def dict_to_hdf5(dict, h5grp):
+def dict_to_hdf5(wdict, h5grp):
     """Write nested dictionaries of Python values to HDF5 groups nested within the group/file h5grp
     If a filename is specified, automatically opens/closes the file.
     """
@@ -331,14 +331,14 @@ def dict_to_hdf5(dict, h5grp):
         h5grp = h5py.File(h5grp, "r+")
         do_close = True
 
-    for key, item in dict.items():
+    for key, item in wdict.items():
         if isinstance(item, dict):
             # Call recursively
             h5grp.create_group(key)
-            dict_to_hdf5(dict[key], h5grp[key])
+            dict_to_hdf5(wdict[key], h5grp[key])
         else:
             # Otherwise write the value to a dataset
-            write_hdf5(dict[key], key, h5grp)
+            write_hdf5(wdict[key], key, h5grp)
 
     if do_close:
         h5grp.close()
