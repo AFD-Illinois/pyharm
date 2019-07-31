@@ -4,7 +4,7 @@ Python tools for HARM: algorithm and analysis
 pyHARM is a set of Python functions implementing (most of) the current version of the HARM scheme for general-relativistic magnetohydrodynamics (GRMHD) from Gammie et al 2003, used by e.g. `iharm3d`, `bhlight`, and others.  It also includes a set of analysis and plotting tools built on these functions, for reading and analyzing HDF5 output from the C-based harm codes, or translated from other codes with [EHT-babel](https://github.com/AFD-Illinois/EHT-babel/).
 
 ## Installing:
-The supported/main method for installation is with anaconda:
+The supported/main method for installation is with anaconda.  Just download it from [here](https://www.anaconda.com/distribution/#download-section), make sure that `conda` is in your `PATH`, and run the following:
 
 ```bash
 $ conda env create -f environment.yml
