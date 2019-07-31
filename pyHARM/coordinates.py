@@ -37,11 +37,11 @@ class CoordinateSystem(object):
 
     def ks_coord(self, x):
         """Return Spherical Kerr-Schild coordinates of a point X in native coordinates"""
-        return self.r(x), self.th(x), self.phi(x)
+        return np.array([self.r(x), self.th(x), self.phi(x)])
 
     def cart_coord(self, x):
         """Return Cartesian Kerr-Schild coordinates of a point X in native coordinates"""
-        return self.cart_x(x), self.cart_y(x), self.cart_z(x)
+        return np.array([self.cart_x(x), self.cart_y(x), self.cart_z(x)])
 
     def correct_small_th(self, theta):
         # Corrections for small theta
