@@ -55,14 +55,15 @@ setup(name="pyHARM",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
 
+      # Loopy is not included here!
+      # Thus, pyHARM installed via setuptools will be analysis-only!
+      # See documentation for details
       install_requires=[
           "psutil",
           "numpy",
           "scipy",
           "matplotlib",
           "h5py",
-          "pyopencl",
-          "loo.py",
           ],
 
       author="Ben Prather",
