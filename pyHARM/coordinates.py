@@ -3,6 +3,9 @@ import numpy as np
 # Need extra broadcasting currently, or this would be scipy.linalg
 import numpy.linalg as la
 
+default_met_params = {'a': 0.9375, 'hslope': 0.3, 'r_out': 50.0, 'n1tot': 192,
+                      'poly_xt': 0.82, 'poly_alpha': 14.0, 'mks_smooth': 0.5}
+
 class CoordinateSystem(object):
     """ Base class for all classes representing coordinate systems
     Coordinate classes define, as functions of their native coordinates X:
@@ -228,7 +231,7 @@ class Minkowski(CoordinateSystem):
 
 
 class MKS(CoordinateSystem):
-    def __init__(self, met_params):
+    def __init__(self, met_params=default_met_params):
         self.a = met_params['a']
         self.hslope = met_params['hslope']
 
@@ -243,11 +246,15 @@ class MKS(CoordinateSystem):
         self.r_hor = 1. + np.sqrt(1. - self.a ** 2)
 
     def native_startx(self, met_params):
-        # Set startx1
-        return np.array([0,
-                         ((met_params['n1tot'] * np.log(self.r_hor) / 5.5 - np.log(met_params['r_out'])) /
-                          (1. + met_params['n1tot'] / 5.5)),
-                         0, 0])
+        if 'r_in' in met_params:
+            # Set startx1 from r_in
+            return np.array([0, np.log(met_params['r_in']), 0, 0])
+        else:
+            # Else automatically
+            return np.array([0,
+                             ((met_params['n1tot'] * np.log(self.r_hor) / 5.5 - np.log(met_params['r_out'])) /
+                              (1. + met_params['n1tot'] / 5.5)),
+                             0, 0])
 
     def native_stopx(self, met_params):
         return np.array([0, np.log(met_params['r_out']), 1, 2*np.pi])
@@ -280,7 +287,7 @@ class MKS(CoordinateSystem):
 
 
 class MMKS(MKS):
-    def __init__(self, met_params):
+    def __init__(self, met_params=default_met_params):
         self.poly_xt = met_params['poly_xt']
         self.poly_alpha = met_params['poly_alpha']
         self.poly_norm = 0.5 * np.pi * 1. / (1. + 1. / (self.poly_alpha + 1.) *
@@ -297,7 +304,7 @@ class MMKS(MKS):
 
 
 class FMKS(MKS):
-    def __init__(self, met_params):
+    def __init__(self, met_params=default_met_params):
         super(FMKS, self).__init__(met_params)
         self.poly_xt = met_params['poly_xt']
         self.poly_alpha = met_params['poly_alpha']
@@ -334,8 +341,66 @@ class FMKS(MKS):
         dxdX[3, 3] = 1
         return dxdX
 
-class BL(CoordinateSystem):
+
+class BHAC_MKS(CoordinateSystem):
+    # Don't set a default, be careful as we only ever translate existing data with this coordinate system
     def __init__(self, met_params):
+        self.a = met_params['a']
+        self.hslope = met_params['hslope']
+
+        # For avoiding coordinate singularity
+        # We can usually leave this default
+        if 'small_theta' in met_params:
+            self.small_th = met_params['small_theta']
+        else:
+            self.small_th = 1.e-20
+
+        # Set radius of horizon
+        self.r_hor = 1. + np.sqrt(1. - self.a ** 2)
+
+    def native_startx(self, met_params):
+        if 'r_in' in met_params:
+            # Set startx1 from r_in
+            return np.array([0, np.log(met_params['r_in']), 0, 0])
+        else:
+            # Else automatically
+            return np.array([0,
+                             ((met_params['n1tot'] * np.log(self.r_hor) / 5.5 - np.log(met_params['r_out'])) /
+                              (1. + met_params['n1tot'] / 5.5)),
+                             0, 0])
+
+    def native_stopx(self, met_params):
+        return np.array([0, np.log(met_params['r_out']), np.pi, 2*np.pi])
+
+    def r(self, x):
+        return np.exp(x[1])
+
+    def th(self, x):
+        # BHAC MKS uses 0<X2<pi
+        return self.correct_small_th(x[2] + 2*self.hslope/(np.pi**2)*x[2]*(np.pi - 2*x[2])*(np.pi-x[2]))
+
+    def phi(self, x):
+        return x[3]
+
+    def cart_x(self, x):
+        return self.r(x)*np.sin(self.th(x))*np.cos(self.phi(x))
+
+    def cart_y(self, x):
+        return self.r(x)*np.sin(self.th(x))*np.sin(self.phi(x))
+
+    def cart_z(self, x):
+        return self.r(x)*np.cos(self.th(x))
+
+    def dxdX(self, x):
+        dxdX = np.zeros([4, 4, *x.shape[1:]])
+        dxdX[0, 0] = 1
+        dxdX[1, 1] = np.exp(x[1])
+        dxdX[2, 2] = 1 - 2*self.hslope + 12 * self.hslope * ((x[2] / np.pi)**2 - x[2]/np.pi)
+        dxdX[3, 3] = 1
+        return dxdX
+
+class BL(CoordinateSystem):
+    def __init__(self, met_params={'a': 0.9375}):
         self.a = met_params['a']
 
     def r(self, x):
@@ -413,4 +478,3 @@ class BL(CoordinateSystem):
     #     dxdX[1, 1] = 1. / X[1]
     #     dxdX[2, 2] = 1. / np.pi
     #     dxdX[3, 3] = 1.
-

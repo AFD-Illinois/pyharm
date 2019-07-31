@@ -57,13 +57,10 @@ def dump_grid(G, fname="dumps/grid.h5"):
     outf.close()
 
 
-def dump(params, G, P, t, dt, fname):
+def dump(params, G, P, t, dt, fname, dump_gamma=True, out_type=np.float32):
     s = G.slices
 
     outf = h5py.File(fname, "w")
-
-    # TODO specify this as param
-    out_type = np.float32
 
     write_hdr(params, outf)
 
@@ -74,9 +71,16 @@ def dump(params, G, P, t, dt, fname):
     outf["full_dump_cadence"] = params['dump_cadence']
 
     # Arrays corresponding to actual data
-    outf["prims"] = np.einsum("p...->...p", P[s.allv + s.bulk]).astype(out_type)
-    P_d = cl_array.to_device(params['queue'], P)
-    outf["gamma"] = mhd_gamma_calc(params['queue'], G, P_d, Loci.CENT).astype(out_type).get()[s.bulk]
+    if G.NG > 0:
+        outf["prims"] = np.einsum("p...->...p", P[s.allv + s.bulk]).astype(out_type)
+    else:
+        outf["prims"] = np.einsum("p...->...p", P).astype(out_type)
+    if 'queue' in params and dump_gamma:
+        P_d = cl_array.to_device(params['queue'], P)
+        outf["gamma"] = mhd_gamma_calc(params['queue'], G, P_d, Loci.CENT).astype(out_type).get()[s.bulk]
+    elif dump_gamma:
+        raise NotImplementedError("Implement gamma calc without OpenCL!")
+
 
     # Extra in-situ calculations or custom debugging additions
     outf.create_group("extras")
@@ -182,32 +186,35 @@ def read_checkpoint(params, fname):
         params[key] = outf["params"][key][()]
     return cl_array.to_device(params['queue'], outf["prims"][()])  # TODO other stuff
 
+def write_hdf5(value, name, outf):
+    """Write a single value to HDF5 file outf, automatically converting Python3 strings & lists"""
+    if isinstance(value, list):
+        if isinstance(value[0], str):
+            load = [n.encode("ascii", "ignore") for n in value]
+        else:
+            load = value
+    elif isinstance(value, str):
+        load = value.encode("ascii", "ignore")
+    else:
+        load = value
+
+    # If key exists just overwrite it
+    if name not in outf:
+        outf[name] = load
+    else:
+        outf[name][()] = load
 
 def write_hdr(params, outf):
-    # TODO better conformity to HARM standard
+    # TODO better conformity to HARM standard:
+    # 1. Hierarchy
+    # 2. Formatting
+    # 3. Don't drop in extraneous values
     if "header" not in outf:
         outf.create_group("header")
 
-    # Write everything except the pointers, if it's not already in there
+    # Write everything except the pointers
     for key in [p for p in params if (p not in ['ctx', 'queue'])]:
-        # Convert strings to ascii for HDF5
-        if isinstance(params[key], list):
-            if isinstance(params[key][0], str):
-                load = [n.encode("ascii", "ignore") for n in params[key]]
-            else:
-                load = params[key]
-        elif isinstance(params[key], str):
-            load = params[key].encode("ascii", "ignore")
-        else:
-            load = params[key]
-
-        # Load everything in, if key exists just overwrite it
-        if key not in outf["header"]:
-            outf["header"][key] = load
-        else:
-            outf["header"][key][()] = load
-
-
+        write_hdf5(outf, params[key], 'header/'+key)
 
 def read_hdr(dfile):
     hdr = {}
@@ -290,35 +297,51 @@ def read_hdr(dfile):
     return hdr
 
 
-def hdf5_to_dict(h5file, path='/'):
-    """Recursively load group contents and sort into recursive dictionaries.
+def hdf5_to_dict(h5grp):
+    """Recursively load group contents into nested dictionaries.
     Used to load analysis output while keeping shapes straight
     """
     do_close = False
-    if isinstance(h5file, str):
-        h5file = h5py.File(h5file, "r")
+    if isinstance(h5grp, str):
+        h5grp = h5py.File(h5grp, "r")
         do_close = True
 
     ans = {}
-    for key, item in h5file[path].items():
-        if path == '/' and key == 'header':
-            # Parse the header separately to flatten it?
-            #ans[key] = read_hdr(h5file)
-            ans[key] = hdf5_to_dict(h5file, path + key + "/")
+    for key, item in h5grp.items():
+        if isinstance(item, h5py._hl.group.Group):
+            # Call recursively
+            ans[key] = hdf5_to_dict(h5grp[key])
         elif isinstance(item, h5py._hl.dataset.Dataset):
-            # Otherwise either read the dataset
+            # Otherwise read the dataset
             ans[key] = item[()]
-        elif isinstance(item, h5py._hl.group.Group):
-            # Or call recursively
-            ans[key] = hdf5_to_dict(h5file, path + key + "/")
 
     if do_close:
-        h5file.close()
+        h5grp.close()
 
     # This runs the un-bytes-ing too much, but somehow not enough
     decode_all(ans)
     return ans
 
+def dict_to_hdf5(wdict, h5grp):
+    """Write nested dictionaries of Python values to HDF5 groups nested within the group/file h5grp
+    If a filename is specified, automatically opens/closes the file.
+    """
+    do_close = False
+    if isinstance(h5grp, str):
+        h5grp = h5py.File(h5grp, "r+")
+        do_close = True
+
+    for key, item in wdict.items():
+        if isinstance(item, dict):
+            # Call recursively
+            h5grp.create_group(key)
+            dict_to_hdf5(wdict[key], h5grp[key])
+        else:
+            # Otherwise write the value to a dataset
+            write_hdf5(wdict[key], key, h5grp)
+
+    if do_close:
+        h5grp.close()
 
 # Function to recursively un-bytes all the dumb HDF5 strings
 def decode_all(bytes_dict):
