@@ -9,9 +9,10 @@ default_met_params = {'a': 0.9375, 'hslope': 0.3, 'r_out': 50.0, 'n1tot': 192,
 class CoordinateSystem(object):
     """ Base class for all classes representing coordinate systems
     Coordinate classes define, as functions of their native coordinates X:
-     * r,th,phi in spherical KS coordinates (or just spherical coordinates in the case of Minkowski)
+     * r,th,phi in spherical Kerr-Schild coordinates (or just spherical coordinates in the case of Minkowski)
      * A transformation matrix, dxdX, for tensors from one system to the other
      * The forms and determinant of the metric, gcov, gcon, & gdet
+     Assuming the coordinates are a re-indexing of KS
     """
 
     def native_startx(cls, met_params):
@@ -101,10 +102,12 @@ class CoordinateSystem(object):
 
     def gcon(self, gcov):
         """Return contravariant form of the metric, given the covariant form.
-        As with all Grid functions, the matrix/vector indices are *first*.  Specifically, gcon_func expects
+        As with all coordinate functions, the matrix/vector indices are *first*.  Specifically, gcon_func expects
         exactly zero grid indices (i.e. a single 4x4 matrix) or two grid indices (i.e. 4x4xN1xN2).
         """
-        # TODO also make available as a function of X by nesting with above?
+        # TODO option to take coordinates and auto-call gcon?
+        # TODO support 1 & 3 dimensional arrays of input matrices, probably with einsum
+        # TODO add option to return gdet for speed
         if len(gcov.shape) == 2:
             return la.inv(gcov)
         elif len(gcov.shape) == 4:
@@ -115,7 +118,7 @@ class CoordinateSystem(object):
             raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2".format(gcov.shape))
 
     def gdet(self, gcov):
-        """Return the negative root determinant of the metric, given the covariant form."""
+        r"""Return the negative root determinant of the metric :math:`\sqrt{-g}`, given the covariant form."""
         # TODO could share more code w/above. Worth it?
         if len(gcov.shape) == 2:
             return np.sqrt(-la.det(gcov))
@@ -249,12 +252,15 @@ class MKS(CoordinateSystem):
         if 'r_in' in met_params:
             # Set startx1 from r_in
             return np.array([0, np.log(met_params['r_in']), 0, 0])
-        else:
-            # Else automatically
+        elif 'n1tot' in met_params and 'r_out' in met_params:
+            # Else via a guess
             return np.array([0,
                              ((met_params['n1tot'] * np.log(self.r_hor) / 5.5 - np.log(met_params['r_out'])) /
                               (1. + met_params['n1tot'] / 5.5)),
                              0, 0])
+        else:
+            # Else a resonable default. TODO more reasonable?
+            return 1.0
 
     def native_stopx(self, met_params):
         return np.array([0, np.log(met_params['r_out']), 1, 2*np.pi])

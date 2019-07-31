@@ -1,4 +1,4 @@
-## Handle adding units to quantities.  Work in progress
+# Tools for converting a set of self-consistent "code" units to CGS units.  Work in progress
 
 import numpy as np
 
@@ -57,6 +57,6 @@ def _get_all_units(M_unit, L_unit, T_unit, tp_over_te, gam=4 / 3):
         out['Thetae_unit'] = cgs['MP'] / cgs['ME']
 
     # Add constants
-    out = {**out, **cgs}
+    out.update(cgs)
 
     return out
