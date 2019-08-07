@@ -50,20 +50,21 @@ write_git_revision("pyHARM")
 
 
 setup(name="pyHARM",
-      version="2019.5",
+      version="2019.7",
       description="Python tools for HARM: algorithm and analysis",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
 
-      # Loopy is not included here!
-      # Thus, pyHARM installed via setuptools will be analysis-only!
-      # See documentation for details
       install_requires=[
           "psutil",
           "numpy",
           "scipy",
           "matplotlib",
           "h5py",
+          # Optional dependencies
+          # Usually installed through Anaconda
+          #"pyopencl",
+          #"loo.py",
           ],
 
       author="Ben Prather",
