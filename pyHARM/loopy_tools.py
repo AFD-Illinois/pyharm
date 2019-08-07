@@ -9,7 +9,8 @@ def use_2018_2():
     try:
         from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
     except ImportError:
-        print("Using old version of loopy! Please use 2018_2 from github!")
+        #print("Using old version of loopy! Please use 2018_2 from github!")
+        pass
 
 use_2018_2()
 

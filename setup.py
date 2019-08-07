@@ -50,7 +50,7 @@ write_git_revision("pyHARM")
 
 
 setup(name="pyHARM",
-      version="2019.5",
+      version="2019.7",
       description="Python tools for HARM: algorithm and analysis",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
@@ -61,8 +61,10 @@ setup(name="pyHARM",
           "scipy",
           "matplotlib",
           "h5py",
-          "pyopencl",
-          "loo.py",
+          # Optional dependencies
+          # Usually installed through Anaconda
+          #"pyopencl",
+          #"loo.py",
           ],
 
       author="Ben Prather",
