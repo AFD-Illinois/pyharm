@@ -105,8 +105,15 @@ if tend == 0.:
 # Get header and geometry stuff from the first dump on the list
 dump = IharmDump(dumps[0], params=params, add_derived=False)
 hdr = dump.header
+
+if len(dump['r'].shape) == 3:
+    r1d = dump['r'][:, dump.header['n2']//2, 0]
+elif len(dump['r'].shape) == 2:
+    r1d = dump['r'][:, dump.header['n2']//2]
+elif len(dump['r'].shape) == 1:
+    r1d = dump['r']
+
 # Leave several extra zones if using MKS3 coordinates
-r1d = dump['r'][:, dump.header['n2']//2, 0]
 if dump.header['metric'] == "mks3":
     iEH = i_of(r1d, dump.header['r_eh']) + 4
 else:

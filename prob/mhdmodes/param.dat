@@ -20,12 +20,12 @@
 [dbl] checkpoint_cadence = 100
 [dbl] log_cadence = 0.3
 
-[dbl] x1Min = 0.0
-[dbl] x1Max = 1.0
-[dbl] x2Min = 0.0
-[dbl] x2Max = 1.0
-[dbl] x3Min = 0.0
-[dbl] x3Max = 1.0
+[dbl] x1min = 0.0
+[dbl] x1max = 1.0
+[dbl] x2min = 0.0
+[dbl] x2max = 1.0
+[dbl] x3min = 0.0
+[dbl] x3max = 1.0
 
 # Floors
 [dbl] sigma_max = (100.)

@@ -186,7 +186,7 @@ def read_checkpoint(params, fname):
         params[key] = outf["params"][key][()]
     return cl_array.to_device(params['queue'], outf["prims"][()])  # TODO other stuff
 
-def write_hdf5(value, name, outf):
+def write_hdf5(outf, value, name):
     """Write a single value to HDF5 file outf, automatically converting Python3 strings & lists"""
     if isinstance(value, list):
         if isinstance(value[0], str):
@@ -338,7 +338,7 @@ def dict_to_hdf5(wdict, h5grp):
             dict_to_hdf5(wdict[key], h5grp[key])
         else:
             # Otherwise write the value to a dataset
-            write_hdf5(wdict[key], key, h5grp)
+            write_hdf5(h5grp, wdict[key], key)
 
     if do_close:
         h5grp.close()

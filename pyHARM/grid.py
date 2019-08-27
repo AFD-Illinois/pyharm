@@ -111,7 +111,7 @@ class Grid:
         self.slices = Slices(self.NG)
         self.shapes = Shapes(self, params)
 
-        if params['coordinates'] == "minkowski":
+        if params['coordinates'] in ["minkowski", "cartesian"]:
             # There are no parameters to Minkowski coordinates, so this is a class, not an object
             self.coords = Minkowski
         # MKS, FMKS expect the parameters a, hslope

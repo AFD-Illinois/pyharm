@@ -169,21 +169,23 @@ def _fib_bin(data, freqs):
 ## Sums and Averages ##
 
 
-def get_eht_disk_j_vals(dump):
+def get_eht_disk_j_vals(dump, th_min=np.pi / 3., th_max=2*np.pi / 3.):
     """Calculate jmin, jmax in theta coordinate for EHT disk profiles (pi/3 - 2pi/3)"""
-    THMIN = np.pi / 3.
-    THMAX = 2. * np.pi / 3.
     # Calculate jmin, jmax for EHT radial profiles
-    #ths = G.coords.th(G.coord_all())[-1, :, 0]
-    ths = dump['th'][-1, :, 0]
+    # Use values at large R to get even split in radially-dependent coordinates
+    if len(dump['th'].shape) == 3:
+        ths = dump['th'][-1, :, 0]
+    elif len(dump['th'].shape) == 2:
+        ths = dump['th'][-1, :]
+
     jmin, jmax = -1, -1
     for n in range(len(ths)):
-        if ths[n] > THMIN:
+        if ths[n] > th_min:
             jmin = n
             break
 
     for n in range(len(ths)):
-        if ths[n] > THMAX:
+        if ths[n] > th_max:
             jmax = n
             break
 

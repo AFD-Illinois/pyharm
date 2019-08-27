@@ -83,13 +83,20 @@ def calc_nthreads(hdr, n_mkl=8, pad=0.25):
 
 # Convenience for finding zone containing a given value,
 # in coordinate/monotonic-increase variables
-def i_of(var, val, behind=True):
+def i_of(var, val, behind=True, fail=False):
     i = 0
     while var[i] < val:
         i += 1
+        # Warn or fail if we step too far
+        if i == len(var):
+            if fail:
+                raise ValueError("Array does not contain value {}".format(val))
+            else:
+                print("Warning: using last value {} as desired value {}".format(var[-1], val))
+                break
 
     # Return zone before the value, usually what we want for fluxes
-    if behind:
+    if behind or i == len(var):
         i -= 1
 
     return i

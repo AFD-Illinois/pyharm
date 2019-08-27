@@ -175,13 +175,26 @@ class CoordinateSystem(object):
 class Minkowski(CoordinateSystem):
     @classmethod
     def native_startx(cls, met_params):
-        return np.array([0, met_params['x1Min'], met_params['x2Min'], met_params['x3Min']])
+        # Allow 2 parameter conventions:
+        # 1. XNmin/max: simulation convention, resolution-independent
+        # 2. startxN/dxN: file convention, uses only parameters present in HARM format
+        if 'x1min' in met_params:
+            return np.array([0, met_params['x1min'], met_params['x2min'], met_params['x3min']])
+        else:
+            return np.array([0, met_params['startx1'], met_params['startx2'], met_params['startx3']])
 
     @classmethod
     def native_stopx(cls, met_params):
-        return np.array([0, met_params['x1Max'], met_params['x2Max'], met_params['x3Max']])
+        if 'x1max' in met_params:
+            return np.array([0, met_params['x1max'], met_params['x2max'], met_params['x3max']])
+        else:
+            return np.array([0,
+                             met_params['startx1'] + (met_params['n1']*met_params['dx1']),
+                             met_params['startx2'] + (met_params['n2']*met_params['dx2']),
+                             met_params['startx3'] + (met_params['n3']*met_params['dx3'])]
+                            )
 
-    # TODO do these actually make sense?  We usually only use the positive octant...
+    # TODO these only make sense for non-negative x
     @classmethod
     def r(cls, x):
         return x[1]**2 + x[2]**2 + x[3]**2
