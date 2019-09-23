@@ -1,4 +1,4 @@
-# Tools for converting a set of self-consistent "code" units to CGS units.  Work in progress
+# Tools for converting a set of self-consistent "code" units to CGS units
 
 import numpy as np
 
@@ -27,26 +27,20 @@ cgs = {
 def get_cgs():
     return cgs
 
-
 # Get M87 units. Pass tp_over_te=None to get non-constant-frac units
 def get_units_M87(M_unit, tp_over_te=3):
-    L_unit = 9.15766e+14
-    T_unit = L_unit / cgs['CL']
-    out = _get_all_units(M_unit, L_unit, T_unit, tp_over_te)
-    # TODO actually calculate this here
-    out['Mdotedd'] = 8.67422e+27
-    return out
-
+    return get_units(6.2e9, L_unit, tp_over_te)
 
 # Internal method for all the well-defined units
-def _get_all_units(M_unit, L_unit, T_unit, tp_over_te, gam=4 / 3):
+# Note tp_over_te only matters for Thetae_unit
+# Also note Mdotedd assumes 10% efficiency
+def get_units(MBH, M_unit, tp_over_te=3, gam=4/3):
     out = {}
     out['M_unit'] = M_unit
-    out['L_unit'] = L_unit
-    out['T_unit'] = T_unit
+    out['L_unit'] = L_unit = cgs['GNEWT']*MBH / cgs['CL']**2
+    out['T_unit'] = L_unit / cgs['CL']
 
-    RHO_unit = M_unit / (L_unit ** 3)
-    out['RHO_unit'] = RHO_unit
+    out['RHO_unit'] = RHO_unit  = M_unit / (L_unit ** 3)
     out['U_unit'] = RHO_unit * cgs['CL'] ** 2
     out['B_unit'] = cgs['CL'] * np.sqrt(4. * np.pi * RHO_unit)
     out['Ne_unit'] = RHO_unit / (cgs['MP'] + cgs['ME'])
@@ -55,6 +49,8 @@ def _get_all_units(M_unit, L_unit, T_unit, tp_over_te, gam=4 / 3):
         out['Thetae_unit'] = (gam - 1.) * cgs['MP'] / cgs['ME'] / (1. + tp_over_te)
     else:
         out['Thetae_unit'] = cgs['MP'] / cgs['ME']
+
+    out['Mdotedd'] = 4.*np.pi * cgs['GNEWT'] * MBH * cgs['MP'] / (0.1 * cgs['CL'] * cgs['THOMSON'])
 
     # Add constants
     out.update(cgs)

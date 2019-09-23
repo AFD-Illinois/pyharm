@@ -28,6 +28,25 @@ def run_parallel(function, nmax, nthreads, debug=False):
         pool.close()
     pool.join()
 
+# Run a function in parallel with Python's multiprocessing
+# 'function' must take only a number
+# 'merge_function' must take the same number plus whatever 'function' outputs, and adds to the dictionary out_dict
+def map_parallel(function, nmax, nthreads, debug=False, initializer=None, initargs=()):
+    if initializer is not None:
+        pool = multiprocessing.Pool(nthreads, initializer=initializer, initargs=initargs)
+    else:
+        pool = multiprocessing.Pool(nthreads)
+
+    try:
+        # Map the function over the list. Results are 
+        out_iter = pool.map(function, list(range(nmax)))
+    except KeyboardInterrupt:
+        pool.terminate()
+        pool.join()
+    else:
+        pool.close()
+        pool.join()
+    return out_iter
 
 # Run a function in parallel with Python's multiprocessing
 # 'function' must take only a number

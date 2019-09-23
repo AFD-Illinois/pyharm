@@ -81,8 +81,7 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=True, **kwargs):
 
 
 def get_grid(infile):
-    # TODO avoid reading/dicting whole header, just grab grid stuff
-    params = hdf5_to_dict(infile['header'])
+    params = read_hdr(infile['header'])
     return Grid(params)
 
 
