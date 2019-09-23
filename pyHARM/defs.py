@@ -122,15 +122,15 @@ class Shapes:
         self.grid_scalar = (G.GN[1], G.GN[2], G.GN[3])
         self.grid_vector = (4,) + self.grid_scalar
         self.grid_tensor = (4,) + self.grid_vector
-        self.grid_primitives = (params['n_prims'],) + self.grid_scalar
+        self.grid_primitives = (params['n_prim'],) + self.grid_scalar
 
         self.bulk_scalar = (G.N[1], G.N[2], G.N[3])
         self.bulk_vector = (4,) + self.bulk_scalar
         self.bulk_tensor = (4,) + self.bulk_vector
-        self.bulk_primitives = (params['n_prims'],) + self.bulk_scalar
+        self.bulk_primitives = (params['n_prim'],) + self.bulk_scalar
 
         self.halo1_scalar = (G.N[1] + 2, G.N[2] + 2, G.N[3] + 2)
-        self.halo1_primitives = (params['n_prims'],) + self.halo1_scalar
+        self.halo1_primitives = (params['n_prim'],) + self.halo1_scalar
 
 
         # ISL language definitions of common kernel sizes

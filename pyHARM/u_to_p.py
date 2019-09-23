@@ -266,7 +266,7 @@ def U_to_P(params, G, U, P, Pout=None, iter_max=None):
                                         *scalarArrayArgs("D", "gamma", "Wp", "Bsq", "QdB"),
                                         *scalarArrayArgs("eflag", dtype=np.int32), ...],
                                        assumptions=sh.assume_grid, default_offset=lp.auto)
-        knl_utop_set = lp.fix_parameters(knl_utop_set, gam=params['gam'], nprim=params['n_prims'], ndim=4)
+        knl_utop_set = lp.fix_parameters(knl_utop_set, gam=params['gam'], nprim=params['n_prim'], ndim=4)
         knl_utop_set = tune_grid_kernel(knl_utop_set, sh.bulk_scalar, ng=G.NG)
         print("Compiled utop_set")
 
@@ -306,7 +306,7 @@ def err_eqn(params, G, Bsq,  D,  Ep,  QdB,  Qtsq, Wp, eflag, out=None):
                                          *scalarArrayArgs("eflag", dtype=np.int32),
                                          ...],
                                      assumptions=sh.assume_grid, default_offset=lp.auto)
-        knl_err_eqn = lp.fix_parameters(knl_err_eqn, nprim=params['n_prims'], gam=params['gam'],
+        knl_err_eqn = lp.fix_parameters(knl_err_eqn, nprim=params['n_prim'], gam=params['gam'],
                                         gamma_max=params['gamma_max'])
         knl_err_eqn = tune_grid_kernel(knl_err_eqn, sh.bulk_scalar, ng=G.NG)
 
@@ -387,7 +387,7 @@ def Wp_func(params, G, P, loc, eflag, out=None):
                                       *scalarArrayArgs("eflag", dtype=np.int32),
                                       ...],
                                      assumptions=sh.assume_grid, default_offset=lp.auto)
-        knl_Wp_func = lp.fix_parameters(knl_Wp_func, nprim=params['n_prims'], gam=params['gam'],
+        knl_Wp_func = lp.fix_parameters(knl_Wp_func, nprim=params['n_prim'], gam=params['gam'],
                                         gamma_max=params['gamma_max'])
         knl_Wp_func = tune_grid_kernel(knl_Wp_func, sh.bulk_scalar, ng=G.NG)
         print("Compiled Wp_func")

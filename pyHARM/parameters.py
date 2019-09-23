@@ -5,11 +5,13 @@ import sys
 
 
 def defaults():
-    return {# Basics
+    return {# Basics & 
             'version': "pyHARM-alpha-0.01",
             'ng': 3,
             'outdir': ".",
             'paramfile': "param.dat",
+            'gridfile': "grid.h5",
+            'n_prims_passive': 0,
             # Stability
             'dt_start': 1.0e-06,
             'safe_step_increase': 1.5,
@@ -31,7 +33,7 @@ def parse_dat(params, fname):
     """Parse the HARM params.dat format to produce a Python dict.
     params.dat format:
     [tag] name = value
-    Where tag is in {dbl, float, int, str} corresponding to desire datatype.
+    Where tag is in {dbl, float, int, str} corresponding to desired datatype.
     All lines not in this format are ignored, though conventionally comments begin with '# '
     """
     fp = open(fname, "r")
@@ -52,18 +54,18 @@ def parse_dat(params, fname):
 
 
 def fix(params):
-    # Fix common omissions
+    # Fix common parameter mistakes
     if ('derefine_poles' in params) and (params['derefine_poles'] == 1):
         params['metric'] = "fmks"
     if 'Rout' in params:
         params['r_out'] = params['Rout']
     if 'electrons' in params and params['electrons'] == 1:
         params['electrons'] = True
-        params['n_prims'] = 10
+        params['n_prim'] = 10
         params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KTOT", "KEL"]
     else:
         params['electrons'] = False
-        params['n_prims'] = 8
+        params['n_prim'] = 8
         params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
 
     return params

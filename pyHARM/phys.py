@@ -53,7 +53,7 @@ def Tmhd_vec(params, G, P, D, dir, out=None):
                                        ...],
                                       assumptions=sh.assume_grid + "and 0 <= dir < ndim",
                                       default_offset=lp.auto)
-        knl_Tmhd_vec = lp.fix_parameters(knl_Tmhd_vec, gam=params['gam'], nprim=params['n_prims'], ndim=4)
+        knl_Tmhd_vec = lp.fix_parameters(knl_Tmhd_vec, gam=params['gam'], nprim=params['n_prim'], ndim=4)
         knl_Tmhd_vec = tune_grid_kernel(knl_Tmhd_vec, sh.grid_vector)
         knl_Tmhd_vec = lp.tag_inames(knl_Tmhd_vec, "nu:unr,mu:unr")
         print("Compiled Tmhd_vec")
@@ -97,7 +97,7 @@ def prim_to_flux(params, G, P, D=None, dir=0, loc=Loci.CENT, out=None):
                                            *gscalarArrayArgs("gdet", ghosts=False), ...],
                                           assumptions=sh.assume_grid + "and 0 <= dir < ndim",
                                           default_offset=lp.auto)
-        knl_prim_to_flux = lp.fix_parameters(knl_prim_to_flux, nprim=params['n_prims'], ndim=4)
+        knl_prim_to_flux = lp.fix_parameters(knl_prim_to_flux, nprim=params['n_prim'], ndim=4)
         # TODO keep k because of the geom argument
         knl_prim_to_flux = tune_grid_kernel(knl_prim_to_flux, sh.grid_scalar)
         print("Compiled prim_to_flux")
@@ -158,7 +158,7 @@ def ucon_calc(params, G, P, loc, out=None):
                                         *gvectorArrayArgs("gcon", ghosts=False),
                                         *gtensorArrayArgs("gcov", ghosts=False), ...],
                                        assumptions=sh.assume_grid, default_offset=lp.auto)
-        knl_ucon_calc = lp.fix_parameters(knl_ucon_calc, nprim=params['n_prims'], ndim=4)
+        knl_ucon_calc = lp.fix_parameters(knl_ucon_calc, nprim=params['n_prim'], ndim=4)
         knl_ucon_calc = tune_grid_kernel(knl_ucon_calc, sh.grid_scalar)
         print("Compiled ucon_calc")
 
@@ -190,7 +190,7 @@ def bcon_calc(params, G, P, ucon, ucov, out=None):
                                   [*primsArrayArgs("P", ghosts=False),
                                    *vecArrayArgs("ucon", "ucov", "bcon", ghosts=False), ...],
                                   assumptions=sh.assume_grid, default_offset=lp.auto)
-        knl_bcon_calc = lp.fix_parameters(knl_bcon_calc, nprim=params['n_prims'], ndim=4)
+        knl_bcon_calc = lp.fix_parameters(knl_bcon_calc, nprim=params['n_prim'], ndim=4)
         knl_bcon_calc = tune_grid_kernel(knl_bcon_calc, sh.grid_scalar)
         print("Compiled bcon_calc")
 
@@ -280,7 +280,7 @@ def mhd_vchar(params, G, P, D, loc, dir, vmax_out=None, vmin_out=None):
                                        [*primsArrayArgs("P", ghosts=False), ...],
                                        assumptions=sh.assume_grid, default_offset=lp.auto)
 
-        knl_mhd_vchar = lp.fix_parameters(knl_mhd_vchar, gam=params['gam'], nprim=params['n_prims'])
+        knl_mhd_vchar = lp.fix_parameters(knl_mhd_vchar, gam=params['gam'], nprim=params['n_prim'])
         knl_mhd_vchar = tune_grid_kernel(knl_mhd_vchar, sh.grid_vector)
         knl_mhd_vchar = lp.tag_inames(knl_mhd_vchar, "mu:unr")
         print("Compiled mhd_vchar")
@@ -357,5 +357,5 @@ def get_fluid_source(params, G, P, D, out=None):
     #
     #     (*dU)[ip] += U[ip]
     # Remember this from above
-    # for p in range(params['n_prims']):
+    # for p in range(params['n_prim']):
     #     G.timesgeom(params['queue'], u=out[p], g=G.gdet_d[Loci.CENT.value], out=out[p])

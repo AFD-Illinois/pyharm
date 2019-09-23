@@ -161,7 +161,7 @@ def fixup_floor(params, fflag, G, P):
                                                  *scalarArrayArgs("bsq", "rhoflr_geom", "uflr_geom"),
                                                  ...])
         knl_floors = lp.fix_parameters(knl_floors, sig_max=params['sigma_max'], temp_max=params['u_over_rho_max'],
-                                       nprim=params['n_prims'])
+                                       nprim=params['n_prim'])
         knl_floors = tune_grid_kernel(knl_floors, shape=sh.bulk_scalar, ng=G.NG,
                                       prefetch_args=["bsq", "rhoflr_geom", "uflr_geom"])
         print("Compiled fixup_floors")

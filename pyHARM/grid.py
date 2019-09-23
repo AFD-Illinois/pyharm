@@ -64,7 +64,6 @@ class Grid:
     size, shape, zones' global locations, metric tensor
     """
 
-    # TODO privatize lots of functions as interaction will be with member variables
     def __init__(self, params):
         """
         Initialize a Grid object.  This object divides a space of native coordinates into zones, and stores the

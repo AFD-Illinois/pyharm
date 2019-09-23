@@ -70,7 +70,7 @@ def compile_recon_kernel(params, G, dir, subs):
 
     # This is the template for general optimization but will get more complicated for the patterns
     # in different directions.
-    knl = lp.fix_parameters(knl, eps=1.e-26, nprim=params['n_prims'])
+    knl = lp.fix_parameters(knl, eps=1.e-26, nprim=params['n_prim'])
     knl = lp.fix_parameters(knl, n1=int(G.N[1]+2), n2=int(G.N[2]+2), n3=int(G.N[3]+2), ng=G.NG-1)
     knl = lp.split_iname(knl, "k", 64, outer_tag="g.0", inner_tag="l.0")
     knl = lp.split_iname(knl, "j", 1, outer_tag="g.1", inner_tag="unr")
