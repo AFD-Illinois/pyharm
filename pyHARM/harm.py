@@ -45,7 +45,7 @@ print(params['ctx'])
 params['queue'] = cl.CommandQueue(params['ctx'])
 
 # Import correct problem file/initialization
-sys.path.insert(1, os.path.join(sys.path[0], '../prob'))
+sys.path.insert(1, os.path.join(sys.path[0], "..", "prob"))
 problem = importlib.import_module(params['prob'] + "." + params['prob'])
 
 # Arrange file paths
@@ -69,7 +69,7 @@ else:
     logger.info("Grid generated: {}, size {} in {}".format(params['coordinates'], G.N,
                                                            (datetime.now() - walltime_start)))
     # Honestly gridfiles are probably not necessary now, but they're good sanity checks
-    h5io.dump_grid(G, fname=os.path.join(dump_path, "grid.h5"))
+    h5io.write_grid(G, fname=os.path.join(dump_path, params['gridfile']))
 
     # Create an ndarray to hold initial values temporarily
     P = np.zeros(G.shapes.grid_primitives)
@@ -87,7 +87,7 @@ else:
     tlog = params['log_cadence']
     #tcheckpoint = params['checkpoint_cadence']
 
-    h5io.dump(params, G, P.get(), t, dt, "dumps/dump_00000000.h5")
+    h5io.write_dump(params, G, P.get(), t, dt, nstep, os.path.join(dump_path,"dump_{:08d}.h5".format(0)))
     ndump = 1
 
     #write_checkpoint(params, P, "restarts/restart_00000000.h5")
@@ -123,7 +123,7 @@ while t < params['tf']:
                 t = t.get()
             if not isinstance(dt, float) and not isinstance(dt, np.ndarray):
                 dt = dt.get()
-            h5io.dump(params, G, P.get(), t, dt, "dumps/dump_{:08d}.h5".format(ndump))
+            h5io.write_dump(params, G, P.get(), t, dt, nstep, os.path.join(dump_path,"dump_{:08d}.h5".format(ndump)))
             ndump += 1
             tdump += params['dump_cadence']
         if t >= tlog:

@@ -14,8 +14,30 @@ except ModuleNotFoundError:
 
 from pyHARM.defs import Loci
 
+# FORMAT SPEC
+# Constants corresponding to the HARM format as written in HDF5.  Useful for checking compliance,
+# and writing files correctly
+# Keys in the base directory
+base_keys = ['t', 'dt', 'dump_cadence', 'full_dump_cadence', 'is_full_dump', 'n_dump', 'n_step']
+# Keys that should be in the header:
+header_keys = ['cour', 'gam', 'tf', #'fel0', 'gam_e', 'gam_p', 'tptemax', 'tptemin', # when we do e- later
+               'gridfile', 'metric', 'reconstruction', 'version', 'prim_names',
+               'n1', 'n2', 'n3', 'n_prim', 'n_prims_passive']
+               #'has_electrons', 'has_radiation']
+# Keys in header/geom
+geom_keys = ['dx1', 'dx2', 'dx3', 'startx1', 'startx2', 'startx3', 'n_dim']
+# Keys in potential geom/mks
+mks_keys = ['r_eh', 'r_in', 'r_out', 'a', 'hslope']
+fmks_keys = ['mks_smooth', 'poly_alpha', 'poly_xt']
+# A generally useful set of translations: names of pyHARM parameters,
+# with their counterparts in the HDF5 format
+# TODO standardize the last one, at least
+translations = {'n1': 'n1tot', 'n2': 'n2tot', 'n3': 'n3tot', 'metric': 'coordinates'}
 
-def dump_grid(G, fname="dumps/grid.h5"):
+# Static dump counter (easier than passing from caller...)
+n_dump = 1
+
+def write_grid(G, fname="dumps/grid.h5"):
     """Dump a file containing grid zones.
     This will primarily be of archival use soon -- see grid.py, coordinates.py for
     a good way of reconstructing all common grids on the fly.
@@ -57,18 +79,24 @@ def dump_grid(G, fname="dumps/grid.h5"):
     outf.close()
 
 
-def dump(params, G, P, t, dt, fname, dump_gamma=True, out_type=np.float32):
+def write_dump(params, G, P, t, dt, n, fname, dump_gamma=True, out_type=np.float32):
+    global n_dump
     s = G.slices
 
     outf = h5py.File(fname, "w")
 
-    write_hdr(params, outf)
+    write_hdr(G, params, outf)
 
-    # Per-dump single variables
-    outf["t"] = t
-    outf["dt"] = dt
-    outf["dump_cadence"] = params['dump_cadence']
-    outf["full_dump_cadence"] = params['dump_cadence']
+    # Per-write_dump single variables
+    outf['t'] = t
+    outf['dt'] = dt
+    outf['dump_cadence'] = params['dump_cadence']
+    outf['full_dump_cadence'] = params['dump_cadence']
+    outf['is_full_dump'] = 1
+    outf['n_dump'] = n_dump
+    outf['n_step'] = n
+
+    # TODO jcon
 
     # Arrays corresponding to actual data
     if G.NG > 0:
@@ -83,20 +111,23 @@ def dump(params, G, P, t, dt, fname, dump_gamma=True, out_type=np.float32):
 
 
     # Extra in-situ calculations or custom debugging additions
-    outf.create_group("extras")
+    if "extras" not in outf:
+        outf.create_group("extras")
 
     outf.close()
+    
+    n_dump += 1
 
 
 def read_dump(fname, get_gamma=False, get_jcon=False, zones_first=False, read_type=np.float32):
-    """Read the header and primitives from a dump.
+    """Read the header and primitives from a write_dump.
     No analysis or extra processing is performed
     """
     infile = h5py.File(fname, "r")
 
-    params = read_hdr(infile)
+    params = read_hdr(infile['/header'])
 
-    # Per-dump single variables.  TODO more?
+    # Per-write_dump single variables.  TODO more?
     for key in ['t', 'dt', 'dump_cadence', 'full_dump_cadence']:
         if key in infile:
             params[key] = infile[key][()]
@@ -112,14 +143,14 @@ def read_dump(fname, get_gamma=False, get_jcon=False, zones_first=False, read_ty
         if "gamma" in infile:
             out_list.append(infile["gamma"][()])
         else:
-            print("Requested gamma, but not present in dump!")
+            print("Requested gamma, but not present in write_dump!")
 
     if get_jcon:
         if "jcon" in infile:
             out_list.append(infile["jcon"][()])
             i_of_jcon = len(out_list) - 1
         else:
-            print("Requested jcon, but not present in dump!")
+            print("Requested jcon, but not present in write_dump!")
             out_list.append(None)
 
     # TODO divB? failures?
@@ -190,11 +221,11 @@ def write_hdf5(outf, value, name):
     """Write a single value to HDF5 file outf, automatically converting Python3 strings & lists"""
     if isinstance(value, list):
         if isinstance(value[0], str):
-            load = [n.encode("ascii", "ignore") for n in value]
+            load = [n.upper().encode("ascii", "ignore") for n in value]
         else:
             load = value
     elif isinstance(value, str):
-        load = value.encode("ascii", "ignore")
+        load = value.upper().encode("ascii", "ignore")
     else:
         load = value
 
@@ -204,46 +235,80 @@ def write_hdf5(outf, value, name):
     else:
         outf[name][()] = load
 
-def write_hdr(params, outf):
-    # TODO better conformity to HARM standard:
-    # 1. Hierarchy
-    # 2. Formatting
-    # 3. Don't drop in extraneous values
-    if "header" not in outf:
-        outf.create_group("header")
+def _write_param_grp(params, key_list, outgrp):
+    for key in key_list:
+        if key in translations.keys():
+            write_hdf5(outgrp, params[translations[key]], key)
+        elif key in params:
+            write_hdf5(outgrp, params[key], key)
+        else:
+            print("WARNING: Format specifies writing key {} to {}, but not present!".format(key, outgrp.name))
 
-    # Write everything except the pointers
-    for key in [p for p in params if (p not in ['ctx', 'queue'])]:
+def write_hdr(G, params, outf):
+    if 'header' not in outf:
+        outf.create_group("header")
+    _write_param_grp(params, header_keys, outf['header'])
+    
+    geom_params = {'dx1': G.dx[1],
+                   'dx2': G.dx[2],
+                   'dx3': G.dx[3],
+                   'startx1': G.startx[1],
+                   'startx2': G.startx[2],
+                   'startx3': G.startx[3],
+                   'n_dim': 4}
+    
+    if 'geom' not in outf['header']:
+        outf['header'].create_group("geom")
+    _write_param_grp(geom_params, geom_keys, outf['header/geom'])
+
+
+    if params['coordinates'] in ["cartesian", "minkowski"]:
+        # No special geometry to record
+        pass
+    elif params['coordinates'] == "mks":
+        if 'mks' not in outf['header/geom']:
+            outf['header/geom'].create_group("mks")
+        _write_param_grp(params, mks_keys, outf['header/geom/mks'])
+    elif params['coordinates'] == "fmks":
+        _write_param_grp(params, mks_keys+fmks_keys, outf['header/geom/fmks'])
+        # TEMPORARY:
+        _write_param_grp(params, mks_keys+fmks_keys, outf['header/geom/mmks'])
+    else:
+        raise NotImplementedError("Fluid dump files in {} coordinates not implemented!".format(params['coordinates']))
+
+    # Write everything except the pointers to an archival copy
+    if "extras" not in outf:
+        outf.create_group("extras")
+    if "extras/pyharm_params" not in outf:
+        outf['extras'].create_group("pyharm_params")
+    for key in [p for p in params if p not in ['ctx', 'queue']]:
         write_hdf5(outf, params[key], 'header/'+key)
 
-def read_hdr(dfile):
+def read_hdr(grp):
     hdr = {}
     try:
-        # Scoop all the keys that are not folders
-        for key in [key for key in list(dfile['header'].keys()) if not key == 'geom']:
-            hdr[key] = dfile['header/' + key][()]
+        # Scoop all the keys that are data, leave the sub-groups
+        for key in [key for key in list(grp) if isinstance(grp[key], h5py.Dataset)]:
+            hdr[key] = grp[key][()]
 
-        for key in [key for key in list(dfile['header/geom'].keys()) if not key in ['mks', 'mmks', 'mks3']]:
-            hdr[key] = dfile['header/geom/' + key][()]
-        # TODO there must be a shorter/more compat way to do the following
-        if 'mks' in list(dfile['header/geom'].keys()):
-            for key in dfile['header/geom/mks']:
-                hdr[key] = dfile['header/geom/mks/' + key][()]
-        if 'mmks' in list(dfile['header/geom'].keys()):
-            for key in dfile['header/geom/mmks']:
-                hdr[key] = dfile['header/geom/mmks/' + key][()]
-        if 'mks3' in list(dfile['header/geom'].keys()):
-            for key in dfile['header/geom/mks3']:
-                hdr[key] = dfile['header/geom/mks3/' + key][()]
+        # The 'geom' group should contain at most one more layer of sub-group
+        geom = grp['geom']
+        for key in geom:
+            if isinstance(geom[key], h5py.Dataset):
+                hdr[key] = geom[key][()]
+            else:
+                for sub_key in geom[key]:
+                    hdr[sub_key] = geom[key+'/'+sub_key][()]
 
-    except KeyError:
-        print("File is older than supported by pyHARM.")
-        exit(-1)
+    except KeyError as e:
+        raise KeyError("{}: File is corrupted or older than supported by pyHARM.".format(e))
 
+    # Fix up all the nasty non-Unicode strings
     decode_all(hdr)
 
+    # EXTRAS AND WORKAROUNDS
     # Turn the version string into components
-    if 'version' not in hdr.keys():
+    if 'version' not in hdr:
         hdr['version'] = "iharm-alpha-3.6"
         print("Unknown version: defaulting to {}".format(hdr['version']))
 
@@ -264,19 +329,22 @@ def read_hdr(dfile):
             hdr['r_in'], hdr['r_out'] = hdr['Rin'], hdr['Rout']
 
         # Grab the git revision if that's something we output
-        if 'extras' in dfile.keys() and 'git_version' in dfile['extras'].keys():
-            hdr['git_version'] = dfile['/extras/git_version'][()].decode('UTF-8')
+        if 'extras' in grp.parent and 'git_version' in grp.parent['extras']:
+            hdr['git_version'] = grp.parent['/extras/git_version'][()].decode('UTF-8')
 
     # Renames we've done for pyHARM  or are useful
-    for name, rename in zip(['n1', 'n2', 'n3', 'n_prim', 'metric'],
-                            ['n1tot', 'n2tot', 'n3tot', 'n_prims', 'coordinates']):
-        if isinstance(hdr[name], str):
-            hdr[rename] = hdr[name].lower()
-            # iharm3d called FMKS (radial dependence) by the name MMKS (which we use for cylindrification only)
-            if hdr[rename] == "mmks":
-                hdr[rename] = "fmks"
-        else:
-            hdr[rename] = hdr[name]
+    # hdr_key -> likely name in existing header
+    # param_key -> desired name in conformant/pyHARM header
+    for hdr_key in translations:
+        param_key = translations[hdr_key]
+        if hdr_key in hdr:
+            if isinstance(hdr[hdr_key], str):
+                hdr[param_key] = hdr[hdr_key].lower()
+                # iharm3d called FMKS (radial dependence) by the name MMKS (which we use for cylindrification only)
+                if hdr[param_key] == "mmks":
+                    hdr[param_key] = "fmks"
+            else:
+                hdr[param_key] = hdr[hdr_key]
 
     # Patch things that sometimes people forget to put in the header
     if 'n_dim' not in hdr:
