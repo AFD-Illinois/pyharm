@@ -3,9 +3,10 @@
 import os
 import numpy as np
 
-from pyHARM.h5io import hdf5_to_dict
+from pyHARM.h5io import hdf5_to_dict, read_hdr
 from pyHARM.grid import Grid
 from pyHARM.ana.util import i_of
+from pyHARM.ana.variables import fns_dict
 
 """
 Tools for dealing with the results computed by scripts/analysis.py.  Results are organized by remaining independent
@@ -59,7 +60,16 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=True, **kwargs):
     :arg only_nonzero Get only nonzero values
     """
     ret_i = get_ivar(infile, ivar, **kwargs)
-    ret_v = infile[ivar][var][()]
+    if var in infile[ivar]:
+        ret_v = infile[ivar][var][()]
+    elif var in fns_dict:
+        ret_v = fns_dict[var](infile[ivar])
+    elif var[:4] == 'log_':
+        ret_i, ret_v = get_result(infile, ivar, var[4:], qui=qui, only_nonzero=only_nonzero, **kwargs)
+        return ret_i, np.log10(ret_v)
+    else:
+        print("Can't find variable: {} as fn of {}".format(var, ivar))
+        return None, None
 
     if qui:
         qui_slc = get_quiescence(infile)
@@ -199,5 +209,8 @@ def get_diag(infile, var, only_nonzero=True, qui=False, **kwargs):
             ret_i, ret_v = ret_i[qui_slc], ret_v[qui_slc]
 
         return ret_i, ret_v
+    elif var[:4] == 'log_':
+        ret_i, ret_v = get_diag(infile, var[4:], only_nonzero=True, qui=False, **kwargs)
+        return ret_i, np.log10(ret_v)
     else:
         return None, None

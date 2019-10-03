@@ -135,6 +135,10 @@ class IharmDump:
             return self.header[key]
         elif key in vars.fns_dict:
             return vars.fns_dict[key](self)
+        elif key[:4] == "log_":
+            return np.log10(self[key[4:]])
+        elif key[:4] == "ln_":
+            return np.log(self[key[4:]])
         else:
             raise ValueError("IharmDump cannot find or compute {}".format(key))
 

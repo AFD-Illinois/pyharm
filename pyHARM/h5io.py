@@ -13,6 +13,7 @@ except ModuleNotFoundError:
     pass
 
 from pyHARM.defs import Loci
+from pyHARM.grid import Grid
 
 # FORMAT SPEC
 # Constants corresponding to the HARM format as written in HDF5.  Useful for checking compliance,
@@ -28,6 +29,7 @@ header_keys = ['cour', 'gam', 'tf', #'fel0', 'gam_e', 'gam_p', 'tptemax', 'tptem
 geom_keys = ['dx1', 'dx2', 'dx3', 'startx1', 'startx2', 'startx3', 'n_dim']
 # Keys in potential geom/mks
 mks_keys = ['r_eh', 'r_in', 'r_out', 'a', 'hslope']
+mmks_keys = ['poly_alpha', 'poly_xt']
 fmks_keys = ['mks_smooth', 'poly_alpha', 'poly_xt']
 # A generally useful set of translations: names of pyHARM parameters,
 # with their counterparts in the HDF5 format
@@ -85,7 +87,7 @@ def write_dump(params, G, P, t, dt, n, fname, dump_gamma=True, out_type=np.float
 
     outf = h5py.File(fname, "w")
 
-    write_hdr(G, params, outf)
+    write_hdr(params, outf)
 
     # Per-write_dump single variables
     outf['t'] = t
@@ -235,7 +237,10 @@ def write_hdf5(outf, value, name):
     else:
         outf[name][()] = load
 
-def _write_param_grp(params, key_list, outgrp):
+def _write_param_grp(params, key_list, name, parent):
+    if not name in parent:
+        parent.create_group(name)
+    outgrp = parent[name]
     for key in key_list:
         if key in translations.keys():
             write_hdf5(outgrp, params[translations[key]], key)
@@ -244,11 +249,10 @@ def _write_param_grp(params, key_list, outgrp):
         else:
             print("WARNING: Format specifies writing key {} to {}, but not present!".format(key, outgrp.name))
 
-def write_hdr(G, params, outf):
-    if 'header' not in outf:
-        outf.create_group("header")
-    _write_param_grp(params, header_keys, outf['header'])
+def write_hdr(params, outf):
+    _write_param_grp(params, header_keys, 'header', outf)
     
+    G = Grid(params)
     geom_params = {'dx1': G.dx[1],
                    'dx2': G.dx[2],
                    'dx3': G.dx[3],
@@ -256,23 +260,21 @@ def write_hdr(G, params, outf):
                    'startx2': G.startx[2],
                    'startx3': G.startx[3],
                    'n_dim': 4}
-    
-    if 'geom' not in outf['header']:
-        outf['header'].create_group("geom")
-    _write_param_grp(geom_params, geom_keys, outf['header/geom'])
+
+    _write_param_grp(geom_params, geom_keys, 'geom', outf['header'])
 
 
     if params['coordinates'] in ["cartesian", "minkowski"]:
         # No special geometry to record
         pass
     elif params['coordinates'] == "mks":
-        if 'mks' not in outf['header/geom']:
-            outf['header/geom'].create_group("mks")
-        _write_param_grp(params, mks_keys, outf['header/geom/mks'])
+        _write_param_grp(params, mks_keys, 'mks', outf['header/geom'])
     elif params['coordinates'] == "fmks":
-        _write_param_grp(params, mks_keys+fmks_keys, outf['header/geom/fmks'])
-        # TEMPORARY:
-        _write_param_grp(params, mks_keys+fmks_keys, outf['header/geom/mmks'])
+        _write_param_grp(params, mks_keys+fmks_keys, 'fmks', outf['header/geom'])
+        # FOR NOW: Duplicate into "mmks" header because codes expect things there
+        _write_param_grp(params, mks_keys+fmks_keys, 'mmks', outf['header/geom'])
+    elif params['coordinates'] == "mmks":
+        _write_param_grp(params, mks_keys+mmks_keys, 'mmks', outf['header/geom'])
     else:
         raise NotImplementedError("Fluid dump files in {} coordinates not implemented!".format(params['coordinates']))
 
@@ -285,6 +287,17 @@ def write_hdr(G, params, outf):
         write_hdf5(outf, params[key], 'header/'+key)
 
 def read_hdr(grp):
+    # Handle lots of different calling conventions
+    if isinstance(grp, str):
+        fil = h5py.File(grp, "r")
+        grp = fil['header']
+        close_file = True
+    elif 'header' in grp:
+        grp = grp['header']
+        close_file = False
+    else:
+        close_file = False
+    
     hdr = {}
     try:
         # Scoop all the keys that are data, leave the sub-groups
@@ -349,8 +362,10 @@ def read_hdr(grp):
     # Patch things that sometimes people forget to put in the header
     if 'n_dim' not in hdr:
         hdr['n_dim'] = 4
+    if 'n_prim' not in hdr: # This got messed up *often*
+        hdr['n_prim'] = hdr['n_prims']
     if 'prim_names' not in hdr:
-        if hdr['n_prims'] == 10:
+        if hdr['n_prim'] == 10:
             hdr['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KEL", "KTOT"]
         else:
             hdr['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
@@ -361,6 +376,9 @@ def read_hdr(grp):
     if 'poly_norm' not in hdr and hdr['coordinates'] in ["mmks", "fmks"]:
         hdr['poly_norm'] = 0.5 * np.pi * 1. / (1. + 1. / (hdr['poly_alpha'] + 1.) *
                                                1. / np.power(hdr['poly_xt'], hdr['poly_alpha']))
+
+    if close_file:
+        fil.close()
 
     return hdr
 

@@ -66,8 +66,8 @@ class Grid:
 
     def __init__(self, params):
         """
-        Initialize a Grid object.  This object divides a space of native coordinates into zones, and stores the
-        local metric (and some other convenient information) at each zone.
+        Initialize a Grid object.  This object divides a domain in native coordinates into zones, and caches the
+        local metric (and some other convenient information) at several locations in each zone.
 
         Primarily, this object should be used to consult the grid size/shape for global calculations, and raise and
         lower the indices of fluid 4-vectors.
@@ -76,17 +76,18 @@ class Grid:
         n{1,2,3}tot: total number of physical grid zones in each direction
         ng: number of "ghost" zones in each direction to add for boundary conditions/domain decomposition
         coordinates: name of the coordinate system (value in parens below)
-        === For Minkowski coordinates (minkowski): ===
+        === For Minkowski coordinates ("minkowski"): ===
         x{1,2,3}min: location of nearest corner of first grid zone [0,0,0]
         x{1,2,3}max: location of farthest corner of last grid zone [n1tot, n2tot, n3tot]
-        === For Modified Kerr-Schild coordinates (mks): ===
-        a: black hole spin, for KS metric
-        hslope: narrowing parameter for X2, with the effect of increasing the resolution near the coordinate midplane
+        === For Spherical Kerr-Schild coordinates ("ks"): ===
+        a: black hole spin
         r_out: desired location of the outer edge of the farthest radial zone on the grid
-        === For Modified Modified Kerr-Schild coordinates (mmks): ===
+        === For Modified Kerr-Schild coordinates ("mks"): ===
+        hslope: narrowing parameter for X2, defined in Gammie et. al. '03 `here <https://doi.org/10.1086/374594>`_
+        === For Modified Modified Kerr-Schild coordinates ("mmks"): ===
         All of the MKS parameters, plus
-        poly_xt, poly_alpha: See HARM docs wiki
-        === For "Funky" Modified Kerr-Schild coordinates (fmks): ===
+        poly_xt, poly_alpha: See HARM docs `wiki <https://github.com/AFD-Illinois/docs/wiki/Coordinates>`_
+        === For "Funky" Modified Kerr-Schild coordinates ("fmks"): ===
         All of the MMKS parameters, plus
         mks_smooth: See HARM docs wiki
         """
@@ -102,7 +103,10 @@ class Grid:
         # Size of this grid
         self.N = self.NTOT  # TODO do I really want to carry around a useless first index?
         # Number of ghost zones
-        self.NG = params['ng']
+        if 'ng' in params:
+            self.NG = params['ng']
+        else:
+            self.NG = 0
         # Size of grid in-memory (with ghost zones)
         self.GN = self.N + 2*self.NG
 

@@ -23,7 +23,7 @@ for i,file in enumerate(files):
         maxnkey = nkey
 
 null_groups = []
-copy_groups = ['header', 'diag', 'avg', 'coord']
+copy_groups = ['header', 'diag', 'avg', 'coord', 'extras']
 avg_groups = ['r', 'th', 'hth', 'phi', 'rth', 'rhth', 'rphi', 'thphi', 'pdf']
 t_groups = ['t', 'rt', 'tht', 'phit', 'pdft']
 groups = null_groups + copy_groups + avg_groups + t_groups

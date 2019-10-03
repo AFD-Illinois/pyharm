@@ -10,6 +10,9 @@ try:
 except ImportError:
     can_use_cl = False
 
+from pyHARM.h5io import get_dump_time, hdf5_to_dict, dict_to_hdf5
+from pyHARM.defs import Loci
+
 from pyHARM.ana.variables import *
 from pyHARM.ana.reductions import *
 from pyHARM.ana.iharm_dump import IharmDump
@@ -19,8 +22,6 @@ from pyHARM.ana.util import i_of
 # Memory usage stats
 import psutil
 this_process = psutil.Process(os.getpid())
-
-from pyHARM.h5io import get_dump_time, write_hdr
 
 # Option to calculate fluxes at (just inside) r = 5
 # This reduces interference from floors
@@ -36,7 +37,7 @@ calc_basic = True
 calc_jet_profile = True
 calc_jet_cuts = False
 calc_lumproxy = True
-calc_gridtotals = True
+calc_gridtotals = False
 calc_efluxes = True
 calc_outfluxes = False
 
@@ -52,13 +53,13 @@ lock = None
 def init(_lock):
     global lock, params, this_process
     lock = _lock
-    
+
     if can_use_cl:
         with lock:
             params['ctx'] = cl.create_some_context()
             print(params['ctx'])
             params['queue'] = cl.CommandQueue(params['ctx'])
-    
+
     this_process = psutil.Process(os.getpid())
 
 
@@ -106,18 +107,22 @@ if tend == 0.:
 dump = IharmDump(dumps[0], params=params, add_derived=False)
 hdr = dump.header
 
-if len(dump['r'].shape) == 3:
-    r1d = dump['r'][:, dump.header['n2']//2, 0]
-elif len(dump['r'].shape) == 2:
-    r1d = dump['r'][:, dump.header['n2']//2]
-elif len(dump['r'].shape) == 1:
+if dump['r'].ndim == 3:
+    r1d = dump['r'][:, hdr['n2']//2, 0]
+elif dump['r'].ndim == 2:
+    r1d = dump['r'][:, hdr['n2']//2]
+elif dump['r'].ndim == 1:
     r1d = dump['r']
 
+jmin, jmax = get_eht_disk_j_vals(dump)
+
+del dump
+
 # Leave several extra zones if using MKS3 coordinates
-if dump.header['metric'] == "mks3":
-    iEH = i_of(r1d, dump.header['r_eh']) + 4
+if hdr['metric'] == "mks3":
+    iEH = i_of(r1d, hdr['r_eh']) + 4
 else:
-    iEH = i_of(r1d, dump.header['r_eh'])
+    iEH = i_of(r1d, hdr['r_eh'])
 
 if floor_workaround_flux:
     iF = i_of(r1d, 5)  # Measure fluxes at r=5M
@@ -130,14 +135,10 @@ iEmax = i_of(r1d, 40)
 # BZ luminosity
 # 100M seems like the standard measuring spot (or at least, BHAC does it that way)
 # L_BZ seems constant* after that, but much higher within ~50M
-if dump.header['r_out'] < 100 or r1d[-1] < 100:  # If in theory or practice the sim is small...
+if hdr['r_out'] < 100 or r1d[-1] < 100:  # If in theory or practice the sim is small...
     iBZ = i_of(r1d, 40)  # most SANEs
 else:
     iBZ = i_of(r1d, 100)  # most MADs
-
-jmin, jmax = get_eht_disk_j_vals(dump)
-
-del dump
 
 print("Memory use: {} GB".format(this_process.memory_info().rss / 10**9))
 print("Running from t={} to {}, averaging from t={} to {}".format(tstart, tend, tavg_start, tavg_end))
@@ -193,15 +194,33 @@ def avg_dump(n):
 
 
             Fcov01, Fcov13 = Fcov(dump, 0, 1), Fcov(dump, 1, 3)
-            up, ut = dump['u^phi'], dump['u^t']
+            Fcov02, Fcov23 = Fcov(dump, 0, 2), Fcov(dump, 2, 3)
+            vr, vth, vphi = dump['u^r']/dump['u^t'], dump['u^th']/dump['u^t'], dump['u^phi']/dump['u^t']
             out['rhth/omega'] = np.zeros((hdr['n1'],hdr['n2']//2))
+            out['rhth/omega_alt_num'] = np.zeros((hdr['n1'],hdr['n2']//2))
+            out['rhth/omega_alt_den'] = np.zeros((hdr['n1'],hdr['n2']//2))
+            out['rhth/omega_alt'] = np.zeros((hdr['n1'],hdr['n2']//2))
             out['rhth/vphi'] = np.zeros((hdr['n1'],hdr['n2']//2))
             out['rhth/F13'] = np.zeros((hdr['n1'],hdr['n2']//2))
+            out['rhth/F01'] = np.zeros((hdr['n1'],hdr['n2']//2))
+            out['rhth/F23'] = np.zeros((hdr['n1'],hdr['n2']//2))
+            out['rhth/F02'] = np.zeros((hdr['n1'],hdr['n2']//2))
+            coord_hth = dump.grid.coord_all()[:,:,:hdr['n2']//2,0]
+            alpha_over_omega =  dump.grid.lapse[Loci.CENT.value, :, :hdr['n2']//2] / (hdr['r_eh'] * np.sin(dump.grid.coords.th(coord_hth)))
             for i in range(hdr['n1']):
+                out['rhth/F01'][i] = theta_av(dump, Fcov01, i, 1)
                 out['rhth/F13'][i] = theta_av(dump, Fcov13, i, 1)
-                out['rhth/omega'][i] = theta_av(dump, Fcov01, i, 1) / theta_av(dump, Fcov13, i, 1)
-                out['rhth/vphi'][i] = theta_av(dump, up, i, 1) / theta_av(dump, ut, i, 1)
-            del Fcov01, Fcov13, up, ut
+                out['rhth/F02'][i] = theta_av(dump, Fcov02, i, 1)
+                out['rhth/F23'][i] = theta_av(dump, Fcov23, i, 1)
+                out['rhth/omega'][i] =  out['rhth/F01'][i] / out['rhth/F13'][i]
+                out['rhth/omega_alt_num'][i] = theta_av(dump, vr * dump['B3']*dump['B2'] + vth * dump['B3']*dump['B1'], i, 1)
+                out['rhth/omega_alt_den'][i] = theta_av(dump, dump['B2']*dump['B1'], i, 1)
+                out['rhth/omega_alt'][i] = theta_av(dump, vr * dump['B3']/dump['B1'] + vth * dump['B3']/dump['B2'], i, 1)
+                out['rhth/vphi'][i] = theta_av(dump, vphi, i, 1)
+
+            out['rhth/omega_alt'] *= -alpha_over_omega
+
+            del Fcov01, Fcov13, vr, vth, vphi
 
     if calc_basic:
         # FIELD STRENGTHS
@@ -399,7 +418,10 @@ except OSError:
     outf = h5py.File(outfname, 'a')
     print("Replaced existing output: {}!!".format(outfname))
 
-write_hdr(hdr, outf)
+hdr_preserve = hdf5_to_dict(h5py.File(dumps[0],'r')['header'])
+if not 'header' in outf:
+    outf.create_group('header')
+dict_to_hdf5(hdr_preserve, outf['header'])
 
 # Fill the output dict with all per-dump or averaged stuff
 # Hopefully in a way that doesn't keep too much of it around in memory

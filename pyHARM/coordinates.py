@@ -258,8 +258,11 @@ class MKS(CoordinateSystem):
         else:
             self.small_th = 1.e-20
 
-        # Set radius of horizon
-        self.r_hor = 1. + np.sqrt(1. - self.a ** 2)
+        # Set radii
+        self.r_eh = 1. + np.sqrt(1. - self.a ** 2)
+        z1 = 1. + (1. - self.a**2)**(1/3) * ((1. + self.a)**(1/3) + (1. - self.a)**(1. / 3.))
+        z2 = np.sqrt(3. * self.a**2 + z1**2)
+        self.r_isco = 3. + z2 - (np.sqrt((3. - z1) * (3. + z1 + 2. * z2))) * np.sign(self.a)
 
     def native_startx(self, met_params):
         if 'r_in' in met_params:
@@ -268,7 +271,7 @@ class MKS(CoordinateSystem):
         elif 'n1tot' in met_params and 'r_out' in met_params:
             # Else via a guess
             return np.array([0,
-                             ((met_params['n1tot'] * np.log(self.r_hor) / 5.5 - np.log(met_params['r_out'])) /
+                             ((met_params['n1tot'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
                               (1. + met_params['n1tot'] / 5.5)),
                              0, 0])
         else:
@@ -375,7 +378,7 @@ class BHAC_MKS(CoordinateSystem):
             self.small_th = 1.e-20
 
         # Set radius of horizon
-        self.r_hor = 1. + np.sqrt(1. - self.a ** 2)
+        self.r_eh = 1. + np.sqrt(1. - self.a ** 2)
 
     def native_startx(self, met_params):
         if 'r_in' in met_params:
@@ -384,7 +387,7 @@ class BHAC_MKS(CoordinateSystem):
         else:
             # Else automatically
             return np.array([0,
-                             ((met_params['n1tot'] * np.log(self.r_hor) / 5.5 - np.log(met_params['r_out'])) /
+                             ((met_params['n1tot'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
                               (1. + met_params['n1tot'] / 5.5)),
                              0, 0])
 

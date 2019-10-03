@@ -10,6 +10,8 @@ from pyHARM.diag import divB
 # Define a dict of names, coupled with the functions required to obtain their variables.
 # That way, we only need to specify lists and final operations in eht_analysis,
 # AND don't need to cart all these things around in memory
+
+# TODO parse these according to rules, esp components and e.g. log(), etc
 fns_dict = {'rho': lambda dump: dump['RHO'],
             'bsq': lambda dump: dump.grid.dot(dump['bcov'], dump['bcon']),
             'sigma': lambda dump: dump['bsq'] / dump['RHO'],
@@ -18,6 +20,8 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'u^t': lambda dump: dump['ucon'][0],
             'u_r': lambda dump: dump['ucov'][1],
             'u^r': lambda dump: dump['ucon'][1],
+            'u_th': lambda dump: dump['ucov'][2],
+            'u^th': lambda dump: dump['ucon'][2],
             'u_phi': lambda dump: dump['ucov'][3],
             'u^phi': lambda dump: dump['ucon'][3],
             'FM': lambda dump: dump['RHO'] * dump['ucon'][1],
@@ -38,16 +42,80 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']),
             'current': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,
             'B': lambda dump: np.sqrt(dump['bsq']),
-            'betagamma': lambda dump: np.sqrt((dump['FE_EM'] + dump['FE_Fl']) / dump['FM'] - 1),
+            'betagamma': lambda dump: np.sqrt(dump['FE_EM'] / dump['FM'] - 1),
             'Theta': lambda dump: (dump.header['gam'] - 1) * dump['UU'] / dump['RHO'],
             'Thetap': lambda dump: (dump.header['gam_p'] - 1) * dump['UU'] / dump['RHO'],
             'Thetae': lambda dump: (dump.header['gam_e'] - 1) * dump['UU'] / dump['RHO'],
             'JE0': lambda dump: T_mixed(dump, 0, 0),
             'JE1': lambda dump: T_mixed(dump, 1, 0),
             'JE2': lambda dump: T_mixed(dump, 2, 0),
-            'divB': lambda dump: divB(dump.grid, dump.prims)
+            'divB': lambda dump: divB(dump.grid, dump.prims),
+            # Rules for diagnostic variables
+            'phi_b': lambda diag: diag['Phi_b']/diag['Mdot']
             }
 
+pretty_dict = {'rho': r"\rho",
+            'bsq': r"b^{2}",
+            'sigma': r"\sigma",
+            'U': r"U",
+            'u_t': r"u_{t}",
+            'u^t': r"u^{t}",
+            'u_r': r"u_{r}",
+            'u^r': r"u^{r}",
+            'u_th': r"u_{\theta}",
+            'u^th': r"u^{\theta}",
+            'u_phi': r"u_{\phi}",
+            'u^phi': r"u^{\phi}",
+            'FM': r"FM",
+            'FE':r"FE_{\mathrm{tot}}",
+            'FE_EM': r"FE_{EM}",
+            'FE_Fl': r"FE_{Fl}",
+            'FL':r"FL_{\mathrm{tot}}",
+            'FL_EM': r"FL_{EM}",
+            'FL_Fl': r"FL_{Fl}",
+            'Be_b': r"Be_{B}",
+            'Be_nob': r"Be_{Fl}",
+            'Pg': r"P_g",
+            'Pb': r"P_b",
+            'Ptot': r"P_{\mathrm{tot}}",
+            'beta': r"\beta",
+            'betainv': r"\beta^{-1}",
+            'jcov': r"j_{\mu}",
+            'jsq': r"j^{2}",
+            'current': r"J^{2}",
+            'B': r"B",
+            'betagamma': r"\beta \gamma",
+            'Theta': r"\Theta",
+            'Thetap': r"\Theta_{\mathrm{e}}",
+            'Thetae': r"\Theta_{\mathrm{p}}",
+            'JE0': r"JE^{t}",
+            'JE1': r"JE^{r}",
+            'JE2': r"JE^{\theta}",
+            'divB': r"\nabla \cdot B",
+            # Results of reductions which are canonically named
+            'MBH': r"M_{\mathrm{BH}}",
+            'Mdot': r"\dot{M}",
+            'mdot': r"\dot{M}",
+            'Phi_b': r"$\Phi_{BH}$",
+            'phi_b': r"$\phi_{BH}$",
+            # Independent variables
+            't': r"$t \frac{G M}{c^3}$",
+            'x': r"$x \frac{G M}{c^2}$",
+            'y': r"$y \frac{G M}{c^2}$",
+            'z': r"$z \frac{G M}{c^2}$",
+            'r': r"$r \frac{G M}{c^2}$",
+            'th': r"\theta",
+            'phi': r"\phi"
+            }
+
+def pretty(var):
+    if var[:4] == "log_":
+        return r"$\log_{10} \left( "+pretty_dict[var]+r" \right)$"
+    elif var in pretty_dict:
+        return r"$"+pretty_dict[var]+r"$"
+    else:
+        # Give up
+        return var
 
 ## Physics functions ##
 
