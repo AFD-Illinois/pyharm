@@ -175,7 +175,7 @@ def avg_dump(n):
 
     # EHT Radial profiles: special fn for profile, averaged over phi, 1/3 theta, time
     if calc_ravgs:
-        for var in ['rho', 'Theta', 'B', 'Pg', 'Ptot', 'beta', 'u^phi', 'u_phi', 'sigma', 'FM']:
+        for var in ['rho', 'Theta', 'B', 'Pg', 'Ptot', 'beta', 'u^phi', 'u_phi', 'sigma']:
             out['rt/' + var] = partial_shell_sum(dump, var, jmin, jmax)
             out['rt/' + var + '_jet'] = partial_shell_sum(dump, var, 0, jmin) + \
                                         partial_shell_sum(dump, var, jmax, dump.header['n2'])
@@ -239,6 +239,7 @@ def avg_dump(n):
         # Radial profiles of Mdot and Edot, and their particular values
         # EHT code-comparison normalization has all these values positive
         for var, flux in [['Edot', 'FE'], ['Mdot', 'FM'], ['Ldot', 'FL']]:
+            out['rt/' + flux] = shell_sum(dump, flux)
             if do_tavgs:
                 out['r/' + flux] = shell_sum(dump, flux)
             out['t/'+var] = shell_sum(dump, flux, at_zone=iF)
