@@ -38,6 +38,9 @@ for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag',
                         plt.semilogy(ivar_d[np.nonzero(var_d)], var_d[np.nonzero(var_d)])
                 else:
                     plt.plot(ivar_d, var_d)
+                # If it's a big radial plot, zoom in
+                if ivar == 'r' and ivar_d[-1] > 100:
+                        plt.xlim(0,100)
                 plt.xlabel(ivar)
                 plt.ylabel(var)
             else:

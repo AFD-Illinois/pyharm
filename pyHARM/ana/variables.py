@@ -51,7 +51,13 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'JE2': lambda dump: T_mixed(dump, 2, 0),
             'divB': lambda dump: divB(dump.grid, dump.prims),
             # Rules for diagnostic variables
-            'phi_b': lambda diag: diag['Phi_b']/diag['Mdot']
+            'mdot': lambda diag: diag['Mdot'][()],
+            'phi_b': lambda diag: diag['Phi_b'][()] / np.sqrt(diag['Mdot'][()]),
+                        #np.mean(np.sqrt(diag['Mdot'][len(diag['Mdot'])//2:])),
+            'edot': lambda diag: diag['Edot'][()] / diag['Mdot'][()],
+                        #np.mean(diag['Mdot'][len(diag['Mdot'])//2:]),
+            'ldot': lambda diag: diag['Ldot'][()] / diag['Mdot'][()],
+                        #np.mean(diag['Mdot'][len(diag['Mdot'])//2:])
             }
 
 pretty_dict = {'rho': r"\rho",
@@ -96,14 +102,18 @@ pretty_dict = {'rho': r"\rho",
             'MBH': r"M_{\mathrm{BH}}",
             'Mdot': r"\dot{M}",
             'mdot': r"\dot{M}",
-            'Phi_b': r"$\Phi_{BH}$",
-            'phi_b': r"$\phi_{BH}$",
+            'Phi_b': r"\Phi_{BH}",
+            'Edot': r"\dot{E}",
+            'Ldot': r"\dot{L}",
+            'phi_b': r"\Phi_{BH} / \langle \sqrt{\dot{M}} \rangle",
+            'edot': r"\dot{E} / \langle \dot{M} \rangle",
+            'ldot': r"\dot{L} / \langle \dot{M} \rangle",
             # Independent variables
-            't': r"$t \frac{G M}{c^3}$",
-            'x': r"$x \frac{G M}{c^2}$",
-            'y': r"$y \frac{G M}{c^2}$",
-            'z': r"$z \frac{G M}{c^2}$",
-            'r': r"$r \frac{G M}{c^2}$",
+            't': r"t \; \left( \frac{G M}{c^3} \right)",
+            'x': r"x \; \left( \frac{G M}{c^2} \right)",
+            'y': r"y \; \left( \frac{G M}{c^2} \right)",
+            'z': r"z \; \left( \frac{G M}{c^2} \right)",
+            'r': r"r \; \left( \frac{G M}{c^2} \right)",
             'th': r"\theta",
             'phi': r"\phi"
             }

@@ -39,7 +39,7 @@ def plot_diag(ax, infile, ivarname, varname, tline=None,
     if xlabel == True:
         # TODO add/detect ivar names rather than assuming t!!
         # Likely just add to pretty like above
-        ax.set_xlabel(r"$t \frac{c^3}{G M}$")
+        ax.set_xlabel(pretty(ivarname))
     elif xlabel == False or xlabel is None:
         # Also nix time labels if we're stacking
         ax.set_xticklabels([])
