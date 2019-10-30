@@ -32,7 +32,7 @@ def get_units_M87(M_unit, tp_over_te=3):
     """Get units dict for MBH=6.2e9, i.e. M87
     See get_units
     """
-    return get_units(6.2e9, M_unit, tp_over_te)
+    return get_units(6.2e9*cgs['MSOLAR'], M_unit, tp_over_te)
 
 
 def get_units(MBH, M_unit, tp_over_te=3, gam=4/3):
