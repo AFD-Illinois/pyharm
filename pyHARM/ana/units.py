@@ -27,14 +27,19 @@ cgs = {
 def get_cgs():
     return cgs
 
-# Get M87 units. Pass tp_over_te=None to get non-constant-frac units
-def get_units_M87(M_unit, tp_over_te=3):
-    return get_units(6.2e9, L_unit, tp_over_te)
 
-# Internal method for all the well-defined units
-# Note tp_over_te only matters for Thetae_unit
-# Also note Mdotedd assumes 10% efficiency
+def get_units_M87(M_unit, tp_over_te=3):
+    """Get units dict for MBH=6.2e9, i.e. M87
+    See get_units
+    """
+    return get_units(6.2e9, M_unit, tp_over_te)
+
+
 def get_units(MBH, M_unit, tp_over_te=3, gam=4/3):
+    """Get derived units and certain quantities for a system, given a BH mass and accretion density M_unit.
+    Note tp_over_te and gam only matter for Thetae_unit
+    Also note Mdotedd assumes 10% efficiency
+    """
     out = {}
     out['M_unit'] = M_unit
     out['L_unit'] = L_unit = cgs['GNEWT']*MBH / cgs['CL']**2
