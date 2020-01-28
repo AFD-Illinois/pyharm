@@ -53,11 +53,8 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             # Rules for diagnostic variables
             'mdot': lambda diag: diag['Mdot'][()],
             'phi_b': lambda diag: diag['Phi_b'][()] / np.sqrt(diag['Mdot'][()]),
-                        #np.mean(np.sqrt(diag['Mdot'][len(diag['Mdot'])//2:])),
             'edot': lambda diag: diag['Edot'][()] / diag['Mdot'][()],
-                        #np.mean(diag['Mdot'][len(diag['Mdot'])//2:]),
-            'ldot': lambda diag: diag['Ldot'][()] / diag['Mdot'][()],
-                        #np.mean(diag['Mdot'][len(diag['Mdot'])//2:])
+            'ldot': lambda diag: diag['Ldot'][()] / diag['Mdot'][()]
             }
 
 pretty_dict = {'rho': r"\rho",
@@ -105,9 +102,9 @@ pretty_dict = {'rho': r"\rho",
             'Phi_b': r"\Phi_{BH}",
             'Edot': r"\dot{E}",
             'Ldot': r"\dot{L}",
-            'phi_b': r"\Phi_{BH} / \langle \sqrt{\dot{M}} \rangle",
-            'edot': r"\dot{E} / \langle \dot{M} \rangle",
-            'ldot': r"\dot{L} / \langle \dot{M} \rangle",
+            'phi_b': r"\Phi_{BH} / \sqrt{\dot{M}}",
+            'edot': r"\dot{E} / \dot{M}",
+            'ldot': r"\dot{L} / \dot{M}",
             # Independent variables
             't': r"t \; \left( \frac{G M}{c^3} \right)",
             'x': r"x \; \left( \frac{G M}{c^2} \right)",

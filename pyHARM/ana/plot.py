@@ -70,7 +70,7 @@ def decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
     
     :param label: If not None, set plot title
     """
-    if bh:
+    if bh and not (dump['metric'], "MINKOWSKI"):
         # BH silhouette
         circle1 = plt.Circle((0, 0), dump['r_eh'], color='k');
         ax.add_artist(circle1)

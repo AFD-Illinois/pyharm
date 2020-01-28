@@ -6,6 +6,8 @@
 
 import sys
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from pyHARM.ana.iharm_dump import IharmDump
@@ -15,8 +17,9 @@ from pyHARM.ana.units import get_units_M87
 # TODO parse these instead of hard-coding
 USEARRSPACE = False
 
-SIZE = 200
-window = (-SIZE, SIZE, -SIZE, SIZE)
+SIZE = 1
+window = (0, SIZE, 0, SIZE)
+#window = (-SIZE, SIZE, -SIZE, SIZE)
 # window=(-SIZE/4, SIZE/4, 0, SIZE)
 pdf_window = (-10, 0)
 FIGX = 10

@@ -12,6 +12,7 @@ import h5py
 from glob import glob
 
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
@@ -71,12 +72,18 @@ def plot(n):
         rho_l, rho_h = -3, 2
         iBZ = i_of(dump['r'][:,0,0], 100)  # most MADs
         rBZ = 100
-    else:
+    elif dump['r'][-1, 0, 0] > 10:
         window = [-50, 50, -50, 50]
         nlines = 5
         rho_l, rho_h = -4, 1
         iBZ = i_of(dump['r'][:,0,0], 40)  # most SANEs
         rBZ = 40
+    else: # Then this is a Minkowski simulation or something weird
+        window = [dump['x'][0,0,0], dump['x'][-1,-1,-1], dump['y'][0,0,0], dump['y'][-1,-1,-1],]
+        nlines = 0
+        rho_l, rho_h = -4, 1
+        iBZ = 1
+        rBZ = 1
     
     if movie_type == "simplest":
         # Simplest movie: just RHO

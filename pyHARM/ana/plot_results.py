@@ -3,17 +3,32 @@
 import numpy as np
 import matplotlib
 
-from pyHARM.ana.results import get_diag, get_result
+from pyHARM.ana.results import get_diag, get_result, get_ivar
 from pyHARM.ana.variables import pretty
 
-def plot_diag(ax, infile, ivarname, varname, tline=None,
+def plot_diag(ax, infile, ivar, var, tline=None,
               ylabel=None, ylim=None, logy=False,
               xlabel=None, xlim=None, logx=False,
               only_nonzero=True, **kwargs):
     """Plot a variable vs time, for movies"""
-    # TODO option here
-    #ivar, var = get_diag(infile, varname, only_nonzero=only_nonzero, qui=False)
-    ivar, var = get_result(infile, ivarname, varname, only_nonzero=only_nonzero, qui=False)
+
+    # Fetch data if we were just pointed somewhere
+    # Keep names for auto-naming axes below
+    if isinstance(var, str):
+        ivarname = ivar
+        varname = var
+        # TODO option here
+        #ivar, var = get_diag(infile, varname, only_nonzero=only_nonzero, qui=False)
+        ivar, var = get_result(infile, ivar, var, only_nonzero=only_nonzero, qui=False)
+    elif isinstance(ivar, str):
+        ivarname = ivar
+        ivar = get_ivar(infile, ivar)
+        varname = None
+    else:
+        ivarname = None
+        varname = None
+    
+
     if ivar is None or var is None:
         print("Not plotting unknown analysis variables: {} as function of {}".format(varname, ivarname))
         return
@@ -27,7 +42,7 @@ def plot_diag(ax, infile, ivarname, varname, tline=None,
     # Prettify
     if ylabel is not None:
         ax.set_ylabel(ylabel)
-    else:
+    elif varname is not None:
         ax.set_ylabel(pretty(varname))
 
     if ylim is not None:
@@ -36,9 +51,7 @@ def plot_diag(ax, infile, ivarname, varname, tline=None,
     if logy:
         ax.set_yscale('log')
     
-    if xlabel == True:
-        # TODO add/detect ivar names rather than assuming t!!
-        # Likely just add to pretty like above
+    if xlabel == True and ivarname is not None:
         ax.set_xlabel(pretty(ivarname))
     elif xlabel == False or xlabel is None:
         # Also nix time labels if we're stacking
