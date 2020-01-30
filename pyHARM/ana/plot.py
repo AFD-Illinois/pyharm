@@ -70,6 +70,7 @@ def decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
     
     :param label: If not None, set plot title
     """
+
     if bh and dump['metric'] != "MINKOWSKI":
         # BH silhouette
         circle1 = plt.Circle((0, 0), dump['r_eh'], color='k');
