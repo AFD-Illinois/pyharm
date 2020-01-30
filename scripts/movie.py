@@ -81,12 +81,23 @@ def plot(n):
     if movie_type == "simplest":
         # Simplest movie: just RHO
         ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
+        if dump['metric'] == "MINKOWSKI":
+            var = 'rho'
+            arrspace = True
+            vmin = None
+            vmax = None
+        else:
+            var = 'log_rho'
+            arrspace=False
+            vmin = rho_l
+            vmax = rho_h
+	
         bplt.plot_xz(ax_slc[0], dump, 'log_rho', label="",
-                     vmin=rho_l, vmax=rho_h, window=window,
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
         bplt.plot_xy(ax_slc[1], dump, 'log_rho', label="",
-                     vmin=rho_l - 0.5, vmax=rho_h - 0.5, window=window,
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
     

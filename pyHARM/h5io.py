@@ -314,7 +314,9 @@ def read_hdr(grp):
                     hdr[sub_key] = geom[key+'/'+sub_key][()]
 
     except KeyError as e:
-        raise KeyError("{}: File is corrupted or older than supported by pyHARM.".format(e))
+        print("Warning: {}".format(e))
+        print("File is older than supported, but pyHARM will attempt to continue".format(e))
+
 
     # Fix up all the nasty non-Unicode strings
     decode_all(hdr)

@@ -8,6 +8,9 @@ dumps/
 src/pystella/
 src/loo.py/
 
+# Editor files
+.vscode/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

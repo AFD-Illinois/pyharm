@@ -51,13 +51,13 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'JE2': lambda dump: T_mixed(dump, 2, 0),
             'divB': lambda dump: divB(dump.grid, dump.prims),
             # Rules for diagnostic variables
-            'mdot': lambda diag: diag['Mdot'][()],
-            'phi_b': lambda diag: diag['Phi_b'][()] / np.sqrt(diag['Mdot'][()]),
-                        #np.mean(np.sqrt(diag['Mdot'][len(diag['Mdot'])//2:])),
-            'edot': lambda diag: diag['Edot'][()] / diag['Mdot'][()],
-                        #np.mean(diag['Mdot'][len(diag['Mdot'])//2:]),
-            'ldot': lambda diag: diag['Ldot'][()] / diag['Mdot'][()],
-                        #np.mean(diag['Mdot'][len(diag['Mdot'])//2:])
+            # 'mdot': lambda diag: diag['Mdot'][()],
+            # 'phi_b': lambda diag: diag['Phi_b'][()] / np.sqrt(diag['Mdot'][()]),
+            #             #np.mean(np.sqrt(diag['Mdot'][len(diag['Mdot'])//2:])),
+            # 'edot': lambda diag: diag['Edot'][()] / diag['Mdot'][()],
+            #             #np.mean(diag['Mdot'][len(diag['Mdot'])//2:]),
+            # 'ldot': lambda diag: diag['Ldot'][()] / diag['Mdot'][()],
+            #             #np.mean(diag['Mdot'][len(diag['Mdot'])//2:])
             }
 
 pretty_dict = {'rho': r"\rho",

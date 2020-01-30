@@ -70,7 +70,7 @@ def decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
     
     :param label: If not None, set plot title
     """
-    if bh:
+    if bh and dump['metric'] != "MINKOWSKI":
         # BH silhouette
         circle1 = plt.Circle((0, 0), dump['r_eh'], color='k');
         ax.add_artist(circle1)
@@ -147,7 +147,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             z = _flatten_xz(dump['z'])
             var = _flatten_xz(var, average=average)
 
-    # print 'xshape is ', x.shape, ', zshape is ', z.shape, ', varshape is ', var.shape
+    #print('xshape is ', x.shape, ', zshape is ', z.shape, ', varshape is ', var.shape)
     if log:
         mesh = pcolormesh_symlog(ax, x, z, var, cmap=cmap, vmin=vmin, vmax=vmax,
                              shading=shading, cbar=cbar)
@@ -444,7 +444,7 @@ def _flatten_xz(array, patch_pole=False, average=False):
 
     return flat
 
-def _flatten_12(array, patch_pole=False, average=False):
+def _flatten_12(array, average=False):
     """Get a single 2D slice or average of 3D data
     Currently limited to x3=0 slice
     :param average: whether to average instead of slicing
@@ -457,10 +457,8 @@ def _flatten_12(array, patch_pole=False, average=False):
             slice = array[:, :, 0]
     elif array.ndim == 2:
         slice = array
-    
-    if patch_pole:
-        flat[:, 0] = 0
-        flat[:, -1] = 0
+
+    return slice
 
 # Get xy slice of 3D data
 def _flatten_xy(array, average=False, loop=True):

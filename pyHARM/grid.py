@@ -35,7 +35,7 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_o
     # Things which should ideally be optional in grid creation,
     # but are not for one reason or another
     params['ng'] = 0
-    params['n_prims'] = 8
+    params['n_prim'] = 8
 
     if type == 'minkowski':
         params['x1min'] = 0

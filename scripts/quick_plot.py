@@ -13,9 +13,9 @@ import pyHARM.ana.plot as bplt
 from pyHARM.ana.units import get_units_M87
 
 # TODO parse these instead of hard-coding
-USEARRSPACE = False
+USEARRSPACE = True
 
-SIZE = 200
+SIZE = 15
 window = (-SIZE, SIZE, -SIZE, SIZE)
 # window=(-SIZE/4, SIZE/4, 0, SIZE)
 pdf_window = (-10, 0)
@@ -66,7 +66,7 @@ if var in ['jcon', 'jcov', 'ucon', 'ucov', 'bcon', 'bcov']:
 else:
     # TODO allow specifying vmin/max, average from command line or above
     ax = plt.subplot(1, 1, 1)
-    bplt.plot_xy(ax, dump, np.log10(dump[var] * unit), arrayspace=USEARRSPACE, window=window)
+    bplt.plot_xy(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)
 
 plt.tight_layout()
 plt.savefig(name + "_xy.png", dpi=100)
@@ -81,7 +81,7 @@ if var in ['jcon', 'jcov', 'ucon', 'ucov', 'bcon', 'bcov']:
         bplt.plot_xz(axes[n], dump, np.log10(dump[var][n] * unit), arrayspace=USEARRSPACE, window=window)
 else:
     ax = plt.subplot(1, 1, 1)
-    bplt.plot_xz(ax, dump, np.log10(dump[var] * unit), arrayspace=USEARRSPACE, window=window)
+    bplt.plot_xz(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)
 
 plt.tight_layout()
 

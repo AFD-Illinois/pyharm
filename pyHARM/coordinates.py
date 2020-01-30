@@ -2,17 +2,19 @@
 import numpy as np
 # Need extra broadcasting currently, or this would be scipy.linalg
 import numpy.linalg as la
+import scipy.optimize as opt
 
 default_met_params = {'a': 0.9375, 'hslope': 0.3, 'r_out': 50.0, 'n1tot': 192,
                       'poly_xt': 0.82, 'poly_alpha': 14.0, 'mks_smooth': 0.5}
 
 class CoordinateSystem(object):
-    """ Base class for all classes representing coordinate systems
+    """ Base class for representing coordinate systems
     Coordinate classes define, as functions of their native coordinates X:
      * r,th,phi in spherical Kerr-Schild coordinates (or just spherical coordinates in the case of Minkowski)
      * A transformation matrix, dxdX, for tensors from one system to the other
      * The forms and determinant of the metric, gcov, gcon, & gdet
-     Assuming the coordinates are a re-indexing of KS
+
+     Of these, most are derivable
     """
 
     def native_startx(cls, met_params):
@@ -265,6 +267,7 @@ class MKS(CoordinateSystem):
         self.r_isco = 3. + z2 - (np.sqrt((3. - z1) * (3. + z1 + 2. * z2))) * np.sign(self.a)
 
     def native_startx(self, met_params):
+        # TODO take direct from params if specified
         if 'r_in' in met_params:
             # Set startx1 from r_in
             return np.array([0, np.log(met_params['r_in']), 0, 0])
@@ -362,6 +365,15 @@ class FMKS(MKS):
                                                     (1. - self.hslope) * np.pi * np.cos(2. * np.pi * x[2]))
         dxdX[3, 3] = 1
         return dxdX
+
+    def of_ks(self, r, th, phi):
+        x1 = np.log(r)
+        x3 = phi
+        x2 = opt.newton(lambda x2: self.th([0, x1, x2, x3]) - th, 0.5)
+        return [0, x1, x2, x3]
+
+    def of_bl(self, r, th, phi):
+        pass
 
 
 class BHAC_MKS(CoordinateSystem):
