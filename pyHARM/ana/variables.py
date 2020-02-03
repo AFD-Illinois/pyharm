@@ -174,16 +174,15 @@ def TFl_mixed(dump, i, j):
 def Fcon(dump, i, j):
     """Return the i,j component of contravariant Maxwell tensor"""
     # TODO loopy this for currents on the backend & use results here
+    # TODO make sure this pulls gdet for vectors, for dual-system KORAL-like dumps
 
     Fconij = np.zeros_like(dump['RHO'])
     if i != j:
         for mu in range(4):
             for nu in range(4):
-                Fconij[:, :, :] += _antisym(i, j, mu, nu) * dump['ucov'][mu] * dump['bcov'][nu]
+                Fconij[:, :, :] += (_antisym(i, j, mu, nu) / dump['gdet'][:, :, None]) * dump['ucov'][mu] * dump['bcov'][nu]
 
-    # Remember we want gdet in the vectors' coordinate system (this matters for KORAL dump files)
-    # TODO is normalization correct?
-    return Fconij * dump['gdet'][:, :, None]
+    return Fconij
 
 
 def Fcov(dump, i, j):
