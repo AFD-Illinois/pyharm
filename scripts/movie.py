@@ -35,7 +35,7 @@ LOG_MDOT = False
 LOG_PHI = False
 
 # Load diagnostic data from post-processing (eht_out.p)
-diag_post = True
+diag_post = False
 
 # Default movie start & end time.
 # Can be overridden on command line for splitting movies among processes
@@ -57,7 +57,7 @@ def plot(n):
       # fig.suptitle("t = %d"%dump['t']) # TODO put this at the bottom somehow?
     else:
       # Simple movies don't need derived vars
-      dump = IharmDump(files[n], add_jcon=False, add_derived=False)
+      dump = IharmDump(files[n], add_jcon=False, add_derived=False, add_fail=True)
       jmin, jmax = get_eht_disk_j_vals(dump)
     
     # Put the somewhat crazy rho values from KORAL dumps back in plottable range
@@ -230,25 +230,33 @@ def plot(n):
             # Usual movie: RHO beta fluxes
             # CUTS
             bplt.plot_slices(ax_slc(1), ax_slc(2), dump, 'log_rho', vmin=-3, vmax=2, cmap='jet')
-            bplt.plot_slices(ax_slc(5), ax_slc(6), dump, 'log_beta', vmin=-2, vmax=2, cmap='RdBu_r')
+            bplt.plot_slices(ax_slc(5), ax_slc(6), dump, 'log_beta', vmin=-3, vmax=3, cmap='RdBu_r')
+            bplt.plot_slices(ax_slc(3), ax_slc(4), dump, 'log_sigma', vmin=-3, vmax=3, cmap='RdBu_r')
             # FLUXES
-            bpltr.plot_diag(ax_flux(2), diag, 't', 'mdot', tline=dump['t'], logy=LOG_MDOT)
-            bpltr.plot_diag(ax_flux(4), diag, 't', 'phi_b', tline=dump['t'], logy=LOG_PHI)
+#            bpltr.plot_diag(ax_flux(2), diag, 't', 'Mdot', tline=dump['t'], logy=LOG_MDOT)
+#            bpltr.plot_diag(ax_flux(4), diag, 't', 'phi_b', tline=dump['t'], logy=LOG_PHI)
             # Mixins:
             # Zoomed in RHO
-            bplt.plot_slices(ax_slc(7), ax_slc(8), dump, 'log_rho', vmin=-3, vmax=2,
-                             window=[-10, 10, -10, 10], field_overlay=False)
+#            bplt.plot_slices(ax_slc(7), ax_slc(8), dump, 'log_rho', vmin=-3, vmax=2,
+#                             window=[-10, 10, -10, 10], field_overlay=False)
+            bplt.plot_slices(ax_slc(7), ax_slc(8), dump, 'fail', vmin=0, vmax=5,
+                             window=[-100,100,-100,100], field_overlay=False, int=True, cmap='Reds')
+
     
         elif movie_type == "e_ratio":
             # Energy ratios: difficult places to integrate, with failures
-            bplt.plot_slices(ax_slc(0), ax_slc(1), dump, np.log10(dump['UU'] / dump['RHO']),
-                             label=r"$\log_{10}(U / \rho)$", vmin=-3, vmax=3, average=True)
-            bplt.plot_slices(ax_slc(2), ax_slc(3), dump, np.log10(dump['bsq'] / dump['RHO']),
-                             label=r"$\log_{10}(b^2 / \rho)$", vmin=-3, vmax=3, average=True)
-            bplt.plot_slices(ax_slc(4), ax_slc(5), dump, np.log10(1 / dump['beta']),
-                             label=r"$\beta^{-1}$", vmin=-3, vmax=3, average=True)
-            bplt.plot_slices(ax_slc(6), ax_slc(7), dump, dump['fail'] != 0,
-                             label="Failures", vmin=0, vmax=20, cmap='Reds', int=True)  # , arrspace=True)
+            bplt.plot_slices(ax_slc(1), ax_slc(2), dump, np.log10(dump['UU'] / dump['RHO']),
+                             label=r"$\log_{10}(U / \rho)$", vmin=-3, vmax=3, average=True,
+                             field_overlay=False, arrayspace=True)
+            bplt.plot_slices(ax_slc(3), ax_slc(4), dump, np.log10(dump['bsq'] / dump['RHO']),
+                             label=r"$\log_{10}(b^2 / \rho)$", vmin=-3, vmax=3, average=True,
+                             field_overlay=False, arrayspace=True)
+            bplt.plot_slices(ax_slc(5), ax_slc(6), dump, np.log10(1 / dump['beta']),
+                             label=r"$\beta^{-1}$", vmin=-3, vmax=3, average=True,
+                             field_overlay=False, arrayspace=True)
+            bplt.plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fail'] != 0).astype(np.int32),
+                             label="Failures", vmin=0, vmax=20, cmap='Reds', integrate=True,
+                             field_overlay=False, arrayspace=True)
         elif movie_type == "conservation":
             # Continuity plots to verify local conservation of energy, angular + linear momentum
             # Integrated T01: continuity for momentum conservation
@@ -322,10 +330,10 @@ if __name__ == "__main__":
             tstart = float(sys.argv[3])
         if len(sys.argv) > 4:
             tend = float(sys.argv[4])
-    
+
     # LOAD FILES
     files = np.sort([file for file in glob(os.path.join(path, "*.h5"))
-                     if "grid" not in file and "eht" not in file])
+                     if "grid" not in file]) # and "eht" not in file])
     if len(files) == 0:
         print("INVALID PATH TO DUMP FOLDER")
         sys.exit(1)
@@ -333,13 +341,13 @@ if __name__ == "__main__":
     frame_dir = "frames_" + movie_type
     os.makedirs(frame_dir, exist_ok=True)
     
-    if movie_type not in ["simplest", "radial", "fluxes_cap", "rho_cap", "funnel_wall"]:
-        if diag_post:
-            # Load fluxes from post-analysis: more flexible
-            diag = h5py.File("eht_out.h5", 'r')
-        else:
-            # Load diagnostics from HARM itself
-            diag = io.load_log(path)
+#    if movie_type not in ["simplest", "radial", "fluxes_cap", "rho_cap", "funnel_wall"]:
+#        if diag_post:
+#            # Load fluxes from post-analysis: more flexible
+#            diag = h5py.File("eht_out.h5", 'r')
+#        else:
+#            # Load diagnostics from HARM itself
+#            diag = io.load_log(path)
     
     if debug:
         # Run sequentially to make backtraces work

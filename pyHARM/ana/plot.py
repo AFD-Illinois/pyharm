@@ -342,7 +342,7 @@ def overlay_quiver(ax, dump, varx1, varx2, cadence=64, norm=1):
     x = _flatten_xz(x1_norm)[dump['n1']:, :]
     z = _flatten_xz(x2_norm)[dump['n1']:, :]
 
-    s1 = dump['n1'] // cadence;
+    s1 = dump['n1'] // cadence
     s2 = dump['n2'] // cadence
 
     ax.quiver(x[::s1, ::s2], z[::s1, ::s2], varx1[::s1, ::s2], varx2[::s1, ::s2],

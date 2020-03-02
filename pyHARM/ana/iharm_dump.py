@@ -4,6 +4,7 @@
 import os
 import sys
 import numpy as np
+import h5py
 
 from pyHARM.defs import Loci
 from pyHARM.h5io import read_dump
@@ -24,7 +25,7 @@ class IharmDump:
     various derived variables directly.
     """
 
-    def __init__(self, fname, params=None, add_derived=True, add_jcon=True, add_cons=False,
+    def __init__(self, fname, params=None, add_derived=True, add_jcon=True, add_cons=False, add_fail=True,
                  zones_first=False, lock=None):
         """Read the HDF5 file at fname into memory, and cache some derived variables"""
         self.fname = fname
@@ -40,6 +41,13 @@ class IharmDump:
             P, params_add, self.jcon = read_dump(fname, get_jcon=True)
         else:
             P, params_add = read_dump(fname)
+
+        if add_fail:
+            with h5py.File(fname) as f:
+                if 'fail' in f:
+                    self.fail = (f['fail'][()] != 0)
+                else:
+                    self.fail = (f['extras/fail'][()] != 0)
 
         self.header = {**params, **params_add}
 

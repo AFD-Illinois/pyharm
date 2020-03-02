@@ -17,7 +17,7 @@ from pyHARM.ana.units import get_units_M87
 # TODO parse these instead of hard-coding
 USEARRSPACE = True
 
-SIZE = 15
+SIZE = 20
 #window = (0, SIZE, 0, SIZE)
 window = (-SIZE, SIZE, -SIZE, SIZE)
 # window=(-SIZE/4, SIZE/4, 0, SIZE)

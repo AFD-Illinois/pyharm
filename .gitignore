@@ -3,6 +3,7 @@ restarts/
 dumps/
 *.h5
 *.png
+*.mp4
 
 # Libraries which are managed separately
 src/pystella/

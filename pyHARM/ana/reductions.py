@@ -218,6 +218,24 @@ def partial_shell_sum(dump, var, jmin, jmax):
            ((dump['gdet'][:, jmin:jmax] * dump.header['dx2']).sum(axis=1) * 2 * np.pi)
 
 
+def shell_av(dump, var, at_zone=None, mask=None):
+    """Average a variable over a spherical shell at a particular X1 zone, or at each zone as a radial profile"""
+    if isinstance(var, str):
+        var = dump[var]
+
+    # TODO could maybe be made faster with 'where' but also harder to get right
+    integrand = var * dump['gdet'][:, :, None] * dump.header['dx2'] * dump.header['dx3']
+    area = dump['gdet'][:, :, None] * dump.header['dx2'] * dump.header['dx3']
+    if mask is not None:
+        integrand *= mask
+        area *= mask
+
+    if at_zone is not None:
+        return np.sum(integrand[at_zone, :, :], axis=(0, 1)) / np.sum(area[at_zone, :, :], axis=(0, 1))
+    else:
+        return np.sum(integrand, axis=(1, 2)) / np.sum(area, axis=(1, 2))
+
+
 def midplane_sum(dump, var, within=None):
     """Average the two zones adjacent to midplane and sum, optionally within some zone in X1"""
     if isinstance(var, str):

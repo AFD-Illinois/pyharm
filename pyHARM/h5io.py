@@ -81,8 +81,7 @@ def write_grid(G, fname="dumps/grid.h5"):
     outf.close()
 
 
-def write_dump(params, G, P, t, dt, n, fname, dump_gamma=True, out_type=np.float32):
-    global n_dump
+def write_dump(params, G, P, t, dt, n_step, n_dump, fname, dump_gamma=True, out_type=np.float32):
     s = G.slices
 
     outf = h5py.File(fname, "w")
@@ -96,7 +95,7 @@ def write_dump(params, G, P, t, dt, n, fname, dump_gamma=True, out_type=np.float
     outf['full_dump_cadence'] = params['dump_cadence']
     outf['is_full_dump'] = 1
     outf['n_dump'] = n_dump
-    outf['n_step'] = n
+    outf['n_step'] = n_step
 
     # TODO jcon
 
@@ -117,20 +116,19 @@ def write_dump(params, G, P, t, dt, n, fname, dump_gamma=True, out_type=np.float
         outf.create_group("extras")
 
     outf.close()
-    
-    n_dump += 1
 
 
 def read_dump(fname, get_gamma=False, get_jcon=False, zones_first=False, read_type=np.float32):
     """Read the header and primitives from a write_dump.
     No analysis or extra processing is performed
+    @return (P, params, [gamma], [jcon])
     """
     infile = h5py.File(fname, "r")
 
     params = read_hdr(infile['/header'])
 
     # Per-write_dump single variables.  TODO more?
-    for key in ['t', 'dt', 'dump_cadence', 'full_dump_cadence']:
+    for key in ['t', 'dt', 'n_step', 'n_dump', 'dump_cadence', 'full_dump_cadence']:
         if key in infile:
             params[key] = infile[key][()]
 
