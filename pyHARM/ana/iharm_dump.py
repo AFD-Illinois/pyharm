@@ -42,8 +42,8 @@ class IharmDump:
         else:
             P, params_add = read_dump(fname)
 
-        if add_fail:
-            with h5py.File(fname) as f:
+        if add_fail: # TODO push back to read_dump interface
+            with h5py.File(fname, 'r') as f:
                 if 'fail' in f:
                     self.fail = (f['fail'][()] != 0)
                 else:
