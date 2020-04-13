@@ -25,7 +25,7 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'u_phi': lambda dump: dump['ucov'][3],
             'u^phi': lambda dump: dump['ucon'][3],
             'FM': lambda dump: dump['RHO'] * dump['ucon'][1],
-            'FE': lambda dump: -T_mixed(dump, 1, 0),
+            'FE': lambda dump: -dump['bsq']*dump['ucon'][1]*dump['ucon'],
             'FE_EM': lambda dump: -TEM_mixed(dump, 1, 0),
             'FE_Fl': lambda dump: -TFl_mixed(dump, 1, 0),
             'FL': lambda dump: T_mixed(dump, 1, 3),
@@ -42,7 +42,7 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']),
             'current': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,
             'B': lambda dump: np.sqrt(dump['bsq']),
-            'betagamma': lambda dump: np.sqrt(dump['FE_EM'] / dump['FM'] - 1),
+            'betagamma': lambda dump: np.sqrt((dump['FE'] / dump['FM'])**2 - 1),
             'Theta': lambda dump: (dump.header['gam'] - 1) * dump['UU'] / dump['RHO'],
             'Thetap': lambda dump: (dump.header['gam_p'] - 1) * dump['UU'] / dump['RHO'],
             'Thetae': lambda dump: (dump.header['gam_e'] - 1) * dump['UU'] / dump['RHO'],
@@ -77,10 +77,10 @@ pretty_dict = {'rho': r"\rho",
             'FE_EM': r"FE_{EM}",
             'FE_Fl': r"FE_{Fl}",
             'FL':r"FL_{\mathrm{tot}}",
-            'FL_EM': r"FL_{EM}",
-            'FL_Fl': r"FL_{Fl}",
-            'Be_b': r"Be_{B}",
-            'Be_nob': r"Be_{Fl}",
+            'FL_EM': r"FL_{\mathrm{EM}}",
+            'FL_Fl': r"FL_{\mathrm{Fl}}",
+            'Be_b': r"Be_{\mathrm{B}}",
+            'Be_nob': r"Be_{\mathrm{Fluid}}",
             'Pg': r"P_g",
             'Pb': r"P_b",
             'Ptot': r"P_{\mathrm{tot}}",
@@ -197,7 +197,7 @@ def Fcov(dump, i, j):
 
 def bernoulli(dump, with_B=False):
     if with_B:
-        return -T_mixed(dump, 0, 0) / (dump['RHO'] * dump['ucon'][0]) - 1
+        return -(T_mixed(dump, 0, 0) / dump['FM']) - 1
     else:
         return -(1 + dump.header['gam'] * dump['UU'] / dump['RHO']) * dump['ucov'][0] - 1
 

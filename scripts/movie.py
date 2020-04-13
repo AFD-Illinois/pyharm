@@ -7,6 +7,7 @@
 import os
 import sys
 import pickle
+import psutil
 import numpy as np
 import h5py
 from glob import glob
@@ -24,8 +25,11 @@ import pyHARM.ana.plot_results as bpltr
 from pyHARM.ana.util import i_of, calc_nthreads, run_parallel
 
 # Movie size in inches. Keep 16/9 for standard-size movies
-FIGX = 12
-FIGY = FIGX * 9 / 16
+FIGX = 6
+FIGY = 6
+#FIGY = FIGX * 9 / 16
+# FIGX = 8
+# FIGY = 8
 
 # For plotting debug, "array-space" plots
 # Certain plots can override this below
@@ -48,11 +52,11 @@ def plot(n):
     if (tstart is not None and tdump < tstart) or (tend is not None and tdump > tend):
       return
     
-    print("{} / {}".format((n + 1), len(files)))
+    print("frame {} / {}".format(n, len(files)-1))
     
     fig = plt.figure(figsize=(FIGX, FIGY))
     
-    if movie_type not in ["simplest", "simpler", "simple"]:
+    if movie_type not in ["simplest_poloidal", "simplest_toroidal", "simplest", "simpler", "simple"]:
       dump = IharmDump(files[n])
       # fig.suptitle("t = %d"%dump['t']) # TODO put this at the bottom somehow?
     else:
@@ -75,17 +79,42 @@ def plot(n):
     elif dump['r'][-1, 0, 0] > 10:
         window = [-50, 50, -50, 50]
         nlines = 5
-        rho_l, rho_h = -4, 1
+        rho_l, rho_h = -2, 0.0
         iBZ = i_of(dump['r'][:,0,0], 40)  # most SANEs
         rBZ = 40
     else: # Then this is a Minkowski simulation or something weird
         window = [dump['x'][0,0,0], dump['x'][-1,-1,-1], dump['y'][0,0,0], dump['y'][-1,-1,-1],]
         nlines = 0
-        rho_l, rho_h = -4, 1
+        rho_l, rho_h = -2, 0.0
         iBZ = 1
         rBZ = 1
+    window=[-17,17,-17,17]
     
-    if movie_type == "simplest":
+    if movie_type == "simplest_poloidal":
+        # Simplest movie: just RHO, poloidal slice
+        ax_slc = plt.subplot(1, 1, 1)
+        var = 'log_rho'
+        arrspace=False
+        vmin = rho_l
+        vmax = rho_h
+        bplt.plot_xz(ax_slc, dump, var, label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=arrspace,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        plt.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
+    elif movie_type == "simplest_toroidal":
+        # Simplest movie: just RHO, toroidal slice
+        ax_slc = plt.subplot(1, 1, 1)
+        var = 'log_rho'
+        arrspace=False
+        vmin = rho_l
+        vmax = rho_h
+        bplt.plot_xy(ax_slc, dump, 'log_rho', label="",
+                     vmin=vmin+0.15, vmax=vmax+0.15, window=window, arrayspace=arrspace,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        plt.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
+    elif movie_type == "simplest":
         # Simplest movie: just RHO
         ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
         if dump['metric'] == "MINKOWSKI":
@@ -94,17 +123,22 @@ def plot(n):
             vmin = None
             vmax = None
         else:
-            var = 'log_rho'
             arrspace=False
+            # Linear version
+            # var = 'rho'
+            # vmin = 0
+            # vmax = 1
+
+            var = 'log_rho'
             vmin = rho_l
             vmax = rho_h
 	
-        bplt.plot_xz(ax_slc[0], dump, 'log_rho', label="",
+        bplt.plot_xz(ax_slc[0], dump, var, label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
-        bplt.plot_xy(ax_slc[1], dump, 'log_rho', label="",
-                     vmin=vmin, vmax=vmax, window=window, arrayspace=arrspace,
+        bplt.plot_xy(ax_slc[1], dump, var, label="",
+                     vmin=vmin+0.15, vmax=vmax+0.15, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
     
@@ -306,7 +340,7 @@ def plot(n):
         pad = 0.03
         plt.subplots_adjust(left=pad, right=1 - pad, bottom=pad, top=1 - pad)
     
-    plt.savefig(imname, dpi=1920 / FIGX)  # TODO the group projector is like 4:3 man
+    plt.savefig(imname, dpi=120) #1920 / FIGX)  # TODO the group projector is like 4:3 man
     plt.close(fig)
 
     del dump
@@ -354,5 +388,9 @@ if __name__ == "__main__":
         for i in range(len(files)):
             plot(i)
     else:
-        nthreads = calc_nthreads(read_hdr(files[0]), pad=0.3)
+        if movie_type in ["equator", "simplest"]:
+            nthreads = psutil.cpu_count() // 2
+            print("Using {} threads".format(nthreads))
+        else:
+            nthreads = calc_nthreads(read_hdr(files[0]), pad=0.3)
         run_parallel(plot, len(files), nthreads)

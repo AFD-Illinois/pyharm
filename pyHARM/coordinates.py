@@ -274,7 +274,7 @@ class MKS(CoordinateSystem):
         elif 'n1tot' in met_params and 'r_out' in met_params:
             # Else via a guess
             return np.array([0,
-                             ((met_params['n1tot'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
+                             ((met_params['n1tot'] * np.log(self.r_eh) / 5.5 + np.log(met_params['r_out'])) /
                               (1. + met_params['n1tot'] / 5.5)),
                              0, 0])
         else:
@@ -311,7 +311,7 @@ class MKS(CoordinateSystem):
         return dxdX
 
 
-class MMKS(MKS):
+class CMKS(MKS):
     def __init__(self, met_params=default_met_params):
         self.poly_xt = met_params['poly_xt']
         self.poly_alpha = met_params['poly_alpha']
@@ -329,6 +329,7 @@ class MMKS(MKS):
 
 
 class FMKS(MKS):
+    """Funky """
     def __init__(self, met_params=default_met_params):
         super(FMKS, self).__init__(met_params)
         self.poly_xt = met_params['poly_xt']
@@ -479,14 +480,28 @@ class BL(CoordinateSystem):
         return gcov
 
     def dxdX(self, x):
+        """Transformation matrix for vectors from BL to KS"""
         dxdX = np.zeros([4, 4, *x.shape[1:]])
-        r, th, _ = self.bl_coord(x)
+        r, _, _ = self.bl_coord(x)
 
         dxdX[0, 0] = 1
         dxdX[0, 1] = 2. * r / (r**2 - 2.*r + self.a**2)
         dxdX[1, 1] = 1
         dxdX[2, 2] = 1
         dxdX[3, 1] = self.a / (r**2 - 2.*r + self.a**2)
+        dxdX[3, 3] = 1
+        return dxdX
+    
+    def dXdx(self, x):
+        """Transformation matrix for vectors from KS to BL"""
+        dxdX = np.zeros([4, 4, *x.shape[1:]])
+        r, _, _ = self.bl_coord(x)
+
+        dxdX[0, 0] = 1
+        dxdX[0, 1] = - 2. * r / (r**2 - 2.*r + self.a**2)
+        dxdX[1, 1] = 1
+        dxdX[2, 2] = 1
+        dxdX[3, 1] = - self.a / (r**2 - 2.*r + self.a**2)
         dxdX[3, 3] = 1
         return dxdX
 
