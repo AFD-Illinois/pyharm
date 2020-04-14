@@ -116,6 +116,9 @@ class CoordinateSystem(object):
             # Canon ordering is mu,nu,i,j for what I swear are good reasons
             gcov_t = gcov.transpose((2, 3, 0, 1))
             return la.inv(gcov_t).transpose((2, 3, 0, 1))
+        elif len(gcov.shape) == 5:
+            gcov_t = gcov.transpose((2, 3, 4, 0, 1))
+            return la.inv(gcov_t).transpose((3, 4, 0, 1, 2))
         else:
             raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2".format(gcov.shape))
 
@@ -126,6 +129,10 @@ class CoordinateSystem(object):
             return np.sqrt(-la.det(gcov))
         elif len(gcov.shape) == 4:
             gcov_t = gcov.transpose((2, 3, 0, 1))
+            gdet = np.sqrt(-la.det(gcov_t))
+            return gdet
+        elif len(gcov.shape) == 5:
+            gcov_t = gcov.transpose((2, 3, 4, 0, 1))
             gdet = np.sqrt(-la.det(gcov_t))
             return gdet
         else:
@@ -247,6 +254,39 @@ class Minkowski(CoordinateSystem):
     def conn_func(cls, x, delta=1e-5):
         return np.zeros([4, 4, 4, *(x.shape[1:])])
 
+class KS(CoordinateSystem):
+    def __init__(self, met_params={'a': 0.9375}):
+        self.a = met_params['a']
+
+    def r(self, x):
+        return x[1]
+
+    def th(self, x):
+        return x[2]
+
+    def phi(self, x):
+        return x[3]
+
+    def bl_coord(self, x):
+        return self.r(x), self.th(x), self.phi(x)
+
+    def cart_x(self, x):
+        return self.r(x)*np.sin(self.th(x))*np.cos(self.phi(x))
+
+    def cart_y(self, x):
+        return self.r(x)*np.sin(self.th(x))*np.sin(self.phi(x))
+
+    def cart_z(self, x):
+        return self.r(x)*np.cos(self.th(x))
+
+    def dxdX(self, x):
+        """Null Transformation"""
+        dxdX = np.zeros([4, 4, *x.shape[1:]])
+        dxdX[0, 0] = 1
+        dxdX[1, 1] = 1
+        dxdX[2, 2] = 1
+        dxdX[3, 3] = 1
+        return dxdX
 
 class MKS(CoordinateSystem):
     def __init__(self, met_params=default_met_params):
@@ -489,19 +529,6 @@ class BL(CoordinateSystem):
         dxdX[1, 1] = 1
         dxdX[2, 2] = 1
         dxdX[3, 1] = self.a / (r**2 - 2.*r + self.a**2)
-        dxdX[3, 3] = 1
-        return dxdX
-    
-    def dXdx(self, x):
-        """Transformation matrix for vectors from KS to BL"""
-        dxdX = np.zeros([4, 4, *x.shape[1:]])
-        r, _, _ = self.bl_coord(x)
-
-        dxdX[0, 0] = 1
-        dxdX[0, 1] = - 2. * r / (r**2 - 2.*r + self.a**2)
-        dxdX[1, 1] = 1
-        dxdX[2, 2] = 1
-        dxdX[3, 1] = - self.a / (r**2 - 2.*r + self.a**2)
         dxdX[3, 3] = 1
         return dxdX
 
