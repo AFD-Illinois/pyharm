@@ -4,5 +4,7 @@ from .ana.iharm_dump import IharmDump
 from .ana.reductions import *
 from .ana.variables import pretty
 
-def load_dump(fname):
-    return IharmDump(fname)
+from .ana import plot as plot
+
+def load_dump(fname, **kwargs):
+    return IharmDump(fname, **kwargs)

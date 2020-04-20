@@ -16,6 +16,8 @@ dependencies:
  - pocl
  - sphinx
  - ipykernel
+ - ipympl
+ - ipywidgets
  # Get latest loopy from github, as pyPI is out of date
  - pip:
     - "--editable=git+ssh://git@github.com/inducer/loopy.git@master#egg=loo.py"
