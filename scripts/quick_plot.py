@@ -10,8 +10,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from pyHARM.ana.iharm_dump import IharmDump
-import pyHARM.ana.plot as bplt
+# TODO package interface...
+import pyHARM
+import pyHARM.ana.plot as pplt
+from pyHARM import pretty
 from pyHARM.ana.units import get_units_M87
 
 # TODO parse these instead of hard-coding
@@ -40,36 +42,35 @@ if len(sys.argv) > 4:
 else:
     unit = 1
 
-dump = IharmDump(dumpfile, add_jcon=True)
-
-# Manually do PDFs. TODO add all reductions by name somehow
-if var.split("/")[0] == "pdf":
-    var_og = var.split("/")[1]
-    d_var, d_var_bins = np.histogram(np.log10(dump[var_og]), bins=200, range=pdf_window,
-                                                  # Weights have to be the same shape as var
-                                                  weights=np.repeat(dump['gdet'], dump.N3).reshape(dump[var_og].shape),
-                                                  density=True)
-    fig = plt.figure(figsize=(FIGX, FIGY))
-    plt.plot(d_var_bins[:-1], d_var)
-    plt.title("PDF of " + var_og)
-    plt.xlabel("Log10 value")
-    plt.ylabel("Probability")
-
-    plt.savefig(var_og + "_pdf.png", dpi=100)
-    plt.close(fig)
-    exit()
+dump = pyHARM.load_dump(dumpfile, add_jcon=True)
 
 # Plot vectors in 4-pane layout
 fig = plt.figure(figsize=(FIGX, FIGY))
+plt.title(pretty(var))
 
 if var in ['jcon', 'jcov', 'ucon', 'ucov', 'bcon', 'bcov']:
     axes = [plt.subplot(2, 2, i) for i in range(1, 5)]
     for n in range(4):
-        bplt.plot_xy(axes[n], dump, np.log10(dump[var][n] * unit), arrayspace=USEARRSPACE, window=window)
+        pplt.plot_xy(axes[n], dump, np.log10(dump[var][n] * unit), arrayspace=USEARRSPACE, window=window)
+elif "pdf_" in var:
+    fig = plt.figure(figsize=(FIGX, FIGY))
+    d_var, d_var_bins = dump[var]
+    plt.plot(d_var_bins[:-1], d_var)
+    if "_log_" in var:
+        plt.xlabel("Log10 value")
+    elif "_ln_" in var:
+        plt.xlabel("Ln value")
+    else:
+        plt.xlabel("Value")
+    plt.ylabel("Frequency")
+
+    plt.savefig(name+".png", dpi=100)
+    plt.close(fig)
+    exit() # We already saved the figure, we don't need another
 else:
     # TODO allow specifying vmin/max, average from command line or above
     ax = plt.subplot(1, 1, 1)
-    bplt.plot_xy(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)
+    pplt.plot_xy(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)
 
 plt.tight_layout()
 plt.savefig(name + "_xy.png", dpi=100)
@@ -81,10 +82,10 @@ fig = plt.figure(figsize=(FIGX, FIGY))
 if var in ['jcon', 'jcov', 'ucon', 'ucov', 'bcon', 'bcov']:
     axes = [plt.subplot(2, 2, i) for i in range(1, 5)]
     for n in range(4):
-        bplt.plot_xz(axes[n], dump, np.log10(dump[var][n] * unit), arrayspace=USEARRSPACE, window=window)
+        pplt.plot_xz(axes[n], dump, np.log10(dump[var][n] * unit), arrayspace=USEARRSPACE, window=window)
 else:
     ax = plt.subplot(1, 1, 1)
-    bplt.plot_xz(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)
+    pplt.plot_xz(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)
 
 plt.tight_layout()
 

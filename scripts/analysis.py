@@ -1,36 +1,36 @@
 # This script calculates analysis reductions over an entire run, i.e. every zone of every dump file.
+# It makes use of multiprocessing, but the effect is limited due to high memory usage
+
+# Usage: python analysis.py /path/to/dump/folder/ [tstart] tavg_start tavg_end [tend]
+# All *.h5 files in the path are assumed to be HARM fluid dump files
+# * tavg_* are the interval in time (r_g/c) over which to average any time-averaged variables
+# EHT comparison standard is 5000-10000M for a 10kM run
+# * t* are the start and end times for all processing -- dumps before/after this will be ignored
+# This is useful if multiple copies of analysis.py are being run and the results later merged
+# (see merge_ana.py)
+# Alternate usage: analysis.py /path/to/dump.h5
 
 from glob import glob
 import h5py
-try:
-    import pyopencl as cl
-    # Need the actual multiprocessing package for handling locks
-    import multiprocessing
-    can_use_cl = False  # TODO someday
-except ImportError:
-    can_use_cl = False
 
-from pyHARM.h5io import get_dump_time, hdf5_to_dict, dict_to_hdf5
-from pyHARM.defs import Loci
-
-from pyHARM.ana.variables import *
-from pyHARM.ana.reductions import *
-from pyHARM.ana.iharm_dump import IharmDump
-from pyHARM.ana.misc_io import load_log
-import pyHARM.ana.util as util
-from pyHARM.ana.util import i_of
 # Memory usage stats
 import psutil
 this_process = psutil.Process(os.getpid())
 
-# Option to calculate fluxes at (just inside) r = 5
-# This reduces interference from floors
-floor_workaround_flux = False
-# Option to ignore accretion at high magnetization (funnel)
-# This also reduces interference from floors
-floor_workaround_funnel = False
+import pyHARM
+# Spam base namespace so we don't have to type pyHARM or even ph
+from pyHARM.ana.variables import *
+from pyHARM.ana.reductions import *
 
-# Whether to calculate each expensive set of variables
+ # I'm not sure how much of this functionality we really want to standardize...
+import pyHARM.h5io as io
+from pyHARM.defs import Loci
+
+from pyHARM.ana.misc_io import load_log
+import pyHARM.ana.util as util
+from pyHARM.ana.util import i_of
+
+# Whether to calculate each set of variables
 # Once performed once, calculations will be ported to each new output file
 calc_ravgs = True
 calc_basic = True
@@ -44,24 +44,8 @@ calc_outfluxes = False
 calc_pdfs = True
 pdf_nbins = 200
 
-# TODO can cl versions be used somehow?
 params = {}
 parallel = True
-lock = None
-
-
-def init(_lock):
-    global lock, params, this_process
-    lock = _lock
-
-    if can_use_cl:
-        with lock:
-            params['ctx'] = cl.create_some_context()
-            print(params['ctx'])
-            params['queue'] = cl.CommandQueue(params['ctx'])
-
-    this_process = psutil.Process(os.getpid())
-
 
 # This doesn't seem like the _right_ way to do optional args
 # Skips everything before tstart, averages between tavg_start and tavg_end
@@ -104,7 +88,7 @@ if tend == 0.:
     tend = float(ND)
 
 # Get header and geometry stuff from the first dump on the list
-dump = IharmDump(dumps[0], params=params, add_derived=False)
+dump = pyHARM.load_dump(dumps[0], params=params, add_derived=False)
 hdr = dump.header
 
 if dump['r'].ndim == 3:
@@ -124,10 +108,8 @@ if hdr['metric'] == "mks3":
 else:
     iEH = i_of(r1d, hdr['r_eh'])
 
-if floor_workaround_flux:
-    iF = i_of(r1d, 5)  # Measure fluxes at r=5M
-else:
-    iF = iEH
+# Measure fluxes at event horizon. TODO option for which zone here, or multiple. Record.
+iF = iEH
 
 # Max radius when computing "total" energy
 iEmax = i_of(r1d, 40)
@@ -136,7 +118,10 @@ iEmax = i_of(r1d, 40)
 # 100M seems like the standard measuring spot (or at least, BHAC does it that way)
 # L_BZ seems constant* after that, but much higher within ~50M
 if hdr['r_out'] < 100 or r1d[-1] < 100:  # If in theory or practice the sim is small...
-    iBZ = i_of(r1d, 40)  # most SANEs
+    if r1d[-1] > 40:
+        iBZ = i_of(r1d, 40)  # most SANEs
+    else:
+        iBZ = len(r1d) - 6 # Otherwise measure it just inside the boundary
 else:
     iBZ = i_of(r1d, 100)  # most MADs
 
@@ -150,6 +135,7 @@ def avg_dump(n):
 
     t = get_dump_time(dumps[n])
     # When we don't know times, fudge
+    # TODO accept -1 as "Not available" flag in the HDF5 spec
     if t == 0 and n != 0:
         t = n
     # Record
@@ -160,20 +146,14 @@ def avg_dump(n):
         # Still return the time
         return out
     else:
-        if 'queue' in params:
-            lock.acquire()
-            print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
-            dump = IharmDump(dumps[n], params=params, add_jcon=True)
-            print("Loaded {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
-            lock.release()
-        else:
-            print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
-            dump = IharmDump(dumps[n], params=params, add_jcon=True)
+        print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
+        dump = IharmDump(dumps[n], params=params, add_jcon=True)
 
     # Should we compute the time-averaged quantities?
     do_tavgs = (tavg_start <= t <= tavg_end)
 
-    # EHT Radial profiles: special fn for profile, averaged over phi, 1/3 theta, time
+    # EHT Radial profiles: Average only over the disk portion (excluding first & last pi/3 ~ "poles")
+    #
     if calc_ravgs:
         for var in ['rho', 'Theta', 'B', 'Pg', 'Ptot', 'beta', 'u^phi', 'u_phi', 'sigma']:
             out['rt/' + var] = partial_shell_sum(dump, var, jmin, jmax)
