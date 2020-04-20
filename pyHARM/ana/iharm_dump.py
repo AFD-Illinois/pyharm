@@ -25,7 +25,7 @@ class IharmDump:
     various derived variables directly.
     """
 
-    def __init__(self, fname, params=None, add_derived=True, add_jcon=True, add_cons=False, add_fail=True,
+    def __init__(self, fname, params=None, add_derived=True, add_jcon=False, add_cons=False, add_fail=True,
                  zones_first=False, lock=None):
         """Read the HDF5 file at fname into memory, and cache some derived variables"""
         self.fname = fname
@@ -145,8 +145,13 @@ class IharmDump:
             return vars.fns_dict[key](self)
         elif key[:4] == "log_":
             return np.log10(self[key[4:]])
-        elif key[:4] == "ln_":
-            return np.log(self[key[4:]])
+        elif key[:3] == "ln_":
+            return np.log(self[key[3:]])
+        elif key[:4] == "pdf_":
+            var_og = self[key[4:]]
+            pdf_window=(np.min(var_og), np.max(var_og))
+            return np.histogram(var_og, bins=100, range=pdf_window,
+                weights=np.repeat(self.gdet, self.N3).reshape(var_og.shape), density=True)
         else:
             raise ValueError("IharmDump cannot find or compute {}".format(key))
 

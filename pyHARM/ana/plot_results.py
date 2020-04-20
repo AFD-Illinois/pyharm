@@ -77,8 +77,10 @@ def plot_t(ax, ivar, var, range=(5000, 10000), label=None, xticks=None):
         ax.plot(ivar[slc], var[slc])
 
     ax.set_xlim(range)
-    if xticks:
+    if xticks is None:
         ax.set_xticklabels([])
+    else:
+        ax.set_xticklabels(xticks)
 
 
 def fit(x, y, log=False):
