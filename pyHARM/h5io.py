@@ -128,7 +128,7 @@ def read_dump(fname, get_gamma=False, get_jcon=False, zones_first=False, read_ty
     params = read_hdr(infile['/header'])
 
     # Per-write_dump single variables.  TODO more?
-    for key in ['t', 'dt', 'n_step', 'n_dump', 'dump_cadence', 'full_dump_cadence']:
+    for key in ['t', 'dt', 'n_step', 'n_dump', 'is_full_dump', 'dump_cadence', 'full_dump_cadence']:
         if key in infile:
             params[key] = infile[key][()]
 
