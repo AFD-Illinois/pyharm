@@ -22,7 +22,7 @@ vnams = dump['prim_names']
 def geom_meta(fp):
     fp.write("      <!-- GRID DEFINITION -->\n")
     fp.write("      <Geometry GeometryType=\"X_Y_Z\">\n")
-    for d in range(NDIM):
+    for d in range(1,NDIM):
         coord_meta(fp, d)
     fp.write("      </Geometry>\n")
 
@@ -66,7 +66,7 @@ def prim_meta(fp, vnams, indx):
     fp.write(
         "          <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" "
         "Precision=\"32\" Format=\"HDF\">\n" % (N1TOT, N2TOT, N3TOT, NVAR))
-    fp.write("            %s:/P\n" % dname)
+    fp.write("            %s:/prims\n" % dname)
     fp.write("          </DataItem>\n")
     fp.write("        </DataItem>\n")
     fp.write("      </Attribute>\n")
@@ -81,7 +81,7 @@ def scalar_meta(fp, name, sourcename, precision):
     fp.write("          <DataItem Dimensions=\"3 3\" Format=\"XML\">\n")
     fp.write("            0 0 0\n")
     fp.write("            1 1 1\n")
-    fp.write("            %d %d %d\n"% (N1TOT, N2TOT, N3TOT))
+    fp.write("            %d %d %d\n" % (N1TOT, N2TOT, N3TOT))
     fp.write("          </DataItem>\n")
     fp.write(
         "          <DataItem Dimensions=\"%d %d %d\" NumberType=\"Float\" "
@@ -155,12 +155,12 @@ if __name__ == "__main__":
     fp.write("\n")
 
     # Jacobians
-    fp.write("      <!-- JACOBIANS -->\n")
-    fp.write("      <!-- contravariant -->\n")
-    tensor_meta(fp, "Lambda_h2cart_con", gname, 64)
-    fp.write("      <!-- covariant -->\n")
-    tensor_meta(fp, "Lambda_h2cart_cov", gname, 64)
-    fp.write("\n")
+    # fp.write("      <!-- JACOBIANS -->\n")
+    # fp.write("      <!-- contravariant -->\n")
+    # tensor_meta(fp, "Lambda_h2cart_con", gname, 64)
+    # fp.write("      <!-- covariant -->\n")
+    # tensor_meta(fp, "Lambda_h2cart_cov", gname, 64)
+    # fp.write("\n")
 
     # Metric
     fp.write("      <!-- METRIC -->\n")
@@ -182,14 +182,14 @@ if __name__ == "__main__":
 
     if (full_dump):
         fp.write("      <!-- DERIVED VARS -->\n")
-        scalar_meta(fp, "divb", dname, 32)
+        # scalar_meta(fp, "divb", dname, 32)
         fp.write("      <!-- jcon -->\n")
         vec_meta(fp, "jcon")
         # ???
-        scalar_meta(fp, "PRESS", dname, 32)
-        scalar_meta(fp, "ENT", dname, 32)
-        scalar_meta(fp, "TEMP", dname, 32)
-        scalar_meta(fp, "CS2", dname, 32)
+        # scalar_meta(fp, "PRESS", dname, 32)
+        # scalar_meta(fp, "ENT", dname, 32)
+        # scalar_meta(fp, "TEMP", dname, 32)
+        # scalar_meta(fp, "CS2", dname, 32)
 
 
     # footer
