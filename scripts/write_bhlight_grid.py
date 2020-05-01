@@ -9,11 +9,12 @@ from pyHARM.defs import Loci
 from pyHARM.grid import Grid
 from pyHARM import load_dump
 
-dump = load_dump(sys.argv[1], add_derived=False, add_fail=False)
-G = Grid(dump.header)
+dname = sys.argv[1]
+dump = load_dump(dname, add_derived=False, add_fail=False)
+G = dump.grid
 coords = G.coords
 
-outf = h5py.File("grid.h5", "w")
+outf = h5py.File(dname[:-16] + "grid_vis.h5", "w")
 
 # Cell coordinates
 x = G.coord_bulk(Loci.CENT).reshape(4, G.N[1], G.N[2], G.N[3])
