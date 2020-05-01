@@ -43,12 +43,16 @@ outf['gcov'] = gcov3
 outf['gdet'] = gdet3
 outf['alpha'] = lapse3
 
-#TODO
+dxdX = np.einsum("ij...,jk...->...ik", coords.dxdX_cartesian(x), coords.dxdX(x))
+outf['Lambda_h2cart_con'] = dxdX
+outf['Lambda_h2cart_cov'] = np.linalg.inv(dxdX)
+
+outf.close()
+
+#TODO not used for VisIt but for completeness:
 #Lambda_bl2cart_con       Dataset {32, 32, 1, 4, 4}
 #Lambda_bl2cart_cov       Dataset {32, 32, 1, 4, 4}
 #Lambda_h2bl_con          Dataset {32, 32, 1, 4, 4}
 #Lambda_h2bl_cov          Dataset {32, 32, 1, 4, 4}
-#Lambda_h2cart_con        Dataset {32, 32, 1, 4, 4}
-#Lambda_h2cart_cov        Dataset {32, 32, 1, 4, 4}
 
 

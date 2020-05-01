@@ -288,7 +288,22 @@ class KS(CoordinateSystem):
         dxdX[3, 3] = 1
         return dxdX
 
-class MKS(CoordinateSystem):
+    def dxdX_cartesian(self, x):
+        dxdX = np.zeros([4, 4, *x.shape[1:]])
+        r, th, phi = self.bl_coord(x)
+        dxdX[0, 0] = 1
+        dxdX[1, 1] = np.sin(th)*np.cos(phi)
+        dxdX[1, 2] = r*np.cos(th)*np.cos(phi)
+        dxdX[1, 3] = -r*np.sin(th)*np.sin(phi)
+        dxdX[2, 1] = np.sin(th)*np.sin(phi)
+        dxdX[2, 2] = r*np.cos(th)*np.sin(phi)
+        dxdX[2, 3] = r*np.sin(th)*np.cos(phi)
+        dxdX[3, 1] = np.cos(th)
+        dxdX[3, 2] = -r*np.sin(th)
+        dxdX[3, 3] = 0
+        return dxdX
+
+class MKS(KS):
     def __init__(self, met_params=default_met_params):
         self.a = met_params['a']
         self.hslope = met_params['hslope']

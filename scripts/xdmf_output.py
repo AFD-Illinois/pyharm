@@ -155,12 +155,12 @@ if __name__ == "__main__":
     fp.write("\n")
 
     # Jacobians
-    # fp.write("      <!-- JACOBIANS -->\n")
-    # fp.write("      <!-- contravariant -->\n")
-    # tensor_meta(fp, "Lambda_h2cart_con", gname, 64)
-    # fp.write("      <!-- covariant -->\n")
-    # tensor_meta(fp, "Lambda_h2cart_cov", gname, 64)
-    # fp.write("\n")
+    fp.write("      <!-- JACOBIANS -->\n")
+    fp.write("      <!-- contravariant -->\n")
+    tensor_meta(fp, "Lambda_h2cart_con", gname, 64)
+    fp.write("      <!-- covariant -->\n")
+    tensor_meta(fp, "Lambda_h2cart_cov", gname, 64)
+    fp.write("\n")
 
     # Metric
     fp.write("      <!-- METRIC -->\n")
