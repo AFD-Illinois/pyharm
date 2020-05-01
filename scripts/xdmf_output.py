@@ -1,23 +1,25 @@
 ## xdmf_output.py: generate an xdmf file for an output dump
 
 import sys
+import h5py
 from pyHARM import load_dump
 from pathlib import Path
 
 dumpname = sys.argv[1]
-dump = load_dump(dumpname, add_derived=False, add_fail=False)
+#dump = load_dump(dumpname, add_derived=False, add_fail=False)
+dump = h5py.File(dumpname, "r") # Read only what we need, don't cache
 xmfpath = dumpname[:-16]+"xmf/"
-xmfname = xmfpath + "dump_%08d.xmf" % dump['n_dump']
+xmfname = xmfpath + "dump_%08d.xmf" % dump['/n_dump'][()]
 print("Writing {}".format(xmfname))
 Path(xmfpath).mkdir(parents=True, exist_ok=True)
 
-N1TOT = dump['n1']
-N2TOT = dump['n2']
-N3TOT = dump['n3']
-NDIM = dump['n_dim']
-NVAR = dump['n_prim']
-t = dump['t']
-vnams = dump['prim_names']
+N1TOT = dump['/header/n1'][()]
+N2TOT = dump['/header/n2'][()]
+N3TOT = dump['/header/n3'][()]
+NDIM = dump['/header/geom/n_dim'][()]
+NVAR = dump['/header/n_prim'][()]
+t = dump['/t'][()]
+vnams = dump['/header/prim_names'][()]
 
 def geom_meta(fp):
     fp.write("      <!-- GRID DEFINITION -->\n")
@@ -132,11 +134,11 @@ def tensor_component(fp, name, sourcename, precision, mu, nu):
     fp.write("      </Attribute>\n")
 
 if __name__ == "__main__":
-    dname = "../dump_%08d.h5" % dump['n_dump']
+    dname = "../dump_%08d.h5" % dump['/n_dump'][()]
     gname = "../grid.h5"
-    fname = "dump_%08d.xmf" % dump['n_dump']
+    fname = "dump_%08d.xmf" % dump['/n_dump'][()]
     name = xmfname
-    full_dump = dump['is_full_dump']
+    full_dump = dump['/is_full_dump'][()]
 
     fp = open(name, "w")
 
@@ -176,7 +178,7 @@ if __name__ == "__main__":
 
     # Variables
     fp.write("      <!-- PRIMITIVES -->\n")
-    for p in range(dump['n_prim']):
+    for p in range(dump['/header/n_prim'][()]):
         prim_meta(fp, vnams, p)
     fp.write("\n")
 
