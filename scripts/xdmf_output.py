@@ -135,7 +135,7 @@ def tensor_component(fp, name, sourcename, precision, mu, nu):
 
 if __name__ == "__main__":
     dname = "../dump_%08d.h5" % dump['/n_dump'][()]
-    gname = "../grid.h5"
+    gname = "../grid_vis.h5"
     fname = "dump_%08d.xmf" % dump['/n_dump'][()]
     name = xmfname
     full_dump = dump['/is_full_dump'][()]
