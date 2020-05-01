@@ -19,7 +19,8 @@ N3TOT = dump['/header/n3'][()]
 NDIM = dump['/header/geom/n_dim'][()]
 NVAR = dump['/header/n_prim'][()]
 t = dump['/t'][()]
-vnams = dump['/header/prim_names'][()]
+vnams = [el.decode('UTF-8') for el in dump['/header/prim_names'][()]]
+
 
 def geom_meta(fp):
     fp.write("      <!-- GRID DEFINITION -->\n")
