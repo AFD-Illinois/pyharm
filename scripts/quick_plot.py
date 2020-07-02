@@ -17,7 +17,7 @@ from pyHARM import pretty
 from pyHARM.ana.units import get_units_M87
 
 # TODO parse these instead of hard-coding
-USEARRSPACE = True
+USEARRSPACE = False
 
 SIZE = 20
 #window = (0, SIZE, 0, SIZE)

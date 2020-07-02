@@ -10,7 +10,7 @@ import matplotlib.colors as colors
 from pyHARM.ana.plot import pcolormesh_symlog
 from pyHARM.ana.results import get_ivar
 
-infile = h5py.File(sys.argv[1])
+infile = h5py.File(sys.argv[1], 'r')
 
 dirpath = os.path.join(os.path.dirname(infile.filename), "auto_plots")
 if not os.path.exists(dirpath):

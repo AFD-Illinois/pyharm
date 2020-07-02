@@ -132,11 +132,15 @@ class Grid:
         else:
             raise ValueError("metric is {}!! must be minkowski, mks, mmks, or fmks".format(params['coordinates']))
 
-        # Ask our new coordinate system where to start/stop the native grid,
-        # so it aligns with the KS boundaries we've been assigned
-        self.startx = self.coords.native_startx(params)
-        if self.startx[1] < 0.0:
-            raise ValueError("Not enough radial zones! Increase N1!")
+        # If we got native coordinates, use those
+        if 'x1min' in params:
+            self.startx = {0, params['x1min'], params['x2min'], params['x3min']}
+        else:
+            # Ask our new coordinate system where to start/stop the native grid,
+            # so it aligns with the KS boundaries we've been assigned
+            self.startx = self.coords.native_startx(params)
+            if self.startx[1] < 0.0:
+                raise ValueError("Not enough radial zones! Increase N1!")
 
         self.stopx = self.coords.native_stopx(params)
 

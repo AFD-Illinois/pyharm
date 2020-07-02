@@ -14,6 +14,7 @@ except ModuleNotFoundError:
 
 from pyHARM.defs import Loci
 from pyHARM.grid import Grid
+from pyHARM.phdf import phdf
 
 # FORMAT SPEC
 # Constants corresponding to the HARM format as written in HDF5.  Useful for checking compliance,
@@ -123,6 +124,11 @@ def read_dump(fname, get_gamma=False, get_jcon=False, zones_first=False, read_ty
     No analysis or extra processing is performed
     @return (P, params, [gamma], [jcon])
     """
+
+    # Not our job to read Parthenon files
+    if ".phdf" in fname:
+        return read_dump_phdf(fname)
+
     infile = h5py.File(fname, "r")
 
     params = read_hdr(infile['/header'])
@@ -175,6 +181,11 @@ def read_dump(fname, get_gamma=False, get_jcon=False, zones_first=False, read_ty
 
     # Return immutable to ensure unpacking
     return tuple(out_list)
+
+def read_dump_phdf(fname):
+    f = phdf(fname)
+    p = f.Get('c.c.bulk.prims', False)
+    
 
 
 # For cutting on time without loading everything

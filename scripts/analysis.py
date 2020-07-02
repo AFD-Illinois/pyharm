@@ -10,12 +10,18 @@
 # (see merge_ana.py)
 # Alternate usage: analysis.py /path/to/dump.h5
 
+import sys
 from glob import glob
 import h5py
 
-# Memory usage stats
+# Suppress runtime math warnings
+# We will be dividing by zero, and don't want to hear about it
+import warnings
+if not sys.warnoptions:
+    warnings.simplefilter("ignore")
+
+# For memory usage stats
 import psutil
-this_process = psutil.Process(os.getpid())
 
 import pyHARM
 # Spam base namespace so we don't have to type pyHARM or even ph
@@ -35,13 +41,13 @@ from pyHARM.ana.util import i_of
 calc_ravgs = True
 calc_basic = True
 calc_jet_profile = True
-calc_jet_cuts = False
-calc_lumproxy = True
+calc_jet_cuts = True
+calc_lumproxy = False
 calc_gridtotals = False
 calc_efluxes = True
-calc_outfluxes = False
+calc_outfluxes = True
 
-calc_pdfs = True
+calc_pdfs = False
 pdf_nbins = 200
 
 params = {}
@@ -80,10 +86,10 @@ ND = len(dumps)
 
 # Require averaging times as arguments, but default to running over all dumps
 if tstart is None:
-    tstart = get_dump_time(dumps[0])
+    tstart = io.get_dump_time(dumps[0])
 
 if tend is None:
-    tend = get_dump_time(dumps[-1])
+    tend = io.get_dump_time(dumps[-1])
 if tend == 0.:
     tend = float(ND)
 
@@ -125,7 +131,6 @@ if hdr['r_out'] < 100 or r1d[-1] < 100:  # If in theory or practice the sim is s
 else:
     iBZ = i_of(r1d, 100)  # most MADs
 
-print("Memory use: {} GB".format(this_process.memory_info().rss / 10**9))
 print("Running from t={} to {}, averaging from t={} to {}".format(tstart, tend, tavg_start, tavg_end))
 print("Using EH at zone {}, Fluxes at zone {}, Emax within zone {}, L_BZ at zone {}".format(iEH, iF, iEmax, iBZ))
 
@@ -133,7 +138,7 @@ print("Using EH at zone {}, Fluxes at zone {}, Emax within zone {}, L_BZ at zone
 def avg_dump(n):
     out = {}
 
-    t = get_dump_time(dumps[n])
+    t = io.get_dump_time(dumps[n])
     # When we don't know times, fudge
     # TODO accept -1 as "Not available" flag in the HDF5 spec
     if t == 0 and n != 0:
@@ -145,9 +150,12 @@ def avg_dump(n):
         # print("Loaded {} / {}: {} (SKIPPED)".format((n+1), len(dumps), t))
         # Still return the time
         return out
-    else:
-        print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
-        dump = IharmDump(dumps[n], params=params, add_jcon=True)
+
+    print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
+    dump = pyHARM.load_dump(dumps[n], params=params, add_jcon=True)
+
+    this_process = psutil.Process(os.getpid())
+    print("Memory use: {} GB".format(this_process.memory_info().rss / 10**9))
 
     # Should we compute the time-averaged quantities?
     do_tavgs = (tavg_start <= t <= tavg_end)
@@ -156,9 +164,9 @@ def avg_dump(n):
     #
     if calc_ravgs:
         for var in ['rho', 'Theta', 'B', 'Pg', 'Ptot', 'beta', 'u^phi', 'u_phi', 'sigma']:
-            out['rt/' + var] = partial_shell_sum(dump, var, jmin, jmax)
-            out['rt/' + var + '_jet'] = partial_shell_sum(dump, var, 0, jmin) + \
-                                        partial_shell_sum(dump, var, jmax, dump.header['n2'])
+            out['rt/' + var] = shell_sum(dump, var, j_slice=(jmin, jmax))
+            out['rt/' + var + '_jet'] = shell_sum(dump, var, j_slice=(0, jmin)) + \
+                                        shell_sum(dump, var, j_slice=(jmax, dump.header['n2']))
             if do_tavgs:
                 out['r/' + var] = out['rt/' + var]
                 out['r/' + var + '_jet'] = out['rt/' + var + '_jet']
@@ -213,7 +221,7 @@ def avg_dump(n):
 
         out['r/Phi_b_mid'] = np.zeros_like(out['r/Phi_b_sph'])
         for i in range(out['r/Phi_b_mid'].shape[0]):
-            out['r/Phi_b_mid'][i] = norm * midplane_sum(dump, -dump['B2'], within=i)
+            out['r/Phi_b_mid'][i] = norm * midplane_sum(dump, -dump['B2'], r_slice=(0,i))
 
         # FLUXES
         # Radial profiles of Mdot and Edot, and their particular values
@@ -240,9 +248,9 @@ def avg_dump(n):
         for var in ['rho', 'bsq', 'FM', 'FE', 'FE_EM', 'FE_Fl', 'FL', 'FL_EM', 'FL_Fl', 'betagamma', 'Be_nob', 'Be_b']:
             out['tht/' + var + '_100'] = np.sum(dump[var][iBZ], axis=-1)
             if do_tavgs:
-                out['th/' + var + '_100'] = out['tht/' + var + '_100']
-                out['thphi/' + var + '_100'] = dump[var][iBZ]
-                out['rth/' + var] = dump[var].mean(axis=-1)
+               out['th/' + var + '_100'] = out['tht/' + var + '_100']
+               out['thphi/' + var + '_100'] = dump[var][iBZ]
+               out['rth/' + var] = dump[var].mean(axis=-1)
 
     # Blandford-Znajek Luminosity L_BZ
     # This is a lot of luminosities!
@@ -399,21 +407,17 @@ except OSError:
     outf = h5py.File(outfname, 'a')
     print("Replaced existing output: {}!!".format(outfname))
 
-hdr_preserve = hdf5_to_dict(h5py.File(dumps[0],'r')['header'])
+hdr_preserve = io.hdf5_to_dict(h5py.File(dumps[0],'r')['header'])
 if not 'header' in outf:
     outf.create_group('header')
-dict_to_hdf5(hdr_preserve, outf['header'])
+io.dict_to_hdf5(hdr_preserve, outf['header'])
 
 # Fill the output dict with all per-dump or averaged stuff
 # Hopefully in a way that doesn't keep too much of it around in memory
 if parallel:
     nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.5)
     #nthreads = 5
-    if can_use_cl:
-        lock = multiprocessing.RLock()
-        util.iter_parallel(avg_dump, merge_dict, outf, ND, nthreads, initializer=init, initargs=(lock,))
-    else:
-        util.iter_parallel(avg_dump, merge_dict, outf, ND, nthreads)
+    util.iter_parallel(avg_dump, merge_dict, outf, ND, nthreads)
 else:
     for n in range(ND):
         out = avg_dump(n)
