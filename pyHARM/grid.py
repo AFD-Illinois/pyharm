@@ -359,10 +359,10 @@ class Grid:
         """Returns the light crossing time of the smallest zone in the grid"""
         # Following stolen from bhlight's dt_light calculation
 
-        dt_light_local = np.zeros(self.N[1], self.N[2])
+        dt_light_local = np.zeros((self.N[1], self.N[2]), dtype=np.float64)
         gcon = self.gcon
         CENT = Loci.CENT.value
-        for mu in range(4):
+        for mu in range(1,4):
             cplus = np.abs((-gcon[CENT, 0, mu, :, :] +
                             np.sqrt(gcon[CENT, 0, mu, :, :]**2 -
                                     gcon[CENT, mu, mu, :, :] * gcon[CENT, 0, 0, :, :])) /
@@ -372,7 +372,7 @@ class Grid:
                              np.sqrt(gcon[CENT, 0, mu, :, :]**2 -
                                      gcon[CENT, mu, mu, :, :] * gcon[CENT, 0, 0, :, :])) /
                             gcon[CENT, 0, 0, :, :])
-            light_phase_speed = np.max(cplus, cminus)
+            light_phase_speed = np.maximum.reduce([cplus, cminus])
 
             light_phase_speed = np.where(gcon[CENT, 0, mu, :, :] ** 2 -
                                          gcon[CENT, mu, mu, :, :] * gcon[CENT, 0, 0, :, :] >= 0.,
