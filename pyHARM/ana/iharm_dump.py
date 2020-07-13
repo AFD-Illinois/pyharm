@@ -25,7 +25,7 @@ class IharmDump:
     various derived variables directly.
     """
 
-    def __init__(self, fname, params=None, add_derived=True, add_jcon=False, add_cons=False, add_fail=True,
+    def __init__(self, fname, params=None, add_derived=True, add_jcon=False, add_cons=False, add_fail=False,
                  zones_first=False, lock=None):
         """Read the HDF5 file at fname into memory, and cache some derived variables"""
         self.fname = fname
@@ -38,9 +38,9 @@ class IharmDump:
             self._use_cl = False
 
         if add_jcon:
-            P, params_add, self.jcon = read_dump(fname, get_jcon=True)
+            P, params, self.jcon = read_dump(fname, params=params, get_jcon=True)
         else:
-            P, params_add = read_dump(fname)
+            P, params = read_dump(fname, params=params)
 
         if add_fail: # TODO push back to read_dump interface
             with h5py.File(fname, 'r') as f:
@@ -49,7 +49,7 @@ class IharmDump:
                 else:
                     self.fail = (f['extras/fail'][()] != 0)
 
-        self.header = {**params, **params_add}
+        self.header = params
 
         # Set members based on above calculations
         self._zones_first = zones_first
@@ -58,7 +58,8 @@ class IharmDump:
         else:
             self.prims = np.ascontiguousarray(P)
 
-        self.header['ng'] = 0
+        if not self.header['include_ghost']:
+            self.header['ng'] = 0
         G = Grid(self.header)
         self.grid = G
         if zones_first:

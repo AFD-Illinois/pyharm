@@ -119,7 +119,7 @@ def write_dump(params, G, P, t, dt, n_step, n_dump, fname, dump_gamma=True, out_
     outf.close()
 
 
-def read_dump(fname, get_gamma=False, get_jcon=False, zones_first=False, read_type=np.float32):
+def read_dump(fname, params=None, get_gamma=False, get_jcon=False, zones_first=False, read_type=np.float32):
     """Read the header and primitives from a write_dump.
     No analysis or extra processing is performed
     @return (P, params, [gamma], [jcon])
@@ -127,11 +127,14 @@ def read_dump(fname, get_gamma=False, get_jcon=False, zones_first=False, read_ty
 
     # Not our job to read Parthenon files
     if ".phdf" in fname:
-        return read_dump_phdf(fname)
+        return read_dump_phdf(fname, params)
 
     infile = h5py.File(fname, "r")
 
-    params = read_hdr(infile['/header'])
+    if params is not None:
+        params.update(read_hdr(infile['/header']))
+    else:
+        params = read_hdr(infile['/header'])
 
     # Per-write_dump single variables.  TODO more?
     for key in ['t', 'dt', 'n_step', 'n_dump', 'is_full_dump', 'dump_cadence', 'full_dump_cadence']:
@@ -182,10 +185,56 @@ def read_dump(fname, get_gamma=False, get_jcon=False, zones_first=False, read_ty
     # Return immutable to ensure unpacking
     return tuple(out_list)
 
-def read_dump_phdf(fname):
-    f = phdf(fname)
-    p = f.Get('c.c.bulk.prims', False)
+def read_dump_phdf(fname, params=None):
+    if params is None:
+        params = {}
     
+    # TODO MULTIPLE BLOCKS SUPPORT
+    f = phdf(fname)
+
+    params['include_ghost'] = f.IncludesGhost
+    params['ng'] = f.NGhost
+    xf, yf, zf = f.xf, f.yf, f.zf
+    mesh_blocks = f.Get('c.c.bulk.prims', False) # False == don't flatten into 1D array
+
+    dx = xf[0,1] - xf[0,0]
+    dy = yf[0,1] - yf[0,0]
+    dz = zf[0,1] - zf[0,0]
+
+    bounds = []
+    max_x = 0
+    max_y = 0
+    max_z = 0
+    for ib in range(f.NumBlocks):
+        bb = f.BlockBounds[ib]
+        bound = [int((bb[0]+dx/2)/dx), int(bb[1]/dx),
+                 int((bb[2]+dy/2)/dy), int(bb[3]/dy),
+                 int((bb[4]+dz/2)/dz), int(bb[5]/dz)]
+        print("Bound: ",bound)
+        if bound[1] > max_x:
+            max_x = bound[1]
+        if bound[3] > max_y:
+            max_y = bound[3]
+        if bound[5] > max_z:
+            max_z = bound[5]
+        bounds.append(bound)
+
+    # x1max and x1min are full-mesh parameters, but nx1 gets
+    # # read from the "meshblock" spec when parsing.  Correct this
+    params['n1'] = params['nx1'] = max_x
+    params['n2'] = params['nx2'] = max_y
+    params['n3'] = params['nx3'] = max_z
+    params['dx1'] = (params['x1max'] - params['x1min'])/params['nx1']
+    params['dx2'] = (params['x2max'] - params['x2min'])/params['nx2']
+    params['dx3'] = (params['x3max'] - params['x3min'])/params['nx3']
+
+    P = np.zeros((8, max_x, max_y, max_z)) # TODO magic 8
+
+    for ib in range(f.NumBlocks):
+        b = bounds[ib]
+        P[:, b[0]:b[1], b[2]:b[3], b[4]:b[5]] = f.Get('c.c.bulk.prims', False)[ib].transpose(3,2,1,0)
+
+    return (P, params)
 
 
 # For cutting on time without loading everything

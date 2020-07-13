@@ -121,9 +121,9 @@ class Grid:
         elif params['coordinates'] == "fmks":
             # FMKS additionally requires poly_xt, poly_alpha, mks_smooth
             self.coords = FMKS(params)
-        elif params['coordinates'] == "mmks":
+        elif params['coordinates'] == "mmks" or params['coordinates'] == "cmks":
             # MMKS additionally requires poly_xt and poly_alpha
-            self.coords = MMKS(params)
+            self.coords = CMKS(params)
         elif params['coordinates'] == "bhac_mks":
             # BHAC's MKS
             self.coords = BHAC_MKS(params)
@@ -134,7 +134,7 @@ class Grid:
 
         # If we got native coordinates, use those
         if 'x1min' in params:
-            self.startx = {0, params['x1min'], params['x2min'], params['x3min']}
+            self.startx = np.array([0, params['x1min'], params['x2min'], params['x3min']])
         else:
             # Ask our new coordinate system where to start/stop the native grid,
             # so it aligns with the KS boundaries we've been assigned
@@ -354,7 +354,6 @@ class Grid:
         self.dx_d = cl_array.to_device(self.queue, self.dx)
 
 
-    # TODO unbork
     def dt_light(self):
         """Returns the light crossing time of the smallest zone in the grid"""
         # Following stolen from bhlight's dt_light calculation

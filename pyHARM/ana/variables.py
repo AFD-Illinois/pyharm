@@ -120,7 +120,7 @@ pretty_dict = {'rho': r"\rho",
 
 def pretty(var):
     if var[:4] == "log_":
-        return r"$\log_{10} \left( "+pretty_dict[var]+r" \right)$"
+        return r"$\log_{10} \left( "+pretty_dict[var[4:]]+r" \right)$"
     elif var in pretty_dict:
         return r"$"+pretty_dict[var]+r"$"
     else:

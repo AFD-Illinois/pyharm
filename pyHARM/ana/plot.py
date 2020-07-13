@@ -68,9 +68,9 @@ def decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
     :param label: If not None, set plot title
     """
 
-    if bh and dump['metric'] != "MINKOWSKI":
+    if bh and "minkowski" not in dump['coordinates']:
         # BH silhouette
-        circle1 = plt.Circle((0, 0), dump['r_eh'], color='k');
+        circle1 = plt.Circle((0, 0), dump['r_eh'], color='k')
         ax.add_artist(circle1)
 
     if cbar:
@@ -156,8 +156,12 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
     if arrayspace:
         if xlabel: ax.set_xlabel("X1 (arbitrary)")
         if ylabel: ax.set_ylabel("X2 (arbitrary)")
-        ax.set_xlim([0, 1])
-        ax.set_ylim([0, 1])
+        if window:
+            ax.set_xlim(window[:2])
+            ax.set_ylim(window[2:])
+        else:
+            ax.set_xlim([0, 1])
+            ax.set_ylim([0, 1])
         bh = False
     else:
         if xlabel: ax.set_xlabel(r"x ($r_g$)")
@@ -208,8 +212,12 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
     if arrayspace:
         if xlabel: ax.set_xlabel("X1 (arbitrary)")
         if ylabel: ax.set_ylabel("X3 (arbitrary)")
-        ax.set_xlim([0, 1])
-        ax.set_ylim([0, 1])
+        if window:
+            ax.set_xlim(window[:2])
+            ax.set_ylim(window[2:])
+        else:
+            ax.set_xlim([0, 1])
+            ax.set_ylim([0, 1])
         bh = False
     else:
         if xlabel: ax.set_xlabel(r"x ($r_g$)")  # or \frac{G M}{c^2}

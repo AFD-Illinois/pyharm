@@ -2,6 +2,7 @@
 
 import os
 import sys
+import numpy as np
 
 
 def defaults():
@@ -38,7 +39,7 @@ def parse_dat(params, fname):
     """
     fp = open(fname, "r")
     for line in fp:
-        # Trim out trailing newline, anything after '#', stray parenthesis or extra spaces
+        # Trim out trailing newline, anything after '#', stray parentheses or extra spaces
         ls = [token.strip('()') for token in line[:-1].split("#")[0].split(" ") if token != '']
         # And blank lines
         if len(ls) == 0:
@@ -52,6 +53,68 @@ def parse_dat(params, fname):
             params[ls[1]] = str(ls[-1])
     return params
 
+def parse_parthenon_dat(params, fname):
+    """Parse the KHARMA params.dat format to produce a Python dict.
+    params.dat format:
+    <header/subheader>
+    name = value
+    All lines not in this format are ignored, though conventionally comments begin with '# '
+    """
+    fp = open(fname, "r")
+    for line in fp:
+        # Trim out trailing newline, anything after '#', stray parentheses, headers
+        ls = [token.strip().strip('()') for token in line[:-1].split("#")[0].split("<")[0].split("=") if token != '']
+        # And blank lines
+        if len(ls) == 0:
+            continue
+        # Parse, assuming int->float->str
+        try:
+            if "." in ls[-1]:
+                params[ls[0]] = float(ls[-1])
+            else: 
+                params[ls[0]] = int(ls[-1])
+        except ValueError:
+            params[ls[0]] = ls[-1]
+    
+    # Now do any repairs specific to translating the Parthenon->iharm3d naming scheme
+    for pair in (#('nx1','n1'), ('nx2','n2'), ('nx3','n3'),
+                 ('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3'),
+                 ('gamma', 'gam')):
+        params[pair[1]] = params[pair[0]]
+
+    params['r_in'] = np.exp(params['x1min'])
+    params['r_out'] = np.exp(params['x1max'])
+    if 'a' in params:
+        params['r_eh'] = (1. + np.sqrt(1. - params['a'] ** 2))
+
+    print("x1min, x1max, nx1 ", params['x1min'], params['x1max'], params['nx1'])
+    params['dx1'] = (params['x1max'] - params['x1min'])/params['nx1']
+    params['dx2'] = (params['x2max'] - params['x2min'])/params['nx2']
+    params['dx3'] = (params['x3max'] - params['x3min'])/params['nx3']
+
+    params['n_prim'] = params['np'] = 8 # Parthenon stores extra variables under new names
+    params['n_dim'] = 4
+    # I frequently omit these expecting defaults
+    if not 'mks_smooth' in params:
+        params['mks_smooth'] = 0.5
+    if not 'poly_xt' in params:
+        params['poly_xt'] = 0.82
+    if not 'poly_alpha' in params:
+        params['poly_alpha'] = 14.0
+
+    if "cartesian" in params['base']:
+        params['coordinates'] = "cartesian"
+    elif "fmks" in params['transform'] or "funky" in params['transform']:
+        params['coordinates'] = "fmks"
+        params['poly_norm'] = 0.5 * np.pi * 1. / (1. + 1. / (params['poly_alpha'] + 1.) *
+                                            1. / np.power(params['poly_xt'], params['poly_alpha']))
+    elif "mks" in params['transform'] or "modif" in params['transform']:
+        params['coordinates'] = "mks"
+    else:
+        print("Defaulting coordinate system...")
+        params['coordinates'] = "fmks"
+
+    return params
 
 def fix(params):
     # Fix common parameter mistakes
@@ -67,6 +130,9 @@ def fix(params):
         params['electrons'] = False
         params['n_prim'] = 8
         params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
+    if 'metric' in params and 'coordinates' not in params:
+        params['coordinates'] = params['metric'].lower()
+
 
     return params
 

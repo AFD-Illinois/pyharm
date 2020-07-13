@@ -333,7 +333,7 @@ class MKS(KS):
                               (1. + met_params['n1tot'] / 5.5)),
                              0, 0])
         else:
-            # Else a resonable default. TODO more reasonable?
+            # TODO scream and die here instead of after the return
             return 1.0
 
     def native_stopx(self, met_params):
@@ -372,7 +372,7 @@ class CMKS(MKS):
         self.poly_alpha = met_params['poly_alpha']
         self.poly_norm = 0.5 * np.pi * 1. / (1. + 1. / (self.poly_alpha + 1.) *
                                              1. / np.power(self.poly_xt, self.poly_alpha))
-        super(MMKS, self).__init__(met_params)
+        super(CMKS, self).__init__(met_params)
 
     def th(self, x):
         y = 2 * x[2] - 1.
