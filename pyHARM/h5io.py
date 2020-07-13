@@ -189,18 +189,17 @@ def read_dump_phdf(fname, params=None):
     if params is None:
         params = {}
     
-    # TODO MULTIPLE BLOCKS SUPPORT
     f = phdf(fname)
 
     params['include_ghost'] = f.IncludesGhost
     params['ng'] = f.NGhost
-    xf, yf, zf = f.xf, f.yf, f.zf
-    mesh_blocks = f.Get('c.c.bulk.prims', False) # False == don't flatten into 1D array
 
+    xf, yf, zf = f.xf, f.yf, f.zf
     dx = xf[0,1] - xf[0,0]
     dy = yf[0,1] - yf[0,0]
     dz = zf[0,1] - zf[0,0]
 
+    # Lay out the blocks and determine total mesh size
     bounds = []
     max_x = 0
     max_y = 0
@@ -210,7 +209,7 @@ def read_dump_phdf(fname, params=None):
         bound = [int((bb[0]+dx/2)/dx), int(bb[1]/dx),
                  int((bb[2]+dy/2)/dy), int(bb[3]/dy),
                  int((bb[4]+dz/2)/dz), int(bb[5]/dz)]
-        print("Bound: ",bound)
+
         if bound[1] > max_x:
             max_x = bound[1]
         if bound[3] > max_y:
@@ -220,7 +219,8 @@ def read_dump_phdf(fname, params=None):
         bounds.append(bound)
 
     # x1max and x1min are full-mesh parameters, but nx1 gets
-    # # read from the "meshblock" spec when parsing.  Correct this
+    # read from the "meshblock" spec when parsing so it's too small
+    # Correct this
     params['n1'] = params['nx1'] = max_x
     params['n2'] = params['nx2'] = max_y
     params['n3'] = params['nx3'] = max_z
@@ -230,8 +230,10 @@ def read_dump_phdf(fname, params=None):
 
     P = np.zeros((8, max_x, max_y, max_z)) # TODO magic 8
 
+    # Read blocks into their slices of the full mesh
     for ib in range(f.NumBlocks):
         b = bounds[ib]
+        # False == don't flatten into 1D array
         P[:, b[0]:b[1], b[2]:b[3], b[4]:b[5]] = f.Get('c.c.bulk.prims', False)[ib].transpose(3,2,1,0)
 
     return (P, params)

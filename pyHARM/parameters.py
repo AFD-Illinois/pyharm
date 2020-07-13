@@ -87,7 +87,6 @@ def parse_parthenon_dat(params, fname):
     if 'a' in params:
         params['r_eh'] = (1. + np.sqrt(1. - params['a'] ** 2))
 
-    print("x1min, x1max, nx1 ", params['x1min'], params['x1max'], params['nx1'])
     params['dx1'] = (params['x1max'] - params['x1min'])/params['nx1']
     params['dx2'] = (params['x2max'] - params['x2min'])/params['nx2']
     params['dx3'] = (params['x3max'] - params['x3min'])/params['nx3']
