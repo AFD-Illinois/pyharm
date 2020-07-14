@@ -247,7 +247,7 @@ def read_dump_phdf(fname, params=None):
     for ib in range(f.NumBlocks):
         b = bounds[ib]
         # Exclude ghost zones if we don't want them
-        if ng_i == 0:
+        if ng_i == 0 and ng_f != 0:
             o = [ng_f, -ng_f, ng_f, -ng_f, ng_f, -ng_f]
         else:
             o = [None, None, None, None, None, None]
