@@ -191,13 +191,21 @@ def read_dump_phdf(fname, params=None):
     
     f = phdf(fname)
 
-    params['include_ghost'] = f.IncludesGhost
+    # This is the "true" number of zones for the sim, but doesn't concern us
     params['ng'] = f.NGhost
+    # This is the number present in the file
+    ng_f = f.IncludesGhost * f.NGhost
+    # This is the number we should include on output: i.e. present & requested
+    if 'include_ghost' in params:
+        ng_i = params['include_ghost'] * ng_f
+    else:
+        params['include_ghost'] = False
+        ng_i = 0
 
-    xf, yf, zf = f.xf, f.yf, f.zf
-    dx = xf[0,1] - xf[0,0]
-    dy = yf[0,1] - yf[0,0]
-    dz = zf[0,1] - zf[0,0]
+    xc, yc, zc = f.x, f.y, f.z
+    dx = xc[0,1] - xc[0,0]
+    dy = yc[0,1] - yc[0,0]
+    dz = zc[0,1] - zc[0,0]
 
     # Lay out the blocks and determine total mesh size
     bounds = []
@@ -206,10 +214,11 @@ def read_dump_phdf(fname, params=None):
     max_z = 0
     for ib in range(f.NumBlocks):
         bb = f.BlockBounds[ib]
-        bound = [int((bb[0]+dx/2)/dx), int(bb[1]/dx),
-                 int((bb[2]+dy/2)/dy), int(bb[3]/dy),
-                 int((bb[4]+dz/2)/dz), int(bb[5]/dz)]
-
+        # Internal location of the block i.e. starting/stopping indices in the final, big mesh
+        bound = [int((bb[0]+dx/2 - params['x1min'])/dx)-ng_i, int((bb[1] - params['x1min'])/dx)+ng_i,
+                 int((bb[2]+dy/2 - params['x2min'])/dy)-ng_i, int((bb[3] - params['x2min'])/dy)+ng_i,
+                 int((bb[4]+dz/2 - params['x3min'])/dz)-ng_i, int((bb[5] - params['x3min'])/dz)+ng_i]
+        # Figure out how big the big mesh should be
         if bound[1] > max_x:
             max_x = bound[1]
         if bound[3] > max_y:
@@ -221,20 +230,29 @@ def read_dump_phdf(fname, params=None):
     # x1max and x1min are full-mesh parameters, but nx1 gets
     # read from the "meshblock" spec when parsing so it's too small
     # Correct this
+    # nxx are always just physical zones
     params['n1'] = params['nx1'] = max_x
     params['n2'] = params['nx2'] = max_y
     params['n3'] = params['nx3'] = max_z
+    # Possibly more accurate than using d{x,y,z} above
     params['dx1'] = (params['x1max'] - params['x1min'])/params['nx1']
     params['dx2'] = (params['x2max'] - params['x2min'])/params['nx2']
     params['dx3'] = (params['x3max'] - params['x3min'])/params['nx3']
 
-    P = np.zeros((8, max_x, max_y, max_z)) # TODO magic 8
+    # Optionally allocate enough space for ghost zones
+    # TODO magic 8 tho
+    P = np.zeros((8, max_x+2*ng_i, max_y+2*ng_i, max_z+2*ng_i))
 
     # Read blocks into their slices of the full mesh
     for ib in range(f.NumBlocks):
         b = bounds[ib]
+        # Exclude ghost zones if we don't want them
+        if ng_i == 0:
+            o = [ng_f, -ng_f, ng_f, -ng_f, ng_f, -ng_f]
+        else:
+            o = [None, None, None, None, None, None]
         # False == don't flatten into 1D array
-        P[:, b[0]:b[1], b[2]:b[3], b[4]:b[5]] = f.Get('c.c.bulk.prims', False)[ib].transpose(3,2,1,0)
+        P[:, b[0]+ng_i:b[1]+ng_i, b[2]+ng_i:b[3]+ng_i, b[4]+ng_i:b[5]+ng_i] = f.Get('c.c.bulk.prims', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
 
     return (P, params)
 

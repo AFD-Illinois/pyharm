@@ -58,7 +58,7 @@ class IharmDump:
         else:
             self.prims = np.ascontiguousarray(P)
 
-        if not self.header['include_ghost']:
+        if ('include_ghost' not in self.header) or (not self.header['include_ghost']):
             self.header['ng'] = 0
         G = Grid(self.header)
         self.grid = G
