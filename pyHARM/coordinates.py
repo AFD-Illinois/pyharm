@@ -329,12 +329,17 @@ class MKS(KS):
         elif 'n1tot' in met_params and 'r_out' in met_params:
             # Else via a guess
             return np.array([0,
-                             ((met_params['n1tot'] * np.log(self.r_eh) / 5.5 + np.log(met_params['r_out'])) /
-                              (1. + met_params['n1tot'] / 5.5)),
+                             ((met_params['n1tot'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
+                              (-1. + met_params['n1tot'] / 5.5)),
+                             0, 0])
+        elif 'n1' in met_params and 'r_out' in met_params:
+            # Or a more questionable guess
+            return np.array([0,
+                             ((met_params['n1'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
+                              (-1. + met_params['n1'] / 5.5)),
                              0, 0])
         else:
-            # TODO scream and die here instead of after the return
-            return 1.0
+            raise ValueError("No startx value provided and not enough parameters to guess!")
 
     def native_stopx(self, met_params):
         return np.array([0, np.log(met_params['r_out']), 1, 2*np.pi])

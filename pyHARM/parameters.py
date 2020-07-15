@@ -67,29 +67,33 @@ def parse_parthenon_dat(params, fname):
         # And blank lines
         if len(ls) == 0:
             continue
-        # Parse, assuming int->float->str
+        # Parse, assuming float->int->str and taking the largest surviving numbers (to avoid block-specific nxN)
         try:
             if "." in ls[-1]:
-                params[ls[0]] = float(ls[-1])
-            else: 
-                params[ls[0]] = int(ls[-1])
+                if ls[0] not in params or params[ls[0]] < float(ls[-1]):
+                    params[ls[0]] = float(ls[-1])
+            else:
+                if ls[0] not in params or params[ls[0]] < int(ls[-1]):
+                    params[ls[0]] = int(ls[-1])
         except ValueError:
             params[ls[0]] = ls[-1]
     
     # Now do any repairs specific to translating the Parthenon->iharm3d naming scheme
-    for pair in (#('nx1','n1'), ('nx2','n2'), ('nx3','n3'),
+    for pair in (('nx1','n1'), ('nx2','n2'), ('nx3','n3'),
                  ('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3'),
                  ('gamma', 'gam')):
-        params[pair[1]] = params[pair[0]]
+        if (pair[0] in params):
+            params[pair[1]] = params[pair[0]]
 
-    params['r_in'] = np.exp(params['x1min'])
-    params['r_out'] = np.exp(params['x1max'])
     if 'a' in params:
         params['r_eh'] = (1. + np.sqrt(1. - params['a'] ** 2))
 
-    params['dx1'] = (params['x1max'] - params['x1min'])/params['nx1']
-    params['dx2'] = (params['x2max'] - params['x2min'])/params['nx2']
-    params['dx3'] = (params['x3max'] - params['x3min'])/params['nx3']
+    if 'x1min' in params:
+        params['r_in'] = np.exp(params['x1min'])
+        params['r_out'] = np.exp(params['x1max'])
+        params['dx1'] = (params['x1max'] - params['x1min'])/params['nx1']
+        params['dx2'] = (params['x2max'] - params['x2min'])/params['nx2']
+        params['dx3'] = (params['x3max'] - params['x3min'])/params['nx3']
 
     params['n_prim'] = params['np'] = 8 # Parthenon stores extra variables under new names
     params['n_dim'] = 4
