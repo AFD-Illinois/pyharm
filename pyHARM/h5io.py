@@ -119,71 +119,66 @@ def write_dump(params, G, P, t, dt, n_step, n_dump, fname, dump_gamma=True, out_
     outf.close()
 
 
-def read_dump(fname, params=None, get_gamma=False, get_jcon=False, zones_first=False, read_type=np.float32):
+def read_dump(fname, params=None, **kwargs):
     """Read the header and primitives from a write_dump.
     No analysis or extra processing is performed
-    @return (P, params, [gamma], [jcon])
+    @return P, params
     """
 
     # Not our job to read Parthenon files
     if ".phdf" in fname:
         return read_dump_phdf(fname, params)
 
-    infile = h5py.File(fname, "r")
-
-    if params is not None:
-        params.update(read_hdr(infile['/header']))
-    else:
-        params = read_hdr(infile['/header'])
-
-    # Per-write_dump single variables.  TODO more?
-    for key in ['t', 'dt', 'n_step', 'n_dump', 'is_full_dump', 'dump_cadence', 'full_dump_cadence']:
-        if key in infile:
-            params[key] = infile[key][()]
-
-    P = infile["prims"][()]
-
-    out_list = [P, params]
-
-    # For keeping track of which elements' indices we should reverse later
-    i_of_jcon = -1
-
-    if get_gamma:
-        if "gamma" in infile:
-            out_list.append(infile["gamma"][()])
+    with h5py.File(fname, "r") as infile:
+        if params is not None:
+            params.update(read_hdr(infile['/header']))
         else:
-            print("Requested gamma, but not present in write_dump!")
+            params = read_hdr(infile['/header'])
 
-    if get_jcon:
-        if "jcon" in infile:
-            out_list.append(infile["jcon"][()])
-            i_of_jcon = len(out_list) - 1
+        # Per-write_dump single variables.  TODO more?
+        for key in ['t', 'dt', 'n_step', 'n_dump', 'is_full_dump', 'dump_cadence', 'full_dump_cadence']:
+            if key in infile:
+                params[key] = infile[key][()]
+
+        P = _prep_array(infile['/prims'][()], **kwargs)
+
+    return P, params
+
+# Other readers, let users use as desired
+def read_gamma(fname, **kwargs):
+    with h5py.File(fname, "r") as infile:
+        return _prep_array(infile['/gamma'][()], **kwargs)
+def read_jcon(fname, **kwargs):
+    with h5py.File(fname, "r") as infile:
+        return _prep_array(infile['/jcon'][()], **kwargs)
+def read_divb(fname, **kwargs):
+    with h5py.File(fname, "r") as infile:
+        return _prep_array(infile['/extras/divB'][()], **kwargs)
+def read_fail_flags(fname, **kwargs):
+    with h5py.File(fname, "r") as infile:
+        if 'fail' in infile:
+            return _prep_array(infile['/fail'][()], **kwargs)
         else:
-            print("Requested jcon, but not present in write_dump!")
-            out_list.append(None)
+            return _prep_array(infile['/extras/fail'][()], **kwargs)
+def read_floor_flags(fname, **kwargs):
+    with h5py.File(fname, "r") as infile:
+        return _prep_array(infile['/extras/fixup'][()], **kwargs)
 
-    # TODO divB? failures?
-
-    infile.close()
-
-    # Reverse indices on P since most pyHARM tooling expects p,i,j,k
+def _prep_array(arr, zones_first=False, as_double=False):
+    """Re-order and optionally up-convert an array from a file,
+    to put it in usual pyHARM order/format
+    """
+    # Reverse indices on vectors, since most pyHARM tooling expects p,i,j,k
     # See iharm_dump for analysis interface that restores i,j,k,p order
-    if not zones_first:
-        # Switch P, jcon
-        switch_list = [0]
-        if i_of_jcon > 0:
-            switch_list.append(i_of_jcon)
-
-        for el in switch_list:
-            out_list[el] = np.einsum("...m->m...", out_list[el])
+    if (not zones_first) and (len(arr.shape) > 3):
+        arr = np.einsum("...m->m...", arr)
 
     # Also upconvert to doubles if necessary
-    if read_type != np.float32:
-        for i in range(len(out_list)):
-            out_list[i] = (out_list[i]).astype(read_type)
-
-    # Return immutable to ensure unpacking
-    return tuple(out_list)
+    # TODO could add other types?  Not really necessary yet
+    if as_double:
+        arr = arr.astype(np.float64)
+    
+    return arr
 
 def read_dump_phdf(fname, params):
     f = phdf(fname)

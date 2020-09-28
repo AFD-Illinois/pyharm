@@ -38,10 +38,10 @@ from pyHARM.ana.util import i_of
 
 # Whether to calculate each set of variables
 # Once performed once, calculations will be ported to each new output file
-calc_ravgs = True
+calc_ravgs = False
 calc_basic = True
-calc_jet_profile = True
-calc_jet_cuts = True
+calc_jet_profile = False
+calc_jet_cuts = False
 calc_lumproxy = False
 calc_gridtotals = False
 calc_efluxes = True
@@ -61,7 +61,7 @@ tavg_end = None
 tend = None
 path = sys.argv[1]
 if ".h5" not in path:
-    dumps = np.sort([file for file in glob(os.path.join(path, "*.h5")) if "grid" not in file and "eht" not in file])
+    dumps = np.sort(glob(os.path.join(path, "dump_*.h5")))
     if len(sys.argv) > 5:
         tstart = float(sys.argv[2])
         tavg_start = float(sys.argv[3])
@@ -71,7 +71,7 @@ if ".h5" not in path:
         tavg_start = float(sys.argv[2])
         tavg_end = float(sys.argv[3])
     else:
-        util.warn("Format: python analysis.py {dump_to_analyze.h5|/path/to/dumps/} [tstart] tavg_start tavg_end [tend]")
+        print("Format: python analysis.py {dump_to_analyze.h5|/path/to/dumps/} [tstart] tavg_start tavg_end [tend]")
         sys.exit()
     debug = False
 else:
@@ -94,7 +94,7 @@ if tend == 0.:
     tend = float(ND)
 
 # Get header and geometry stuff from the first dump on the list
-dump = pyHARM.load_dump(dumps[0], params=params, add_derived=False)
+dump = pyHARM.load_dump(dumps[0], params=params, calc_derived=False)
 hdr = dump.header
 
 if dump['r'].ndim == 3:
@@ -152,7 +152,7 @@ def avg_dump(n):
         return out
 
     print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
-    dump = pyHARM.load_dump(dumps[n], params=params, add_jcon=True)
+    dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=True)
 
     this_process = psutil.Process(os.getpid())
     print("Memory use: {} GB".format(this_process.memory_info().rss / 10**9))

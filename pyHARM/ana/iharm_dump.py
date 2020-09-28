@@ -7,7 +7,7 @@ import numpy as np
 import h5py
 
 from pyHARM.defs import Loci
-from pyHARM.h5io import read_dump
+from pyHARM.h5io import read_dump, read_jcon, read_fail_flags, read_floor_flags
 try:
     from pyHARM import phys
     can_use_cl = True
@@ -25,9 +25,22 @@ class IharmDump:
     various derived variables directly.
     """
 
-    def __init__(self, fname, params=None, add_derived=True, add_jcon=False, add_cons=False, add_fail=False,
+    def __init__(self, fname, params=None, calc_cons=False, calc_derived=False,
+                 add_jcon=False, add_floors=False, add_fails=False,
                  zones_first=False, lock=None):
-        """Read the HDF5 file at fname into memory, and cache some derived variables"""
+        """Read the HDF5 file 'fname' into memory, and pre-calculate/cache useful variables
+        @param calc_cons: calculate the conserved variables U, i.e. run 'prim_to_flux(...,0)' from HARM
+        @param calc_derived: calculate the derived 4-vectors u, b and fluid Lorentz factor gamma
+
+        @param add_jcon: Read the current jcon from the file if it exists, fail if it doesn't
+        @param add_floors: Read the applied floors bitflag from the file if it exists, fail if it doesn't
+        @param add_fails: Read the inversion failures bitflag from the file if it exists, fail if it doesn't
+
+        @param zones_first: keep arrays and vectors in i,j,k,p order rather than native p,i,j,k, usually
+        for immediate output.  Breaks lots of physics code!
+        @param lock: mutex lock for any OpenCL context being passed in params.
+        """
+        # TODO allow adding gamma, U from file vs calculating them
         self.fname = fname
         if params is None:
             params = {}
@@ -37,26 +50,16 @@ class IharmDump:
         else:
             self._use_cl = False
 
+        P, params = read_dump(fname, params=params)
+
         if add_jcon:
-            P, params, self.jcon = read_dump(fname, params=params, get_jcon=True)
-        else:
-            P, params = read_dump(fname, params=params)
+            self.jcon = read_jcon(fname)
+        if add_fails:
+            self.fails = read_fail_flags(fname)
+        if add_floors:
+            self.floors = read_floor_flags(fname)
 
-        if add_fail: # TODO push back to read_dump interface
-            with h5py.File(fname, 'r') as f:
-                if 'fail' in f:
-                    self.fail = (f['fail'][()] != 0)
-                else:
-                    self.fail = (f['extras/fail'][()] != 0)
-
-        self.header = params
-
-        # Set members based on above calculations
-        self._zones_first = zones_first
-        if zones_first:
-            self.prims = np.ascontiguousarray(np.einsum("p...->...p", P))
-        else:
-            self.prims = np.ascontiguousarray(P)
+        self.header = self.params = params
 
         if ('include_ghost' not in self.header) or (not self.header['include_ghost']):
             self.header['ng'] = 0
@@ -75,7 +78,7 @@ class IharmDump:
         self.N2 = G.NTOT[2]
         self.N3 = G.NTOT[3]
 
-        if add_derived:
+        if calc_derived or calc_cons:
             # Derived variables, with or without OCL
             # Calculating w/temp P avoids issues with the variable reordering
             if self._use_cl:
@@ -85,7 +88,7 @@ class IharmDump:
                 P_tmp = P.astype(np.float64)
                 D = phys.get_state(self.header, G, P_tmp)
                 self.gamma = phys.mhd_gamma_calc(self.header['queue'], G, P_tmp).get()
-                if add_cons:
+                if calc_cons:
                     U = phys.prim_to_flux(self.header, G, P_tmp, D=D).get()
 
                 self.ucon = D['ucon'].get()
@@ -93,35 +96,46 @@ class IharmDump:
                 self.bcon = D['bcon'].get()
                 self.bcov = D['bcov'].get()
                 
-                del P_tmp
+                del P_tmp,D
                 
                 if lock is not None:
                     lock.release()
 
             else:
                 D = np_phys.get_state(self.header, G, P)
-                self.gamma = np_phys.mhd_gamma_calc(G, P) # TODO separate option?
-                if add_cons:
+                self.gamma = np_phys.mhd_gamma_calc(G, P)
+                if calc_cons:
                     U = np_phys.prim_to_flux(self.header, self.grid, P, D=D)
 
                 self.ucon = D['ucon']
                 self.ucov = D['ucov']
                 self.bcon = D['bcon']
                 self.bcov = D['bcov']
+
+                del D
         
         # We're done using the grid's openCL, and it causes MemoryErrors in multiprocess code, so...
         self.grid.use_ocl = False
 
-        if zones_first:
-            # TODO TODO turn around D vectors if zones_first
-            if add_cons:
+        self._zones_first = zones_first
+        if zones_first and (calc_derived or calc_cons):
+            # Turn around all our lovely zones-last arrays
+            self.prims = np.ascontiguousarray(np.einsum("p...->...p", P))
+            if calc_cons:
                 self.cons = np.einsum("p...->...p", U)
+            if calc_derived or calc_cons:
+                self.ucon = np.einsum("p...->...p", self.ucon)
+                self.ucov = np.einsum("p...->...p", self.ucov)
+                self.bcon = np.einsum("p...->...p", self.bcon)
+                self.bcov = np.einsum("p...->...p", self.bcov)
         else:
-            if add_cons:
+            self.prims = np.ascontiguousarray(P)
+            if calc_cons:
                 self.cons = U
-
-        # Alternate names
-        self.params = self.header
+        # We no longer need the originals
+        del P,G
+        if calc_cons:
+            del U
 
     # Act like a dict when retrieving lots of different things --
     # just compute/retrieve them on the fly!
