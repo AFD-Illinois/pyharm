@@ -173,14 +173,6 @@ class Grid:
 
         self.conn = self.coords.conn_func(x_cent)
 
-        # Get loopy-based functions if we were handed an OpenCL queue
-        if 'queue' in params:
-            self.queue = params['queue']
-            self._compile_kernels()
-            self.use_ocl = True
-        else:
-            self.use_ocl = False
-
     def coord(self, i, j, k, loc=Loci.CENT):
         """Get the position x of zone(s) i,j,k, in _native_ coordinates
 
@@ -258,100 +250,17 @@ class Grid:
                           np.arange(self.GN[2]+1),
                           np.arange(self.GN[3]+1), loc=Loci.CORN)
 
-    def lower_grid(self, vcon, loc=Loci.CENT, ocl=True, out=None):
+    def lower_grid(self, vcon, loc=Loci.CENT):
         """Lower a grid of contravariant rank-1 tensors to covariant ones."""
-        if self.use_ocl and ocl:
-            if out is None:
-                if isinstance(vcon, np.ndarray):
-                    out = np.zeros_like(vcon)
-                else:
-                    out = cl_array.zeros_like(vcon)
-            evt, _ = self.dot2geom(self.queue, g=self.gcov_d[loc.value], v=vcon, out=out)
-            return out
-        else:
-            # TODO support out=
-            return np.einsum("ij...,j...->i...", self.gcov[loc.value, :, :, :, :, None], vcon)
+        return np.einsum("ij...,j...->i...", self.gcov[loc.value, :, :, :, :, None], vcon)
 
-    def raise_grid(self, vcov, loc=Loci.CENT, ocl=True, out=None):
+    def raise_grid(self, vcov, loc=Loci.CENT):
         """Raise a grid of covariant rank-1 tensors to contravariant ones."""
-        if self.use_ocl and ocl:
-            if out is None:
-                if isinstance(vcov, np.ndarray):
-                    out = np.zeros_like(vcov)
-                else:
-                    out = cl_array.zeros_like(vcov)
-            evt, _ = self.dot2geom(self.queue, g=self.gcon_d[loc.value], v=vcov, out=out)
-            return out
-        else:
-            return np.einsum("ij...,j...->i...", self.gcon[loc.value, :, :, :, :, None], vcov)
+        return np.einsum("ij...,j...->i...", self.gcon[loc.value, :, :, :, :, None], vcov)
 
-    def dot(self, ucon, ucov, ocl=True, out=None):
+    def dot(self, ucon, ucov):
         """Inner product along first index. Exists to make other code OpenCL-agnostic"""
-        if self.use_ocl and ocl:
-            if out is None:
-                if isinstance(ucon, np.ndarray):
-                    out = np.zeros(tuple(ucon.shape[1:]), ucon.dtype)
-                else:
-                    out = cl_array.zeros(self.queue, tuple(ucon.shape[1:]), ucon.dtype)
-            evt, _ = self.dot1(self.queue, a=ucon, b=ucov, out=out)
-            return out
-        else:
-            # TODO support out=
-            return np.einsum("i...,i...", ucon, ucov)
-
-    def _compile_kernels(self):
-        # OpenCL kernels for operations that would just be broadcast in numpy,
-        # and backing implementations for the wrappers above.
-
-        # Dot two grid vectors together: sum first index
-        self.dot1 = lp.make_kernel(self.shapes.isl_grid_vector,
-                                     """out[i,j,k] = sum(mu, a[mu,i,j,k] * b[mu,i,j,k])""",
-                                     default_offset=lp.auto)
-        self.dot1 = tune_grid_kernel(self.dot1)
-        # Dot to a geometry (2D) variable
-        self.dot2geom = lp.make_kernel(self.shapes.isl_grid_tensor,
-                                       """out[nu,i,j,k] = sum(mu, g[mu,nu,i,j] * v[mu,i,j,k])""",
-                                       default_offset=lp.auto)
-        # TODO is it still more efficient to break up some over k? Prefetch/explicit cache?
-        self.dot2geom = tune_geom_kernel(self.dot2geom, self.shapes.grid_tensor)
-        self.dot2geom2 = lp.make_kernel(self.shapes.isl_grid_tensor,
-                                        """out[i,j,k] = sum(mu, sum(nu, g[mu,nu,i,j] * u[mu,i,j,k] * v[nu,i,j,k]))""",
-                                        default_offset=lp.auto)
-        self.dot2geom2 = tune_geom_kernel(self.dot2geom2, self.shapes.grid_tensor)
-
-        self.dot2D2geom = lp.make_kernel(self.shapes.isl_grid_tensor,
-                                        """out[i,j,k] = sum(mu, sum(nu, g[mu,nu,i,j] * u[mu, nu,i,j,k]))""",
-                                        default_offset=lp.auto)
-        self.dot2D2geom = tune_geom_kernel(self.dot2D2geom, self.shapes.grid_tensor)
-
-
-        # Define broadcasts to and from geometry variables
-        elementwise_geom_op = """out[i,j,k] = u[i,j,k] <OPERATION> g[i,j]"""
-        self.timesgeom = lp.make_kernel(self.shapes.isl_grid_scalar, elementwise_geom_op.replace("<OPERATION>", "*"),
-                                        default_offset=lp.auto)
-        self.timesgeom = tune_geom_kernel(self.timesgeom)
-
-        self.divbygeom = lp.make_kernel(self.shapes.isl_grid_scalar, elementwise_geom_op.replace("<OPERATION>", "/"),
-                                        default_offset=lp.auto)
-        self.divbygeom = tune_geom_kernel(self.divbygeom)
-
-        vec_elementwise_geom_op = """out[mu,i,j,k] = u[mu,i,j,k] <OPERATION> g[i,j]"""
-        self.vectimesgeom = lp.make_kernel(self.shapes.isl_grid_vector,
-                                           vec_elementwise_geom_op.replace("<OPERATION>", "*"),
-                                           default_offset=lp.auto)
-        self.vectimesgeom = tune_geom_kernel(self.vectimesgeom)
-
-        self.vecdivbygeom = lp.make_kernel(self.shapes.isl_grid_vector,
-                                           vec_elementwise_geom_op.replace("<OPERATION>", "/"),
-                                           default_offset=lp.auto)
-        self.vecdivbygeom = tune_geom_kernel(self.vecdivbygeom)
-
-        # Move everything we'll use to the device for convenience
-        self.gcon_d = cl_array.to_device(self.queue, self.gcon)
-        self.gcov_d = cl_array.to_device(self.queue, self.gcov)
-        self.gdet_d = cl_array.to_device(self.queue, self.gdet)
-        self.lapse_d = cl_array.to_device(self.queue, self.lapse)
-        self.dx_d = cl_array.to_device(self.queue, self.dx)
+        return np.einsum("i...,i...", ucon, ucov)
 
 
     def dt_light(self):

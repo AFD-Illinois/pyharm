@@ -4,17 +4,10 @@
 import os
 import sys
 import numpy as np
-import h5py
 
 from pyHARM.defs import Loci
-from pyHARM.h5io import read_dump, read_jcon, read_fail_flags, read_floor_flags
-try:
-    from pyHARM import phys
-    can_use_cl = True
-except ImportError:
-    #print("Loading IharmDump without OpenCL support.")
-    can_use_cl = False
-from pyHARM.pure_np import phys as np_phys
+from pyHARM.io.dump import *
+from pyHARM.grmhd import phys
 from pyHARM.grid import Grid
 
 import pyHARM.ana.variables as vars
@@ -45,11 +38,6 @@ class IharmDump:
         if params is None:
             params = {}
 
-        if 'queue' in params and can_use_cl:
-            self._use_cl = True
-        else:
-            self._use_cl = False
-
         P, params = read_dump(fname, params=params)
 
         if add_jcon:
@@ -79,43 +67,19 @@ class IharmDump:
         self.N3 = G.NTOT[3]
 
         if calc_derived or calc_cons:
-            # Derived variables, with or without OCL
+            # Derived variables
             # Calculating w/temp P avoids issues with the variable reordering
-            if self._use_cl:
-                if lock is not None:
-                    lock.acquire()
-                
-                P_tmp = P.astype(np.float64)
-                D = phys.get_state(self.header, G, P_tmp)
-                self.gamma = phys.mhd_gamma_calc(self.header['queue'], G, P_tmp).get()
-                if calc_cons:
-                    U = phys.prim_to_flux(self.header, G, P_tmp, D=D).get()
+            D = phys.get_state(self.header, G, P)
+            self.gamma = phys.mhd_gamma_calc(G, P)
+            if calc_cons:
+                U = phys.prim_to_flux(self.header, self.grid, P, D=D)
 
-                self.ucon = D['ucon'].get()
-                self.ucov = D['ucov'].get()
-                self.bcon = D['bcon'].get()
-                self.bcov = D['bcov'].get()
-                
-                del P_tmp,D
-                
-                if lock is not None:
-                    lock.release()
+            self.ucon = D['ucon']
+            self.ucov = D['ucov']
+            self.bcon = D['bcon']
+            self.bcov = D['bcov']
 
-            else:
-                D = np_phys.get_state(self.header, G, P)
-                self.gamma = np_phys.mhd_gamma_calc(G, P)
-                if calc_cons:
-                    U = np_phys.prim_to_flux(self.header, self.grid, P, D=D)
-
-                self.ucon = D['ucon']
-                self.ucov = D['ucov']
-                self.bcon = D['bcon']
-                self.bcov = D['bcov']
-
-                del D
-        
-        # We're done using the grid's openCL, and it causes MemoryErrors in multiprocess code, so...
-        self.grid.use_ocl = False
+            del D
 
         self._zones_first = zones_first
         if zones_first and (calc_derived or calc_cons):

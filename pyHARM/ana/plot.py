@@ -68,7 +68,7 @@ def decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
     :param label: If not None, set plot title
     """
 
-    if bh and "minkowski" not in dump['coordinates']:
+    if bh and ("minkowski" not in dump['coordinates']) and ("cartesian" not in dump['coordinates']):
         # BH silhouette
         circle1 = plt.Circle((0, 0), dump['r_eh'], color='k')
         ax.add_artist(circle1)

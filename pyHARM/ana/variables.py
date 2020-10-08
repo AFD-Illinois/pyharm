@@ -5,7 +5,7 @@ import os
 import sys
 import numpy as np
 
-from pyHARM.diag import divB
+from pyHARM.checks import divB
 
 # Define a dict of names, coupled with the functions required to obtain their variables.
 # That way, we only need to specify lists and final operations in eht_analysis,

@@ -1,8 +1,4 @@
-################################################################################
-#                                                                              #
-#  GENERATE MOVIES FROM SIMULATION OUTPUT                                      #
-#                                                                              #
-################################################################################
+
 
 import os
 import sys
@@ -17,13 +13,12 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-from pyHARM.ana.iharm_dump import IharmDump
-from pyHARM.h5io import get_dump_time, read_hdr
-from pyHARM.ana.reductions import get_eht_disk_j_vals
+import pyHARM
+import pyHARM.io as io
 import pyHARM.ana.plot as bplt
 import pyHARM.ana.plot_results as bpltr
 from pyHARM.ana.variables import pretty
-from pyHARM.ana.util import i_of, calc_nthreads, run_parallel
+from pyHARM.util import i_of, calc_nthreads, run_parallel
 
 # Movie size in inches. Keep 16/9 for standard-size movies
 FIGX = 16
@@ -52,8 +47,7 @@ ax_slc = lambda i: plt.subplot(2, 4, i)
 ax_flux = lambda i: plt.subplot(4, 2, i)
 
 def plot(n):
-    imname = os.path.join(frame_dir, 'frame_%08d.png' % n)
-    tdump = get_dump_time(files[n])
+    tdump = io.get_dump_time(files[n])
     if (tstart is not None and tdump < tstart) or (tend is not None and tdump > tend):
         return
     
@@ -73,14 +67,21 @@ def plot(n):
         to_load['add_jcon'] = True
     # TODO U if needed
         
-    dump = IharmDump(files[n], **to_load)
+    dump = pyHARM.load_dump(files[n], **to_load)
 
-    # Title by time, TODO options...
-    fig.suptitle("t = %d"%dump['t'])
+    # Title by time, otherwise number
+    try:
+        fig.suptitle("t = {}".format(dump['t']))
+    except ValueError:
+        fig.suptitle("dump {}".format(n))
     
     # Zoom in for small problems
     # TODO use same r1d as analysis?
-    if dump['r'][-1, 0, 0] > 100:
+    if len(dump['r'].shape) < 3:
+        window = [-20, 20, -20, 20]
+        nlines = 20
+        rho_l, rho_h = -5, 0
+    elif dump['r'][-1, 0, 0] > 100:
         window = [-100, 100, -100, 100]
         nlines = 20
         rho_l, rho_h = -5, 0
@@ -130,7 +131,7 @@ def plot(n):
     elif movie_type == "simplest":
         # Simplest movie: just RHO
         ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
-        if dump['metric'] == "MINKOWSKI":
+        if dump['coordinates'] == "cartesian":
             var = 'rho'
             arrspace = True
             vmin = None
@@ -276,13 +277,26 @@ def plot(n):
 
     else:
         # Try to make a simple movie of just the stated variable
-        ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
-        bplt.plot_slices(ax_slc[0], ax_slc[1], dump, movie_type, label=pretty(movie_type),
-                     vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
-                     cbar=True, cmap='jet')
+        if "_poloidal" in movie_type:
+            ax = plt.subplot(1, 1, 1)
+            var = movie_type[:-9]
+            bplt.plot_xz(ax, dump, var, label=pretty(var),
+                        vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
+                        cbar=True, cmap='jet')
+        elif "_toroidal" in movie_type:
+            ax = plt.subplot(1, 2, 1)
+            var = movie_type[:-9]
+            bplt.plot_xy(ax, dump, var, label=pretty(var),
+                        vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
+                        cbar=True, cmap='jet')
+        else:
+            ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
+            bplt.plot_slices(ax_slc[0], ax_slc[1], dump, movie_type, label=pretty(movie_type),
+                        vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
+                        cbar=True, cmap='jet')
 
     plt.subplots_adjust(left=0.03, right=0.97)
-    plt.savefig(imname, dpi=FIGDPI)
+    plt.savefig(os.path.join(frame_dir, 'frame_%08d.png' % n), dpi=FIGDPI)
     plt.close(fig)
 
     del dump
@@ -310,6 +324,8 @@ if __name__ == "__main__":
     # LOAD FILES
     files = np.sort(glob(os.path.join(path, "dump_*.h5")))
     if len(files) == 0:
+        files = np.sort(glob(os.path.join(path, "*out*.phdf")))
+    if len(files) == 0:
         print("INVALID PATH TO DUMP FOLDER")
         sys.exit(1)
     
@@ -334,5 +350,5 @@ if __name__ == "__main__":
             nthreads = psutil.cpu_count()
             print("Using {} threads".format(nthreads))
         else:
-            nthreads = calc_nthreads(read_hdr(files[0]), pad=0.6)
+            nthreads = calc_nthreads(io.read_hdr(files[0]), pad=0.6)
         run_parallel(plot, len(files), nthreads)

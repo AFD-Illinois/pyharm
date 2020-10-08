@@ -3,11 +3,11 @@
 import os
 import numpy as np
 
-from pyHARM.h5io import hdf5_to_dict, read_hdr
+from pyHARM.io import hdf5_to_dict, read_hdr
 from pyHARM.grid import Grid
-from pyHARM.ana.util import i_of
+from pyHARM.util import i_of
 from pyHARM.ana.variables import fns_dict
-
+import pyHARM.parameters as parameters
 """
 Tools for dealing with the results computed by scripts/analysis.py.  Results are organized by remaining independent
 variable -- so, a phi- and time-average will be under 'rth' since these are its remaining independent variables.
@@ -92,6 +92,7 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=True, **kwargs):
 
 def get_grid(infile):
     params = read_hdr(infile['header'])
+    params = parameters.fix(params)
     return Grid(params)
 
 

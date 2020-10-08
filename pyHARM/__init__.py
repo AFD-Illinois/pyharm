@@ -4,7 +4,7 @@ from .ana.iharm_dump import IharmDump
 from .ana.reductions import *
 from .ana.variables import pretty
 
-from .ana import plot as plot
+from .ana import plot
 
 def load_dump(fname, **kwargs):
     return IharmDump(fname, **kwargs)

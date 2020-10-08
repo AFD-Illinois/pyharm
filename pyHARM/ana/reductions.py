@@ -4,7 +4,7 @@ import numpy as np
 import scipy.fftpack as fft
 
 # This is too darn useful
-from pyHARM.ana.util import i_of
+from pyHARM.util import i_of
 
 # General interface for reductions:
 # (dump, var, options)

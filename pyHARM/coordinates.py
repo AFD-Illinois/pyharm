@@ -339,7 +339,8 @@ class MKS(KS):
                               (-1. + met_params['n1'] / 5.5)),
                              0, 0])
         else:
-            raise ValueError("No startx value provided and not enough parameters to guess!")
+            print("The only parameters provided to native_startx were: ", met_params)
+            raise ValueError("Cannot find or guess startx!")
 
     def native_stopx(self, met_params):
         return np.array([0, np.log(met_params['r_out']), 1, 2*np.pi])

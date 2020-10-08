@@ -4,7 +4,7 @@
 
 import sys
 import pyHARM.grid as grid
-import pyHARM.h5io as h5io
+import pyHARM.io as h5io
 
 system=sys.argv[1]
 spin=float(sys.argv[2])

@@ -7,15 +7,17 @@
 
 import sys
 import pyHARM.grid as grid
-import pyHARM.h5io as h5io
 
-system='fmks'
 spin=float(sys.argv[1])
 r_out=float(sys.argv[2])
 n1 = int(sys.argv[3])
 n2 = int(sys.argv[4])
 n3 = int(sys.argv[5])
 tf = float(sys.argv[6])
+if len(sys.argv) > 7:
+    system = sys.argv[7]
+else:
+    system = 'fmks'
 
 print("Building grid: {}, a = {}, {}x{}x{} to r_out of {}".format(
       system, spin, n1, n2, n3, r_out))

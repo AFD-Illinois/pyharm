@@ -51,15 +51,18 @@ def parse_dat(params, fname):
             params[ls[1]] = int(ls[-1])
         elif ls[0] == "[str]":
             params[ls[1]] = str(ls[-1])
-    return params
+    return _fix(params)
 
-def parse_parthenon_dat(params, fname):
+def parse_parthenon_dat(fname, params=None):
     """Parse the KHARMA params.dat format to produce a Python dict.
     params.dat format:
     <header/subheader>
     name = value
     All lines not in this format are ignored, though conventionally comments begin with '# '
     """
+    if params is None:
+        params = {}
+
     fp = open(fname, "r")
     for line in fp:
         # Trim out trailing newline, anything after '#', stray parentheses, headers
@@ -117,9 +120,21 @@ def parse_parthenon_dat(params, fname):
         print("Defaulting coordinate system...")
         params['coordinates'] = "fmks"
 
+    return _fix(params)
+
+def override_from_argv(params, argv):
+    """Allow passing any parameter as argument overriding the datfile"""
+    for parm in argv:
+        if parm[:2] == "--":
+            if "=" in parm:
+                kv = parm[2:].split("=")
+                params[kv[0]] = kv[1]
+            else:
+                params[parm[2:]] = argv[argv.index(parm)+1]
     return params
 
-def fix(params):
+
+def _fix(params):
     # Fix common parameter mistakes
     if ('derefine_poles' in params) and (params['derefine_poles'] == 1):
         params['metric'] = "fmks"
@@ -137,35 +152,4 @@ def fix(params):
         params['coordinates'] = params['metric'].lower()
 
 
-    return params
-
-
-def parse_argv(params, argv):
-    """Parse the usual command line arguments.  Note -p can also specify problem name"""
-    if "-o" in argv:
-        params['outdir'] = argv[argv.index("-o")+1]
-    if "-p" in argv:
-        # Take -p as "param" or "problem" since it's easy
-        # Detect on the fly which we're dealing with
-        param_path = argv[argv.index("-p")+1]
-        param_altpath = os.path.join(sys.path[0], "../prob/"+param_path+"/param.dat")
-        if os.path.isfile(param_path):
-            params['paramfile'] = param_path
-        elif os.path.exists(param_altpath):
-            params['paramfile'] = param_altpath
-        else:
-            raise ValueError("Parameter file not found!")
-
-    return params
-
-
-def override_from_argv(params, argv):
-    """Allow passing any parameter as argument overriding the datfile"""
-    for parm in argv:
-        if parm[:2] == "--":
-            if "=" in parm:
-                kv = parm[2:].split("=")
-                params[kv[0]] = kv[1]
-            else:
-                params[parm[2:]] = argv[argv.index(parm)+1]
     return params

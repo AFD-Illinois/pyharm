@@ -29,12 +29,12 @@ from pyHARM.ana.variables import *
 from pyHARM.ana.reductions import *
 
  # I'm not sure how much of this functionality we really want to standardize...
-import pyHARM.h5io as io
+import pyHARM.io as io
 from pyHARM.defs import Loci
 
 from pyHARM.ana.misc_io import load_log
-import pyHARM.ana.util as util
-from pyHARM.ana.util import i_of
+import pyHARM.util as util
+from pyHARM.util import i_of
 
 # Whether to calculate each set of variables
 # Once performed once, calculations will be ported to each new output file
@@ -153,9 +153,6 @@ def avg_dump(n):
 
     print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
     dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=True)
-
-    this_process = psutil.Process(os.getpid())
-    print("Memory use: {} GB".format(this_process.memory_info().rss / 10**9))
 
     # Should we compute the time-averaged quantities?
     do_tavgs = (tavg_start <= t <= tavg_end)
@@ -322,6 +319,9 @@ def avg_dump(n):
                                                  weights=np.repeat(dump['gdet'], var_tmp.shape[2]).reshape(var_tmp.shape),
                                                  density=True)
             del var_tmp
+
+    this_process = psutil.Process(os.getpid())
+    print("Memory use: {} GB".format(this_process.memory_info().rss / 10**9))
 
     del dump
 
