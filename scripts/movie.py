@@ -32,7 +32,7 @@ FIGDPI = 100
 
 # For plotting debug, "array-space" plots
 # Certain plots can override this below
-USEARRSPACE = True
+USEARRSPACE = False
 
 LOG_MDOT = False
 LOG_PHI = False
@@ -62,7 +62,7 @@ def plot(n):
     fig = plt.figure(figsize=(FIGX, FIGY))
     
     to_load = {}
-    if "simpl" not in movie_type and "floor" not in movie_type:
+    if "simple" not in movie_type and "floor" not in movie_type:
         # Everything but simple & pure floor movies needs derived vars
         to_load['calc_derived'] = True
     if "fail" in movie_type or movie_type == "e_ratio":
@@ -179,13 +179,13 @@ def plot(n):
         ax_slc = lambda i: plt.subplot(2, 4, i)
         # Usual movie: RHO beta fluxes
         # CUTS
-        bplt.plot_slices(ax_slc(1), ax_slc(2), dump, 'log_rho', label=pretty('log_rho'), average=True,
+        bplt.plot_slices(ax_slc(1), ax_slc(2), dump, 'log_rho', label='log_rho', average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(3), ax_slc(4), dump, 'log_UU', label=pretty('log_UU'), average=True,
+        bplt.plot_slices(ax_slc(3), ax_slc(4), dump, 'log_UU', label='log_UU', average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(5), ax_slc(6), dump, 'log_bsq', label=pretty('log_bsq'), average=True,
+        bplt.plot_slices(ax_slc(5), ax_slc(6), dump, 'log_bsq', label='log_bsq', average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(7), ax_slc(8), dump, 'log_beta', label=pretty('log_beta'), average=True,
+        bplt.plot_slices(ax_slc(7), ax_slc(8), dump, 'log_beta', label='log_beta', average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
         # FLUXES
 #            bpltr.plot_diag(ax_flux(2), diag, 't', 'Mdot', tline=dump['t'], logy=LOG_MDOT)
@@ -224,25 +224,41 @@ def plot(n):
                             label="Failures", vmin=0, vmax=20, cmap='Reds', integrate=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
 
+    elif movie_type == "energies":
+        ax_slc = lambda i: plt.subplot(2, 4, i)
+        # Energy ratios: difficult places to integrate, with failures
+        bplt.plot_slices(ax_slc(1), ax_slc(2), dump, 'log_rho',
+                            label=r"$\log_{10}(U / \rho)$", vmin=-3, vmax=3, average=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+        bplt.plot_slices(ax_slc(3), ax_slc(4), dump, 'log_bsq',
+                            label=r"$\log_{10}(b^2 / \rho)$", vmin=-3, vmax=3, average=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+        bplt.plot_slices(ax_slc(5), ax_slc(6), dump, 'log_UU',
+                            label=r"$\beta^{-1}$", vmin=-3, vmax=3, average=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+        bplt.plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32),
+                            label="Failures", vmin=0, vmax=20, cmap='Reds', integrate=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+
     elif movie_type == "floors":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         bplt.plot_xz(ax_slc(1), dump, 'log_rho', label=pretty('log_rho'),
-                        vmin=rho_l, vmax=rho_h, cmap='jet')
+                        vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
         max_fail = 20
         bplt.plot_xz(ax_slc(2), dump, dump['floors'] & 1, label="GEOM_RHO",
-                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True)
+                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
         bplt.plot_xz(ax_slc(3), dump, dump['floors'] & 2, label="GEOM_U",
-                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True)
+                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
         bplt.plot_xz(ax_slc(4), dump, dump['floors'] & 4, label="B_RHO",
-                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True)
+                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
         bplt.plot_xz(ax_slc(5), dump, dump['floors'] & 8, label="B_U",
-                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True)
+                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
         bplt.plot_xz(ax_slc(6), dump, dump['floors'] & 16, label="TEMP",
-                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True)
+                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
         bplt.plot_xz(ax_slc(7), dump, dump['floors'] & 32, label="GAMMA",
-                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True)
+                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
         bplt.plot_xz(ax_slc(8), dump, dump['floors'] & 64, label="KTOT",
-                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True)
+                    vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
 
     elif movie_type == "floors_old":
         ax_slc6 = lambda i: plt.subplot(2, 3, i)
@@ -315,7 +331,7 @@ if __name__ == "__main__":
             plot(i)
     else:
         if movie_type in ["equator", "simplest"]:
-            nthreads = psutil.cpu_count() // 2
+            nthreads = psutil.cpu_count()
             print("Using {} threads".format(nthreads))
         else:
             nthreads = calc_nthreads(read_hdr(files[0]), pad=0.6)

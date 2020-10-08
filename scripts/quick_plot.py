@@ -42,7 +42,7 @@ if len(sys.argv) > 4:
 else:
     unit = 1
 
-dump = pyHARM.load_dump(dumpfile, add_jcon=True)
+dump = pyHARM.load_dump(dumpfile)
 
 # Plot vectors in 4-pane layout
 fig = plt.figure(figsize=(FIGX, FIGY))

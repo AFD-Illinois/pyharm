@@ -38,9 +38,9 @@ from pyHARM.ana.util import i_of
 
 # Whether to calculate each set of variables
 # Once performed once, calculations will be ported to each new output file
-calc_ravgs = False
+calc_ravgs = True
 calc_basic = True
-calc_jet_profile = False
+calc_jet_profile = True
 calc_jet_cuts = False
 calc_lumproxy = False
 calc_gridtotals = False

@@ -57,7 +57,7 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             # 'edot': lambda diag: diag['Edot'][()] / diag['Mdot'][()],
             #             #np.mean(diag['Mdot'][len(diag['Mdot'])//2:]),
             # 'ldot': lambda diag: diag['Ldot'][()] / diag['Mdot'][()],
-            #             #np.mean(diag['Mdot'][len(diag['Mdot'])//2:])6a0236
+            #             #np.mean(diag['Mdot'][len(diag['Mdot'])//2:])
             }
 
 pretty_dict = {'rho': r"\rho",
