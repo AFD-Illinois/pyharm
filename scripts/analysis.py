@@ -174,9 +174,9 @@ def avg_dump(n):
     # EHT Radial profiles: Average only over the disk portion (excluding first & last pi/3 ~ "poles")
     if calc_ravgs:
         for var in ['rho', 'Pg', 'u^3', 'b', 'betainv', 'Ptot']:
-            out['rt/' + var] = shell_sum(dump, var, j_slice=(jmin, jmax))
-            # out['rt/' + var + '_jet'] = shell_sum(dump, var, j_slice=(0, jmin)) + \
-            #                             shell_sum(dump, var, j_slice=(jmax, dump.header['n2']))
+            out['rt/' + var] = shell_avg(dump, var, j_slice=(jmin, jmax))
+            # out['rt/' + var + '_jet'] = shell_avg(dump, var, j_slice=(0, jmin)) + \
+            #                             shell_avg(dump, var, j_slice=(jmax, dump.header['n2']))
             if do_tavgs:
                 out['r/' + var] = out['rt/' + var]
                 # out['r/' + var + '_jet'] = out['rt/' + var + '_jet']
@@ -269,11 +269,9 @@ def avg_dump(n):
 
     else:
         # Use the default cut from Paper V
-        for lum, flux in [['LBZ', 'FE_EM'], ['Lj', 'FE']]:
+        # These are the powers for the MADCC
+        for lum, flux in [['Mdot_jet', 'FM'], ['P_jet', 'FE'], ['P_EM', 'FE_EM'], ['P_PAKE', 'FE_PAKE'], ['P_EN', 'FE_EN']]:
             out['rt/' + lum] = shell_sum(dump, flux, mask=(dump['Be_b'] > 1))
-            out['t/' + lum] = out['rt/' + lum][iBZ]
-            if do_tavgs:
-                out['r/' + lum] = out['rt/' + lum]
 
     if calc_lumproxy:
         rho, Pg, B = dump['rho'], dump['Pg'], dump['b']

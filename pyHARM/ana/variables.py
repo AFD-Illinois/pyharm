@@ -19,6 +19,8 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'FE': lambda dump: -T_mixed(dump, 1, 0),
             'FE_EM': lambda dump: -TEM_mixed(dump, 1, 0),
             'FE_Fl': lambda dump: -TFl_mixed(dump, 1, 0),
+            'FE_PAKE': lambda dump: -TPAKE_mixed(dump, 1, 0),
+            'FE_EN': lambda dump: -TEN_mixed(dump, 1, 0),
             'FL': lambda dump: T_mixed(dump, 1, 3),
             'FL_EM': lambda dump: TEM_mixed(dump, 1, 3),
             'FL_Fl': lambda dump: TFl_mixed(dump, 1, 3),
@@ -145,6 +147,19 @@ def TEM_mixed(dump, i, j):
         return dump['bsq'] * dump['ucon'][i] * dump['ucov'][j] + dump['bsq'] / 2 - \
                dump['bcon'][i] * dump['bcov'][j]
 
+def TPAKE_mixed(dump, i, j):
+    if j != 0:
+        dump['RHO'] * dump['ucon'][i] * dump['ucov'][j]
+    else:
+        dump['RHO'] * (dump['ucon'][i] + 1) * dump['ucov'][j]
+
+def TEN_mixed(dump, i, j):
+    gam = dump.header['gam']
+    if i != j:
+        # (u + p) u^i u_j + p delta(i,j)
+        return (gam * dump['UU']) * dump['ucon'][i] * dump['ucov'][j]
+    else:
+        return (gam * dump['UU']) * dump['ucon'][i] * dump['ucov'][j] + (gam - 1) * dump['UU']
 
 def TFl_mixed(dump, i, j):
     gam = dump.header['gam']
@@ -180,7 +195,8 @@ def Fcov(dump, i, j):
 
 def bernoulli(dump, with_B=False):
     if with_B:
-        return -(T_mixed(dump, 0, 0) / dump['FM']) - 1
+        #return -(T_mixed(dump, 0, 0) / dump['FM']) - 1
+        return np.sqrt( (-T_mixed(dump, 1, 0) / (dump['rho']*dump['u^1']))**2 - 1)
     else:
         return -(1 + dump.header['gam'] * dump['UU'] / dump['RHO']) * dump['ucov'][0] - 1
 
