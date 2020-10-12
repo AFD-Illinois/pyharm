@@ -73,7 +73,7 @@ class CoordinateSystem(object):
                     theta = np.pi - self.small_th
         return theta
 
-    def gcov(self, X):
+    def gcov_ks(self, X):
         gcov_ks = np.zeros([4, 4, *(X.shape[1:])])
         r, th, _ = self.ks_coord(X)
 
@@ -98,7 +98,11 @@ class CoordinateSystem(object):
         gcov_ks[3, 1] = gcov_ks[1, 3]
         gcov_ks[3, 3] = s2 * (rho2 + self.a ** 2 * s2 * (1. + 2. * r / rho2))
 
+        return gcov_ks
+
+    def gcov(self, X):
         # Apply coordinate transformation to code coordinates X
+        gcov_ks = self.gcov_ks(X)
         dxdX = self.dxdX(X)
         return np.einsum("ab...,ac...,bd...->cd...", gcov_ks, dxdX, dxdX)
 

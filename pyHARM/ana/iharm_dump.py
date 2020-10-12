@@ -131,6 +131,21 @@ class IharmDump:
             pdf_window=(np.min(var_og), np.max(var_og))
             return np.histogram(var_og, bins=100, range=pdf_window,
                 weights=np.repeat(self.gdet, self.N3).reshape(var_og.shape), density=True)
+        # Return vector components
+        elif key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3":
+            return self[key[0]+"cov"][int(key[-1])]
+        elif key[-2:] == "^0" or key[-2:] == "^1" or key[-2:] == "^2" or key[-2:] == "^3":
+            return self[key[0]+"con"][int(key[-1])]
+        # Return transformed vector components
+        elif key[-2:] == "_t" or key[-2:] == "_r" or key[-3:] == "_th" or key[-4:] == "_phi":
+            return np.einsum("i...,ij...->j...",
+                                self[key[0]+"cov"],
+                                self.grid.coords.dxdX(self.grid.coord_all()))[["t", "r", "th", "phi"].index(key.split("_")[-1])]
+        elif key[-2:] == "^t" or key[-2:] == "^r" or key[-3:] == "^th" or key[-4:] == "^phi":
+            return np.einsum("i...,ij...->j...",
+                                self[key[0]+"con"],
+                                self.grid.coords.dXdx(self.grid.coord_all()))[["t", "r", "th", "phi"].index(key.split("^")[-1])]
+        
         else:
             raise ValueError("IharmDump cannot find or compute {}".format(key))
 

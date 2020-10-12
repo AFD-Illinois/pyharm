@@ -223,7 +223,7 @@ def shell_sum(dump, var, at_r=None, at_zone=None, th_slice=None, j_slice=None, m
         return ret
 
 
-def shell_av(dump, var, **kwargs):
+def shell_avg(dump, var, **kwargs):
     """Average a variable over spherical shells. Returns a radial profile (array length N1) or single-shell average.
     See shell_sum for arguments.
     """

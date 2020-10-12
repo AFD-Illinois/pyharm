@@ -27,7 +27,7 @@ FIGDPI = 100
 
 # For plotting debug, "array-space" plots
 # Certain plots can override this below
-USEARRSPACE = False
+USEARRSPACE = True
 
 LOG_MDOT = False
 LOG_PHI = False
@@ -277,6 +277,8 @@ def plot(n):
 
     else:
         # Try to make a simple movie of just the stated variable
+        if not "log_" in movie_type:
+            rho_l, rho_h = 0, 0.1
         if "_poloidal" in movie_type:
             ax = plt.subplot(1, 1, 1)
             var = movie_type[:-9]

@@ -211,32 +211,3 @@ def get_fluid_source(params, G, P, D, slc=None):
     dU[slc] *= G.gdet[Loci.CENT.value][gslc]
 
     return dU
-
-    # # Add a small "wind" source term in RHO,UU
-    # # Stolen shamelessly from iharm2d_v3
-    # if params['wind_term']:
-    #     # need coordinates to evaluate particle addtn rate
-    #     X = G.coord_bulk(Loci.CENT)
-    #     r, th, _ = G.ks_coord(X)
-    #     cth = np.cos(th)
-    #
-    #     # here is the rate at which we're adding particles
-    #     # this function is designed to concentrate effect in the
-    #     # funnel in black hole evolutions
-    #     drhopdt = 2.e-4*cth**4/(1. + r**2)**2
-    #
-    #     dP[RHO] = drhopdt
-    #
-    #     Tp = 10.   # temp, in units of c^2, of new plasma
-    #     dP[UU] = drhopdt*Tp*3.
-    #
-    #     # Leave P[U1,2,3]=0 to add in particles in normal observer frame
-    #     # Likewise leave P[BN]=0
-    #
-    #
-    #     # add in plasma to the T^t_a component of the stress-energy tensor
-    #     # notice that U already contains a factor of sqrt-g
-    #     dD = get_state_vec(G, dP, Loci.CENT)
-    #     ddU = prim_to_flux(G, dP, dD, 0, Loci.CENT)
-    #
-    #     (*dU)[ip] += U[ip]

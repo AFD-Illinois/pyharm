@@ -161,7 +161,7 @@ def read_hdr(grp):
     if close_file:
         fil.close()
 
-    return hdr
+    return parameters._fix(hdr)
 
 
 def hdf5_to_dict(h5grp):
@@ -202,7 +202,8 @@ def dict_to_hdf5(wdict, h5grp):
     for key, item in wdict.items():
         if isinstance(item, dict):
             # Call recursively
-            h5grp.create_group(key)
+            if not key in h5grp:
+                h5grp.create_group(key)
             dict_to_hdf5(wdict[key], h5grp[key])
         else:
             # Otherwise write the value to a dataset

@@ -19,6 +19,7 @@ def plot_diag(ax, infile, ivar, var, tline=None,
         varname = var
         # TODO option here
         #ivar, var = get_diag(infile, varname, only_nonzero=only_nonzero, qui=False)
+        #print(get_result(infile, ivar, var, only_nonzero=only_nonzero, qui=False))
         ivar, var = get_result(infile, ivar, var, only_nonzero=only_nonzero, qui=False)
     elif isinstance(ivar, str):
         ivarname = ivar

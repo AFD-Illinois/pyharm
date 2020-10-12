@@ -10,22 +10,26 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-# TODO package interface...
 import pyHARM
 import pyHARM.ana.plot as pplt
 from pyHARM import pretty
 from pyHARM.ana.units import get_units_M87
 
-# TODO parse these instead of hard-coding
-USEARRSPACE = False
-
-SIZE = 20
-#window = (0, SIZE, 0, SIZE)
-window = (-SIZE, SIZE, -SIZE, SIZE)
-# window=(-SIZE/4, SIZE/4, 0, SIZE)
-pdf_window = (-10, 0)
 FIGX = 10
 FIGY = 10
+
+# TODO parse these instead of hard-coding
+USEARRSPACE = True
+
+if USEARRSPACE:
+    window = (0, 1, 0, 1)
+else:
+    SIZE = 20
+    #window = (0, SIZE, 0, SIZE)
+    window = (-SIZE, SIZE, -SIZE, SIZE)
+    # window=(-SIZE/4, SIZE/4, 0, SIZE)
+
+pdf_window = (-10, 0)
 
 dumpfile = sys.argv[1]
 var = sys.argv[2]
@@ -44,16 +48,9 @@ else:
 
 dump = pyHARM.load_dump(dumpfile)
 
-# Plot vectors in 4-pane layout
-fig = plt.figure(figsize=(FIGX, FIGY))
-plt.title(pretty(var))
-
-if var in ['jcon', 'jcov', 'ucon', 'ucov', 'bcon', 'bcov']:
-    axes = [plt.subplot(2, 2, i) for i in range(1, 5)]
-    for n in range(4):
-        pplt.plot_xy(axes[n], dump, np.log10(dump[var][n] * unit), arrayspace=USEARRSPACE, window=window)
-elif "pdf_" in var:
+if "pdf_" in var:
     fig = plt.figure(figsize=(FIGX, FIGY))
+    plt.title(pretty(var))
     d_var, d_var_bins = dump[var]
     plt.plot(d_var_bins[:-1], d_var)
     if "_log_" in var:
@@ -67,22 +64,33 @@ elif "pdf_" in var:
     plt.savefig(name+".png", dpi=100)
     plt.close(fig)
     exit() # We already saved the figure, we don't need another
-else:
-    # TODO allow specifying vmin/max, average from command line or above
-    ax = plt.subplot(1, 1, 1)
-    pplt.plot_xy(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)
 
-plt.tight_layout()
-plt.savefig(name + "_xy.png", dpi=100)
-plt.close(fig)
+if dump['n3'] > 1:
+    fig = plt.figure(figsize=(FIGX, FIGY))
+    plt.title(pretty(var))
+    # Plot XY
+    # Plot vectors in 4-pane layout
+    if var in ['jcon', 'jcov', 'ucon', 'ucov', 'bcon', 'bcov']:
+        axes = [plt.subplot(2, 2, i) for i in range(1, 5)]
+        for n in range(4):
+            pplt.plot_xy(axes[n], dump, dump[var][n] * unit, arrayspace=USEARRSPACE, window=window)
+    else:
+        # TODO allow specifying vmin/max, average from command line or above
+        ax = plt.subplot(1, 1, 1)
+        pplt.plot_xy(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)
+
+    plt.tight_layout()
+    plt.savefig(name + "_xy.png", dpi=100)
+    plt.close(fig)
 
 # Plot XZ
 fig = plt.figure(figsize=(FIGX, FIGY))
+plt.title(pretty(var))
 
 if var in ['jcon', 'jcov', 'ucon', 'ucov', 'bcon', 'bcov']:
     axes = [plt.subplot(2, 2, i) for i in range(1, 5)]
     for n in range(4):
-        pplt.plot_xz(axes[n], dump, np.log10(dump[var][n] * unit), arrayspace=USEARRSPACE, window=window)
+        pplt.plot_xz(axes[n], dump, dump[var][n] * unit, arrayspace=USEARRSPACE, window=window)
 else:
     ax = plt.subplot(1, 1, 1)
     pplt.plot_xz(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)

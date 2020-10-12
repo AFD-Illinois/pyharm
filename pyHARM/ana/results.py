@@ -21,6 +21,14 @@ where th is mildly r-dependent.
 We ignore this for informal plots, but for figures it can be specified with 'at_r'
 """
 
+diag_fns = {'mdot': lambda diag: diag['t/Mdot'][()],
+            'phi_b': lambda diag: diag['t/Phi_b'][()] / np.sqrt(diag['t/Mdot'][()]),
+                            #np.mean(np.sqrt(diag['Mdot'][len(diag['Mdot'])//2:])),
+            'edot': lambda diag: diag['t/Edot'][()] / diag['t/Mdot'][()],
+                            #np.mean(diag['Mdot'][len(diag['Mdot'])//2:]),
+            'ldot': lambda diag: diag['t/Ldot'][()] / diag['t/Mdot'][()]}
+                            #np.mean(diag['Mdot'][len(diag['Mdot'])//2:])
+
 def get_header_var(infile, var):
     if ',' in var:
         out = []
@@ -53,7 +61,7 @@ def get_quiescence(infile, diag=False, set_time=None):
     return slice(start, end)
 
 
-def get_result(infile, ivar, var, qui=False, only_nonzero=True, **kwargs):
+def get_result(infile, ivar, var, qui=False, only_nonzero=False, **kwargs):
     """Get the values of a variable, and of the independent variable against which to plot it.
     Various common slicing options:
     :arg qui Get only "quiescence" time, i.e. range over which time-averages were taken
@@ -67,8 +75,10 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=True, **kwargs):
     elif var[:4] == 'log_':
         ret_i, ret_v = get_result(infile, ivar, var[4:], qui=qui, only_nonzero=only_nonzero, **kwargs)
         return ret_i, np.log10(ret_v)
+    elif var in ['mdot', 'phi_b', 'ldot', 'edot']:
+            return ret_i, diag_fns[var](infile)
     else:
-        print("Can't find variable: {} as fn of {}".format(var, ivar))
+        print("Can't find variable: {} as a function of {}".format(var, ivar))
         return None, None
 
     if qui:
@@ -92,7 +102,6 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=True, **kwargs):
 
 def get_grid(infile):
     params = read_hdr(infile['header'])
-    params = parameters.fix(params)
     return Grid(params)
 
 

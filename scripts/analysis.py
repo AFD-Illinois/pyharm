@@ -10,8 +10,10 @@
 # (see merge_ana.py)
 # Alternate usage: analysis.py /path/to/dump.h5
 
+import os
 import sys
 from glob import glob
+import numpy as np
 import h5py
 
 # Suppress runtime math warnings
@@ -32,20 +34,32 @@ from pyHARM.ana.reductions import *
 import pyHARM.io as io
 from pyHARM.defs import Loci
 
-from pyHARM.ana.misc_io import load_log
+from pyHARM.io.misc import load_log
 import pyHARM.util as util
 from pyHARM.util import i_of
 
 # Whether to calculate each set of variables
 # Once performed once, calculations will be ported to each new output file
-calc_ravgs = True
-calc_basic = True
-calc_jet_profile = True
+calc_basic = True # Fluxes at horizon, often needed before movies, as basic check, etc.
+calc_ravgs = True # Radial averages in the disk for MADCC
+calc_efluxes = True # Fluxes in places other than the horizon, to judge infall equilibrium etc.
+
+# Stuff written specifically for the MADCC
+calc_madcc = True
+# Field fluxes away from EH
+calc_phi = True
+
+# Maxima/minima over the grid that might prove useful diagnostics
+calc_diagnostics = False
+
+# Specialized calculations
+calc_thavgs = False
+calc_omega_bz = False
+calc_jet_profile = False
 calc_jet_cuts = False
 calc_lumproxy = False
 calc_gridtotals = False
-calc_efluxes = True
-calc_outfluxes = True
+calc_outfluxes = False
 
 calc_pdfs = False
 pdf_nbins = 200
@@ -158,16 +172,16 @@ def avg_dump(n):
     do_tavgs = (tavg_start <= t <= tavg_end)
 
     # EHT Radial profiles: Average only over the disk portion (excluding first & last pi/3 ~ "poles")
-    #
     if calc_ravgs:
-        for var in ['rho', 'Theta', 'B', 'Pg', 'Ptot', 'beta', 'u^phi', 'u_phi', 'sigma']:
+        for var in ['rho', 'Pg', 'u^3', 'b', 'betainv', 'Ptot']:
             out['rt/' + var] = shell_sum(dump, var, j_slice=(jmin, jmax))
-            out['rt/' + var + '_jet'] = shell_sum(dump, var, j_slice=(0, jmin)) + \
-                                        shell_sum(dump, var, j_slice=(jmax, dump.header['n2']))
+            # out['rt/' + var + '_jet'] = shell_sum(dump, var, j_slice=(0, jmin)) + \
+            #                             shell_sum(dump, var, j_slice=(jmax, dump.header['n2']))
             if do_tavgs:
                 out['r/' + var] = out['rt/' + var]
-                out['r/' + var + '_jet'] = out['rt/' + var + '_jet']
+                # out['r/' + var + '_jet'] = out['rt/' + var + '_jet']
 
+    if calc_thavgs:
         if do_tavgs:
             # CORRELATION FUNCTION
             for var in ['rho', 'betainv']:
@@ -177,48 +191,10 @@ def avg_dump(n):
             for var in ['betainv', 'sigma']:
                 out['th/' + var + '_25'] = theta_av(dump, var, i_of(r1d, 25), 5, fold=False)
 
-
-            Fcov01, Fcov13 = Fcov(dump, 0, 1), Fcov(dump, 1, 3)
-            Fcov02, Fcov23 = Fcov(dump, 0, 2), Fcov(dump, 2, 3)
-            vr, vth, vphi = dump['u^r']/dump['u^t'], dump['u^th']/dump['u^t'], dump['u^phi']/dump['u^t']
-            out['rhth/omega'] = np.zeros((hdr['n1'],hdr['n2']//2))
-            out['rhth/omega_alt_num'] = np.zeros((hdr['n1'],hdr['n2']//2))
-            out['rhth/omega_alt_den'] = np.zeros((hdr['n1'],hdr['n2']//2))
-            out['rhth/omega_alt'] = np.zeros((hdr['n1'],hdr['n2']//2))
-            out['rhth/vphi'] = np.zeros((hdr['n1'],hdr['n2']//2))
-            out['rhth/F13'] = np.zeros((hdr['n1'],hdr['n2']//2))
-            out['rhth/F01'] = np.zeros((hdr['n1'],hdr['n2']//2))
-            out['rhth/F23'] = np.zeros((hdr['n1'],hdr['n2']//2))
-            out['rhth/F02'] = np.zeros((hdr['n1'],hdr['n2']//2))
-            coord_hth = dump.grid.coord_all()[:,:,:hdr['n2']//2,0]
-            alpha_over_omega =  dump.grid.lapse[Loci.CENT.value, :, :hdr['n2']//2] / (hdr['r_eh'] * np.sin(dump.grid.coords.th(coord_hth)))
-            for i in range(hdr['n1']):
-                out['rhth/F01'][i] = theta_av(dump, Fcov01, i, 1)
-                out['rhth/F13'][i] = theta_av(dump, Fcov13, i, 1)
-                out['rhth/F02'][i] = theta_av(dump, Fcov02, i, 1)
-                out['rhth/F23'][i] = theta_av(dump, Fcov23, i, 1)
-                out['rhth/omega'][i] =  out['rhth/F01'][i] / out['rhth/F13'][i]
-                out['rhth/omega_alt_num'][i] = theta_av(dump, vr * dump['B3']*dump['B2'] + vth * dump['B3']*dump['B1'], i, 1)
-                out['rhth/omega_alt_den'][i] = theta_av(dump, dump['B2']*dump['B1'], i, 1)
-                out['rhth/omega_alt'][i] = theta_av(dump, vr * dump['B3']/dump['B1'] + vth * dump['B3']/dump['B2'], i, 1)
-                out['rhth/vphi'][i] = theta_av(dump, vphi, i, 1)
-
-            out['rhth/omega_alt'] *= -alpha_over_omega
-
-            del Fcov01, Fcov13, vr, vth, vphi
-
     if calc_basic:
         # FIELD STRENGTHS
-        # The HARM B_unit is sqrt(4pi)*c*sqrt(rho) which has caused issues:
-        # norm = np.sqrt(4*np.pi) # This is what I believe matches T,N,M '11 and Narayan '12
-        norm = 1  # This is what the EHT comparison used & seems to be standard.
-
-        out['r/Phi_b_sph'] = 0.5 * norm * shell_sum(dump, np.fabs(dump['B1']))
-        out['t/Phi_b'] = out['r/Phi_b_sph'][iEH]
-
-        out['r/Phi_b_mid'] = np.zeros_like(out['r/Phi_b_sph'])
-        for i in range(out['r/Phi_b_mid'].shape[0]):
-            out['r/Phi_b_mid'][i] = norm * midplane_sum(dump, -dump['B2'], r_slice=(0,i))
+        # The HARM B_unit is sqrt(4pi)*c*sqrt(rho), and this is standard for EHT comparisons
+        out['t/Phi_b'] = 0.5 * shell_sum(dump, np.fabs(dump['B1']), at_zone=iEH)
 
         # FLUXES
         # Radial profiles of Mdot and Edot, and their particular values
@@ -232,13 +208,27 @@ def avg_dump(n):
         out['t/Mdot'] *= -1
         out['t/Edot'] *= -1
 
+    if calc_diagnostics:
         # Maxima (for gauging floors)
-        for var in ['sigma', 'betainv', 'Theta']:
+        for var in ['sigma', 'betainv', 'Theta', 'U']:
             out['t/' + var + '_max'] = np.max(dump[var])
         # Minima
         for var in ['rho', 'U']:
             out['t/' + var + '_min'] = np.min(dump[var])
         # TODO KEL? Energy ratios?
+
+    if calc_phi:
+        out['r/Phi_b_sph'] = 0.5 * shell_sum(dump, np.fabs(dump['B1']))
+        out['r/Phi_b_mid'] = np.zeros_like(out['r/Phi_b_sph'])
+        for i in range(out['r/Phi_b_mid'].shape[0]):
+            out['r/Phi_b_mid'][i] = midplane_sum(dump, -dump['B2'], r_slice=(0,i))
+
+    if calc_madcc:
+        out['rt/thrho'] = shell_sum(dump, dump['rho']*np.abs(np.pi/2 - dump.grid.coords.th(dump.grid.coord_all())))
+
+        if do_tavgs:
+            for var in ['rho', 'u^r', 'b^r', 'b^th', 'b^3', 'betainv', 'sigma']:
+                out['rth/' + var] = dump[var].mean(axis=-1)
 
     # Profiles of different fluxes to gauge jet power calculations
     if calc_jet_profile:
@@ -286,10 +276,10 @@ def avg_dump(n):
                 out['r/' + lum] = out['rt/' + lum]
 
     if calc_lumproxy:
-        rho, Pg, B = dump['rho'], dump['Pg'], dump['B']
+        rho, Pg, B = dump['rho'], dump['Pg'], dump['b']
         # See EHT code comparison paper
         j = rho ** 3 / Pg ** 2 * np.exp(-0.2 * (rho ** 2 / (B * Pg ** 2)) ** (1. / 3.))
-        out['rt/Lum'] = partial_shell_sum(dump, j, jmin, jmax)
+        out['rt/Lum'] = shell_sum(dump, j, j_slice=(jmin, jmax))
 
     if calc_gridtotals:
         # Total energy and current, summed by shells to allow cuts on radius
@@ -319,6 +309,36 @@ def avg_dump(n):
                                                  weights=np.repeat(dump['gdet'], var_tmp.shape[2]).reshape(var_tmp.shape),
                                                  density=True)
             del var_tmp
+
+    if calc_omega_bz and do_tavgs:
+        Fcov01, Fcov13 = Fcov(dump, 0, 1), Fcov(dump, 1, 3)
+        Fcov02, Fcov23 = Fcov(dump, 0, 2), Fcov(dump, 2, 3)
+        vr, vth, vphi = dump['u^1']/dump['u^0'], dump['u^2']/dump['u^0'], dump['u^3']/dump['u^0']
+        out['rhth/omega'] = np.zeros((hdr['n1'],hdr['n2']//2))
+        out['rhth/omega_alt_num'] = np.zeros((hdr['n1'],hdr['n2']//2))
+        out['rhth/omega_alt_den'] = np.zeros((hdr['n1'],hdr['n2']//2))
+        out['rhth/omega_alt'] = np.zeros((hdr['n1'],hdr['n2']//2))
+        out['rhth/vphi'] = np.zeros((hdr['n1'],hdr['n2']//2))
+        out['rhth/F13'] = np.zeros((hdr['n1'],hdr['n2']//2))
+        out['rhth/F01'] = np.zeros((hdr['n1'],hdr['n2']//2))
+        out['rhth/F23'] = np.zeros((hdr['n1'],hdr['n2']//2))
+        out['rhth/F02'] = np.zeros((hdr['n1'],hdr['n2']//2))
+        coord_hth = dump.grid.coord_all()[:,:,:hdr['n2']//2,0]
+        alpha_over_omega =  dump.grid.lapse[Loci.CENT.value, :, :hdr['n2']//2] / (hdr['r_eh'] * np.sin(dump.grid.coords.th(coord_hth)))
+        for i in range(hdr['n1']):
+            out['rhth/F01'][i] = theta_av(dump, Fcov01, i, 1)
+            out['rhth/F13'][i] = theta_av(dump, Fcov13, i, 1)
+            out['rhth/F02'][i] = theta_av(dump, Fcov02, i, 1)
+            out['rhth/F23'][i] = theta_av(dump, Fcov23, i, 1)
+            out['rhth/omega'][i] =  out['rhth/F01'][i] / out['rhth/F13'][i]
+            out['rhth/omega_alt_num'][i] = theta_av(dump, vr * dump['B3']*dump['B2'] + vth * dump['B3']*dump['B1'], i, 1)
+            out['rhth/omega_alt_den'][i] = theta_av(dump, dump['B2']*dump['B1'], i, 1)
+            out['rhth/omega_alt'][i] = theta_av(dump, vr * dump['B3']/dump['B1'] + vth * dump['B3']/dump['B2'], i, 1)
+            out['rhth/vphi'][i] = theta_av(dump, vphi, i, 1)
+
+        out['rhth/omega_alt'] *= -alpha_over_omega
+
+        del Fcov01, Fcov13, vr, vth, vphi
 
     this_process = psutil.Process(os.getpid())
     print("Memory use: {} GB".format(this_process.memory_info().rss / 10**9))
