@@ -218,16 +218,17 @@ def avg_dump(n):
         # TODO KEL? Energy ratios?
 
     if calc_phi:
-        out['r/Phi_b_sph'] = 0.5 * shell_sum(dump, np.fabs(dump['B1']))
-        out['r/Phi_b_mid'] = np.zeros_like(out['r/Phi_b_sph'])
-        for i in range(out['r/Phi_b_mid'].shape[0]):
-            out['r/Phi_b_mid'][i] = midplane_sum(dump, -dump['B2'], r_slice=(0,i))
+        out['rt/Phi_b_sph'] = 0.5 * shell_sum(dump, np.fabs(dump['B1']))
+        out['rt/Phi_b_mid'] = np.zeros_like(out['rt/Phi_b_sph'])
+        for i in range(out['rt/Phi_b_mid'].shape[0]):
+            out['rt/Phi_b_mid'][i] = midplane_sum(dump, -dump['B2'], r_slice=(0,i))
 
     if calc_madcc:
-        out['rt/thrho'] = shell_sum(dump, dump['rho']*np.abs(np.pi/2 - dump.grid.coords.th(dump.grid.coord_all())))
+        out['rt/thrho'] = (shell_sum(dump, dump['rho']*np.abs(np.pi/2 - dump.grid.coords.th(dump.grid.coord_all()))) /
+                           shell_sum(dump, dump['rho']))
 
         if do_tavgs:
-            for var in ['rho', 'u^r', 'b^r', 'b^th', 'b^3', 'betainv', 'sigma']:
+            for var in ['rho', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'Pg', 'betainv', 'sigma']:
                 out['rth/' + var] = dump[var].mean(axis=-1)
 
     # Profiles of different fluxes to gauge jet power calculations
@@ -433,7 +434,7 @@ io.dict_to_hdf5(hdr_preserve, outf['header'])
 # Fill the output dict with all per-dump or averaged stuff
 # Hopefully in a way that doesn't keep too much of it around in memory
 if parallel:
-    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.5)
+    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.7)
     #nthreads = 5
     util.iter_parallel(avg_dump, merge_dict, outf, ND, nthreads)
 else:

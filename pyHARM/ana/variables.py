@@ -149,9 +149,9 @@ def TEM_mixed(dump, i, j):
 
 def TPAKE_mixed(dump, i, j):
     if j != 0:
-        dump['RHO'] * dump['ucon'][i] * dump['ucov'][j]
+        return dump['RHO'] * dump['ucov'][j] * dump['ucon'][i]
     else:
-        dump['RHO'] * (dump['ucon'][i] + 1) * dump['ucov'][j]
+        return dump['RHO'] * (dump['ucov'][j] + 1) * dump['ucon'][i]
 
 def TEN_mixed(dump, i, j):
     gam = dump.header['gam']
