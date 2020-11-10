@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import pyHARM
 import pyHARM.ana.plot as pplt
 from pyHARM import pretty
-from pyHARM.ana.units import get_units_M87
+from pyHARM.units import get_units_M87
 
 FIGX = 10
 FIGY = 10

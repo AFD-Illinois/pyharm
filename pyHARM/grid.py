@@ -291,3 +291,18 @@ class Grid:
         dt_light_local = 1. / dt_light_local
 
         return np.min(dt_light_local)
+    
+    def __getitem__(self, key):
+        if key in self.__dict__:
+            return self.__dict__[key]
+        elif key in ['n1', 'n2', 'n3']:
+            return self.NTOT[int(key[-1:])]
+            # TODO tot
+        elif key in ['r', 'th', 'phi']:
+            return getattr(self.coords, key)(self.coord_all())
+        elif key in ['x', 'y', 'z']:
+            return getattr(self.coords, 'cart_' + key)(self.coord_all())
+        elif key in ['X1', 'X2', 'X3']:
+            return self.coord_all()[int(key[-1:])]
+        else:
+            raise ValueError("Grid cannot find or compute {}".format(key))
