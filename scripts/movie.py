@@ -15,9 +15,11 @@ import matplotlib.gridspec as gridspec
 
 import pyHARM
 import pyHARM.io as io
+from pyHARM.ana.iharm_dump import IharmDump
+from pyHARM.ana.reductions import *
 import pyHARM.ana.plot as bplt
 import pyHARM.ana.plot_results as bpltr
-from pyHARM.ana.variables import pretty
+from pyHARM.ana.variables import T_mixed, pretty
 from pyHARM.util import i_of, calc_nthreads, run_parallel
 
 # Movie size in inches. Keep 16/9 for standard-size movies
@@ -59,12 +61,14 @@ def plot(n):
     if "simple" not in movie_type and "floor" not in movie_type:
         # Everything but simple & pure floor movies needs derived vars
         to_load['calc_derived'] = True
-    if "fail" in movie_type or movie_type == "e_ratio":
+    if "fail" in movie_type or movie_type == "e_ratio" or movie_type == "conservation":
         to_load['add_fails'] = True
     if "floor" in movie_type:
         to_load['add_floors'] = True
     if "current" in movie_type:
         to_load['add_jcon'] = True
+    if "divB" in movie_type:
+        to_load['add_divB'] = True
     # TODO U if needed
         
     dump = pyHARM.load_dump(files[n], **to_load)
@@ -82,9 +86,9 @@ def plot(n):
         nlines = 20
         rho_l, rho_h = -5, 0
     elif dump['r'][-1, 0, 0] > 100:
-        window = [-100, 100, -100, 100]
+        window = [-25, 25, -25, 25]
         nlines = 20
-        rho_l, rho_h = -5, 0
+        rho_l, rho_h = -5, 1
         iBZ = i_of(dump['r'][:,0,0], 100) # most MADs
         rBZ = 100
     elif dump['r'][-1, 0, 0] > 10:
@@ -208,7 +212,23 @@ def plot(n):
                             vmin=rho_l, vmax=rho_h, cmap='Reds', window=window, arrayspace=USEARRSPACE)
             bplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
                             vmin=rho_l, vmax=rho_h, cmap='Blues', window=window, arrayspace=USEARRSPACE)
-    
+
+    elif movie_type == "vecs_cov":
+        ax_slc = lambda i: plt.subplot(2, 4, i)
+        for i,var in zip((1,2,3,4,5,6,7,8), ("u_0", "u_r", "u_th", "u_3","b_0", "b_r", "b_th", "b_3")):
+            bplt.plot_xz(ax_slc(i), dump, np.log10(dump[var]), label=var,
+                            vmin=rho_l, vmax=rho_h, cmap='Reds', window=window, arrayspace=USEARRSPACE)
+            bplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
+                            vmin=rho_l, vmax=rho_h, cmap='Blues', window=window, arrayspace=USEARRSPACE)
+
+    elif movie_type == "vecs_con":
+        ax_slc = lambda i: plt.subplot(2, 4, i)
+        for i,var in zip((1,2,3,4,5,6,7,8), ("u^0", "u^r", "u^th", "u^3","b^0", "b^r", "b^th", "b^3")):
+            bplt.plot_xz(ax_slc(i), dump, np.log10(dump[var]), label=var,
+                            vmin=rho_l, vmax=rho_h, cmap='Reds', window=window, arrayspace=USEARRSPACE)
+            bplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
+                            vmin=rho_l, vmax=rho_h, cmap='Blues', window=window, arrayspace=USEARRSPACE)
+
     elif movie_type == "e_ratio":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         # Energy ratios: difficult places to integrate, with failures
@@ -224,6 +244,39 @@ def plot(n):
         bplt.plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32),
                             label="Failures", vmin=0, vmax=20, cmap='Reds', integrate=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
+
+    elif movie_type == "conservation":
+        ax_slc = lambda i: plt.subplot(2, 4, i)
+        ax_flux = lambda i: plt.subplot(4, 2, i)
+        # Continuity plots to verify local conservation of energy, angular + linear momentum
+        # Integrated T01: continuity for momentum conservation
+        bplt.plot_slices(ax_slc(1), ax_slc(2), dump, T_mixed(dump, 1, 0),
+                            label=r"$T^1_0$ Integrated", vmin=0, vmax=600, arrspace=True, integrate=True)
+        # integrated T00: continuity plot for energy conservation
+        bplt.plot_slices(ax_slc(5), ax_slc(6), dump, np.abs(T_mixed(dump, 0, 0)),
+                            label=r"$T^0_0$ Integrated", vmin=0, vmax=3000, arrspace=True, integrate=True)
+    
+        # Usual fluxes for reference
+        #bpltr.plot_diag(ax_flux[1], diag, 't', 'mdot', tline=dump['t'], logy=LOG_MDOT)
+
+        r_out = 100
+
+        # Radial conservation plots
+        E_r = shell_sum(dump, T_mixed(dump, 0, 0)) # TODO variables
+        Ang_r = shell_sum(dump, T_mixed(dump, 0, 3))
+        mass_r = shell_sum(dump, dump['ucon'][0] * dump['RHO'])
+
+        bplt.radial_plot(ax_flux(2), dump, np.abs(E_r), title='Conserved vars at R', ylim=(0, 10000), rlim=(0, r_out), label="E_r")
+        bplt.radial_plot(ax_flux(2), dump, np.abs(Ang_r) / 10, ylim=(0, 10000), rlim=(0, r_out), style='r-', label="L_r")
+        bplt.radial_plot(ax_flux(2), dump, np.abs(mass_r), ylim=(0, 10000), rlim=(0, r_out), style='b-', label="M_r")
+        ax_flux(2).legend()
+    
+        # Radial energy accretion rate
+        Edot_r = shell_sum(dump, T_mixed(dump, 1, 0))
+        bplt.radial_plot(ax_flux(4), dump, Edot_r, label='Edot at R', ylim=(-200, 200), rlim=(0, r_out), arrayspace=True)
+    
+        # Radial integrated failures
+        bplt.radial_plot(ax_flux(6), dump, (dump['fails'] != 0).sum(axis=(1, 2)), label='Fails at R', arrayspace=True, rlim=(0, r_out), ylim=(0, 1000))
 
     elif movie_type == "energies":
         ax_slc = lambda i: plt.subplot(2, 4, i)
@@ -296,6 +349,8 @@ def plot(n):
             bplt.plot_slices(ax_slc[0], ax_slc[1], dump, movie_type, label=pretty(movie_type),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         cbar=True, cmap='jet')
+        if "divB" in movie_type:
+            plt.suptitle("Max divB = {}".format(np.max(dump['divB'])))
 
     plt.subplots_adjust(left=0.03, right=0.97)
     plt.savefig(os.path.join(frame_dir, 'frame_%08d.png' % n), dpi=FIGDPI)
@@ -323,7 +378,7 @@ if __name__ == "__main__":
         if len(sys.argv) > 4:
             tend = float(sys.argv[4])
 
-    # LOAD FILES
+    # Load the file list
     files = np.sort(glob(os.path.join(path, "dump_*.h5")))
     if len(files) == 0:
         files = np.sort(glob(os.path.join(path, "*out*.phdf")))

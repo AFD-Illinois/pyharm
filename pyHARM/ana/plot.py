@@ -356,7 +356,7 @@ def overlay_quiver(ax, dump, varx1, varx2, cadence=64, norm=1):
 # TODO Consistent idea of plane/average in x2,x3
 def radial_plot(ax, dump, var, n2=0, n3=0, average=False,
                 logr=False, logy=False, rlim=None, ylim=None, arrayspace=False,
-                ylabel=None, style='k-'):
+                ylabel=None, title=None, **kwargs):
     r = dump['r'][:, dump['n2'] // 2, 0]
     if var.ndim == 1:
         data = var
@@ -369,9 +369,9 @@ def radial_plot(ax, dump, var, n2=0, n3=0, average=False,
             data = var[:, n2, n3]
 
     if arrayspace:
-        ax.plot(list(range(dump['n1'])), data, style)
+        ax.plot(list(range(dump['n1'])), data, **kwargs)
     else:
-        ax.plot(r, data, style)
+        ax.plot(r, data, **kwargs)
 
     if logr: ax.set_xscale('log')
     if logy: ax.set_yscale('log')
@@ -381,6 +381,7 @@ def radial_plot(ax, dump, var, n2=0, n3=0, average=False,
 
     ax.set_xlabel(r"$r \frac{c^2}{G M}$")
     if ylabel is not None: ax.set_ylabel(ylabel)
+    if title is not None: ax.set_title(title)
 
 
 def hist_2d(ax, var_x, var_y, xlbl, ylbl, title=None, logcolor=False, bins=40,

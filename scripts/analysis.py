@@ -41,21 +41,21 @@ from pyHARM.util import i_of
 # Whether to calculate each set of variables
 # Once performed once, calculations will be ported to each new output file
 calc_basic = True # Fluxes at horizon, often needed before movies, as basic check, etc.
-calc_ravgs = True # Radial averages in the disk for MADCC
-calc_efluxes = True # Fluxes in places other than the horizon, to judge infall equilibrium etc.
+calc_ravgs = True # Radial averages in the disk for code comparisons
+calc_efluxes = False # Fluxes in places other than the horizon, to judge infall equilibrium etc.
 
-# Stuff written specifically for the MADCC
-calc_madcc = True
+# Stuff written specifically for the MAD code comparison which is long or
+calc_madcc = False
 # Field fluxes away from EH
-calc_phi = True
+calc_phi = False
 
 # Maxima/minima over the grid that might prove useful diagnostics
-calc_diagnostics = False
+calc_diagnostics = True
 
 # Specialized calculations
 calc_thavgs = False
 calc_omega_bz = False
-calc_jet_profile = False
+calc_jet_profile = True
 calc_jet_cuts = False
 calc_lumproxy = False
 calc_gridtotals = False
@@ -166,20 +166,20 @@ def avg_dump(n):
         return out
 
     print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
-    dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=True)
+    dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=True, add_fails=True, add_floors=True)
 
     # Should we compute the time-averaged quantities?
     do_tavgs = (tavg_start <= t <= tavg_end)
 
     # EHT Radial profiles: Average only over the disk portion (excluding first & last pi/3 ~ "poles")
     if calc_ravgs:
-        for var in ['rho', 'Pg', 'u^3', 'b', 'betainv', 'Ptot']:
+        for var in ['rho', 'Pg', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'betainv', 'Ptot']:
             out['rt/' + var] = shell_avg(dump, var, j_slice=(jmin, jmax))
-            # out['rt/' + var + '_jet'] = shell_avg(dump, var, j_slice=(0, jmin)) + \
-            #                             shell_avg(dump, var, j_slice=(jmax, dump.header['n2']))
+            out['rt/' + var + '_notdisk'] = shell_avg(dump, var, j_slice=(0, jmin)) + \
+                                        shell_avg(dump, var, j_slice=(jmax, dump.header['n2']))
             if do_tavgs:
                 out['r/' + var] = out['rt/' + var]
-                # out['r/' + var + '_jet'] = out['rt/' + var + '_jet']
+                out['r/' + var + '_notdisk'] = out['rt/' + var + '_notdisk']
 
     if calc_thavgs:
         if do_tavgs:
@@ -215,7 +215,8 @@ def avg_dump(n):
         # Minima
         for var in ['rho', 'U']:
             out['t/' + var + '_min'] = np.min(dump[var])
-        # TODO KEL? Energy ratios?
+        out['rt/total_floors'] = shell_sum(dump, (dump['floors'] != 0))
+        out['rt/total_fails'] = shell_sum(dump, (dump['fails'] != 0))
 
     if calc_phi:
         out['rt/Phi_b_sph'] = 0.5 * shell_sum(dump, np.fabs(dump['B1']))
@@ -231,9 +232,9 @@ def avg_dump(n):
             for var in ['rho', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'Pg', 'betainv', 'sigma']:
                 out['rth/' + var] = dump[var].mean(axis=-1)
 
-    # Profiles of different fluxes to gauge jet power calculations
+    # Polar profiles of different fluxes and variables
     if calc_jet_profile:
-        for var in ['rho', 'bsq', 'FM', 'FE', 'FE_EM', 'FE_Fl', 'FL', 'FL_EM', 'FL_Fl', 'betagamma', 'Be_nob', 'Be_b']:
+        for var in ['rho', 'bsq', 'b^r', 'b^th', 'b^3', 'u^r', 'u^th', 'u^3', 'FM', 'FE', 'FE_EM', 'FE_Fl', 'FL', 'FL_EM', 'FL_Fl', 'betagamma', 'Be_nob', 'Be_b']:
             out['tht/' + var + '_100'] = np.sum(dump[var][iBZ], axis=-1)
             if do_tavgs:
                out['th/' + var + '_100'] = out['tht/' + var + '_100']
@@ -271,8 +272,14 @@ def avg_dump(n):
     else:
         # Use the default cut from Paper V
         # These are the powers for the MADCC
-        for lum, flux in [['Mdot_jet', 'FM'], ['P_jet', 'FE'], ['P_EM', 'FE_EM'], ['P_PAKE', 'FE_PAKE'], ['P_EN', 'FE_EN']]:
-            out['rt/' + lum] = shell_sum(dump, flux, mask=(dump['Be_b'] > 1))
+        is_jet = dump['Be_b'] > 1
+        for lum, flux in [['Mdot_jet', 'FM'], ['P_jet', 'FE'], ['P_EM_jet', 'FE_EM'], ['P_PAKE_jet', 'FE_PAKE'], ['P_EN_jet', 'FE_EN'], ['Area_jet', '1']]:
+            out['rt/' + lum] = shell_sum(dump, flux, mask=is_jet)
+        for lum, flux in [['Area_mag', '1']]:
+            out['rt/' + lum] = shell_sum(dump, flux, mask=(dump['sigma'] > 1))
+        for var in ['rho', 'Pg', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'betainv', 'Ptot']:
+            out['rt/' + var + '_jet'] = shell_avg(dump, var, mask=is_jet)
+        
 
     if calc_lumproxy:
         rho, Pg, B = dump['rho'], dump['Pg'], dump['b']
@@ -434,7 +441,7 @@ io.dict_to_hdf5(hdr_preserve, outf['header'])
 # Fill the output dict with all per-dump or averaged stuff
 # Hopefully in a way that doesn't keep too much of it around in memory
 if parallel:
-    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.7)
+    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.4)
     #nthreads = 5
     util.iter_parallel(avg_dump, merge_dict, outf, ND, nthreads)
 else:

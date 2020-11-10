@@ -19,19 +19,22 @@ class IharmDump:
     """
 
     def __init__(self, fname, params=None, calc_cons=False, calc_derived=False,
-                 add_jcon=False, add_floors=False, add_fails=False,
-                 zones_first=False, lock=None):
+                 add_jcon=False, add_floors=False, add_fails=False, add_divB=False,
+                 zones_first=False):
         """Read the HDF5 file 'fname' into memory, and pre-calculate/cache useful variables
         @param calc_cons: calculate the conserved variables U, i.e. run 'prim_to_flux(...,0)' from HARM
         @param calc_derived: calculate the derived 4-vectors u, b and fluid Lorentz factor gamma
-
         @param add_jcon: Read the current jcon from the file if it exists, fail if it doesn't
+
+        For debugging:
         @param add_floors: Read the applied floors bitflag from the file if it exists, fail if it doesn't
         @param add_fails: Read the inversion failures bitflag from the file if it exists, fail if it doesn't
+        @param add_divB: Read the B-field divergence *present in the file*, divB.  pyHARM can still *calculate* the
+        divergence for itself if this parameter is set to False, so this is mostly useful for debugging.
 
-        @param zones_first: keep arrays and vectors in i,j,k,p order rather than native p,i,j,k, usually
-        for immediate output.  Breaks lots of physics code!
-        @param lock: mutex lock for any OpenCL context being passed in params.
+        @param zones_first: keep arrays and vectors in i,j,k,p order rather than native p,i,j,k.  This breaks
+        most pyHARM functions, so only use it if you plan to do most manipulations yourself.  Even then,
+        consider the more flexible io.read_dump instead.
         """
         # TODO allow adding gamma, U from file vs calculating them
         self.fname = fname
@@ -46,6 +49,8 @@ class IharmDump:
             self.fails = read_fail_flags(fname)
         if add_floors:
             self.floors = read_floor_flags(fname)
+        if add_divB:
+            self.divB = read_divb(fname)
 
         self.header = self.params = params
 
@@ -145,9 +150,13 @@ class IharmDump:
             return np.einsum("i...,ij...->j...",
                                 self[key[0]+"con"],
                                 self.grid.coords.dXdx(self.grid.coord_all()))[["t", "r", "th", "phi"].index(key.split("^")[-1])]
-        
         else:
-            raise ValueError("IharmDump cannot find or compute {}".format(key))
+            try:
+                # Reshape number inputs.  I swear this is useful for properly-sized constant arrays for e.g. area
+                nkey = float(key)
+                return nkey*np.ones_like(self['RHO'])
+            except ValueError:
+                raise ValueError("IharmDump cannot find or compute {}".format(key))
 
     # TODO does __del__ need to do anything?
 
