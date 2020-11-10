@@ -14,4 +14,3 @@ dependencies:
  - ipykernel
  - ipympl
  - ipywidgets
- - yt
