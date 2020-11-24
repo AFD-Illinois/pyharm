@@ -70,8 +70,15 @@ def plot(n):
     if "divB" in movie_type:
         to_load['add_divB'] = True
     # TODO U if needed
+
+    if "_ghost" in movie_type:
+        plot_ghost = True
+        params = {'include_ghost': True}
+    else:
+        plot_ghost = False
+        params = {}
         
-    dump = pyHARM.load_dump(files[n], **to_load)
+    dump = pyHARM.load_dump(files[n], params=params, **to_load)
 
     # Title by time, otherwise number
     try:
@@ -84,7 +91,7 @@ def plot(n):
     if len(dump['r'].shape) < 3:
         window = [-20, 20, -20, 20]
         nlines = 20
-        rho_l, rho_h = -5, 0
+        rho_l, rho_h = -5, 2
     elif dump['r'][-1, 0, 0] > 100:
         window = [-25, 25, -25, 25]
         nlines = 20
@@ -94,7 +101,7 @@ def plot(n):
     elif dump['r'][-1, 0, 0] > 10:
         window = [-50, 50, -50, 50]
         nlines = 5
-        rho_l, rho_h = -5, 0
+        rho_l, rho_h = -5, 2
         iBZ = i_of(dump['r'][:,0,0], 40)  # most SANEs
         rBZ = 40
     else: # Then this is a Minkowski simulation or something weird
@@ -104,9 +111,13 @@ def plot(n):
         iBZ = 1
         rBZ = 1
     
-    # If we're in arrspace we definitely want a 0,1 window
+    # If we're in arrspace we (almost) definitely want a 0,1 window
+    # TODO allow zooming in toward corners.  Original r vs th as separate plotting set?
     if USEARRSPACE:
-        window = [0, 0.1, 0, 0.1]
+        if plot_ghost:
+            window = [-0.1, 1.1, -0.1, 1.1]
+        else:
+            window = [0, 1, 0, 1]
     
     if movie_type == "simplest_poloidal":
         # Simplest movie: just RHO, poloidal slice
@@ -374,24 +385,29 @@ def plot(n):
                     vmin=0, vmax=max_fail, cmap='Reds')
 
     else:
+        if "_ghost" in movie_type:
+            l_movie_type = movie_type.replace("_ghost","")
+        else:
+            l_movie_type = movie_type
+
         # Try to make a simple movie of just the stated variable
-        if not "log_" in movie_type:
+        if not "log_" in l_movie_type:
             rho_l, rho_h = 0, 0.1
-        if "_poloidal" in movie_type:
+        if "_poloidal" in l_movie_type:
             ax = plt.subplot(1, 1, 1)
-            var = movie_type[:-9]
+            var = l_movie_type[:-9]
             bplt.plot_xz(ax, dump, var, label=pretty(var),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         cbar=True, cmap='jet')
-        elif "_toroidal" in movie_type:
+        elif "_toroidal" in l_movie_type:
             ax = plt.subplot(1, 2, 1)
-            var = movie_type[:-9]
+            var = l_movie_type[:-9]
             bplt.plot_xy(ax, dump, var, label=pretty(var),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         cbar=True, cmap='jet')
         else:
             ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
-            bplt.plot_slices(ax_slc[0], ax_slc[1], dump, movie_type, label=pretty(movie_type),
+            bplt.plot_slices(ax_slc[0], ax_slc[1], dump, l_movie_type, label=pretty(l_movie_type),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         cbar=True, cmap='jet')
         if "divB" in movie_type:

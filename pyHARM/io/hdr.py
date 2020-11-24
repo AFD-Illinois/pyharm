@@ -67,7 +67,7 @@ def read_hdr(grp):
     # Handle lots of different calling conventions
     if isinstance(grp, str):
         if grp[-5:] == ".phdf":
-            return parameters.parse_parthenon_dat(grp.split(".")[0]+".par")
+            return parameters.parse_parthenon_dat(grp.split("/")[-1].split(".")[0]+".par")
         fil = h5py.File(grp, "r")
         grp = fil['header']
         close_file = True

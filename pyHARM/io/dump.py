@@ -50,7 +50,7 @@ def read_dump(fname, params=None, **kwargs):
     if ".phdf" in fname:
         if params is None:
             params = {}
-        parameters.parse_parthenon_dat(fname.split(".")[0] + ".par", params)
+        parameters.parse_parthenon_dat(fname.split("/")[-1].split(".")[0] + ".par", params)
         return read_dump_phdf(fname, params)
 
     with h5py.File(fname, "r") as infile:

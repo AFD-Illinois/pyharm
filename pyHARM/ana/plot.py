@@ -139,7 +139,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             x = _flatten_xz(dump['x'], patch_pole=True)[dump['n1']:, :]
             z = _flatten_xz(dump['z'])[dump['n1']:, :]
             var = _flatten_xz(var, average=average)[dump['n1']:, :]
-            window[0] = 0
+            window = (0, window[1], window[2], window[3])
         else:
             x = _flatten_xz(dump['x'], patch_pole=True)
             z = _flatten_xz(dump['z'])

@@ -22,12 +22,13 @@ We ignore this for informal plots, but for figures it can be specified with 'at_
 """
 
 diag_fns = {'mdot': lambda diag: diag['t/Mdot'][()],
-            'phi_b': lambda diag: diag['t/Phi_b'][()] / np.sqrt(diag['t/Mdot'][()]),
-                            #np.mean(np.sqrt(diag['Mdot'][len(diag['Mdot'])//2:])),
-            'edot': lambda diag: diag['t/Edot'][()] / diag['t/Mdot'][()],
-                            #np.mean(diag['Mdot'][len(diag['Mdot'])//2:]),
-            'ldot': lambda diag: diag['t/Ldot'][()] / diag['t/Mdot'][()]}
-                            #np.mean(diag['Mdot'][len(diag['Mdot'])//2:])
+            'phi_b_per': lambda diag: diag['t/Phi_b'][()] / np.sqrt(diag['t/Mdot'][()]),
+            'phi_b': lambda diag: diag['t/Phi_b'][()] / np.mean(np.sqrt(diag['t/Mdot'][len(diag['t/Mdot'])//2:])),
+            'edot_per': lambda diag: diag['t/Edot'][()] / diag['t/Mdot'][()],
+            'edot': lambda diag: diag['t/Edot'][()] / np.mean(diag['t/Mdot'][len(diag['t/Mdot'])//2:]),
+            'ldot_per': lambda diag: diag['t/Ldot'][()] / diag['t/Mdot'][()],
+            'ldot': lambda diag: diag['t/Ldot'][()] / np.mean(diag['t/Mdot'][len(diag['t/Mdot'])//2:])
+            }
 
 def get_header_var(infile, var):
     if ',' in var:
@@ -75,7 +76,7 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=False, **kwargs):
     elif var[:4] == 'log_':
         ret_i, ret_v = get_result(infile, ivar, var[4:], qui=qui, only_nonzero=only_nonzero, **kwargs)
         return ret_i, np.log10(ret_v)
-    elif var in ['mdot', 'phi_b', 'ldot', 'edot']:
+    elif var in diag_fns:
             return ret_i, diag_fns[var](infile)
     else:
         print("Can't find variable: {} as a function of {}".format(var, ivar))
