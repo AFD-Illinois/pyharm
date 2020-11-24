@@ -4,14 +4,18 @@ import os
 import numpy as np
 
 
-def load_log(path):
-    # TODO specify log name in dumps, like grid
-    logfname = os.path.join(path, "log.out")
-    if not os.path.exists(logfname):
+def load_log(logfpath):
+    """Try to load an iharm3d text log file at 'logfpath' & return contents as a dict
+    returns None on failure
+    """
+    if not os.path.isfile(logfpath):
+        logfpath = os.path.join(logfpath, "log.out")
+    if not os.path.exists(logfpath):
         return None
-    dfile = np.loadtxt(logfname).transpose()
+    dfile = np.loadtxt(logfpath).transpose()
 
-    # TODO log should probably have a header
+    # TODO logs should have a header I read here,
+    # and use these defaults on failure
     diag = {}
     diag['t'] = dfile[0]
     diag['rmed'] = dfile[1]
@@ -36,8 +40,9 @@ def load_log(path):
     return diag
 
 
-# For adding contents of the log to dumps
 def log_time(diag, var, t):
+    """Get the value of column 'var' in a log dict corresponding to the time 't' in M"""
+    # TODO Could use i_of here for flexibility
     if len(diag['t'].shape) < 1:
         return diag[var]
     else:

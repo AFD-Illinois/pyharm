@@ -29,7 +29,7 @@ FIGDPI = 100
 
 # For plotting debug, "array-space" plots
 # Certain plots can override this below
-USEARRSPACE = True
+USEARRSPACE = False
 
 LOG_MDOT = False
 LOG_PHI = False
@@ -106,7 +106,7 @@ def plot(n):
     
     # If we're in arrspace we definitely want a 0,1 window
     if USEARRSPACE:
-        window = [0, 1, 0, 1]
+        window = [0, 0.1, 0, 0.1]
     
     if movie_type == "simplest_poloidal":
         # Simplest movie: just RHO, poloidal slice
@@ -200,6 +200,42 @@ def plot(n):
 #            bplt.plot_slices(ax_slc(7), ax_slc(8), dump, 'log_rho', vmin=-3, vmax=2,
 #                             window=[-10, 10, -10, 10], field_overlay=False)
 
+    elif movie_type == "prims_xz":
+        ax_slc = lambda i: plt.subplot(2, 4, i)
+        vmin, vmax = None, None
+        bplt.plot_xz(ax_slc(1), dump, 'RHO', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        bplt.plot_xz(ax_slc(2), dump, 'UU', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        bplt.plot_xz(ax_slc(3), dump, 'U1', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        bplt.plot_xz(ax_slc(4), dump, 'U2', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        bplt.plot_xz(ax_slc(5), dump, 'U3', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        bplt.plot_xz(ax_slc(6), dump, 'B1', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        bplt.plot_xz(ax_slc(7), dump, 'B2', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        bplt.plot_xz(ax_slc(8), dump, 'B3', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+
     elif movie_type == "vectors":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         # Usual movie: RHO beta fluxes
@@ -228,6 +264,15 @@ def plot(n):
                             vmin=rho_l, vmax=rho_h, cmap='Reds', window=window, arrayspace=USEARRSPACE)
             bplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
                             vmin=rho_l, vmax=rho_h, cmap='Blues', window=window, arrayspace=USEARRSPACE)
+
+    elif movie_type == "b_bug":
+        rmax = 10
+        thmax = 10
+        phi = 100
+        ax_slc = lambda i: plt.subplot(1, 3, i)
+        ax_slc(1).pcolormesh(dump['X1'][:rmax,0:thmax,phi], dump['X2'][:rmax,0:thmax,phi], dump['log_b^r'][:rmax,0:thmax,phi], vmax=0, vmin=-4)
+        ax_slc(2).pcolormesh(dump['X1'][:rmax,0:thmax,phi], dump['X2'][:rmax,0:thmax,phi], dump['log_b^th'][:rmax,0:thmax,phi], vmax=0, vmin=-4)
+        ax_slc(3).pcolormesh(dump['X1'][:rmax,0:thmax,phi], dump['X2'][:rmax,0:thmax,phi], dump['log_b^3'][:rmax,0:thmax,phi], vmax=0, vmin=-4)
 
     elif movie_type == "e_ratio":
         ax_slc = lambda i: plt.subplot(2, 4, i)
@@ -267,8 +312,8 @@ def plot(n):
         mass_r = shell_sum(dump, dump['ucon'][0] * dump['RHO'])
 
         bplt.radial_plot(ax_flux(2), dump, np.abs(E_r), title='Conserved vars at R', ylim=(0, 10000), rlim=(0, r_out), label="E_r")
-        bplt.radial_plot(ax_flux(2), dump, np.abs(Ang_r) / 10, ylim=(0, 10000), rlim=(0, r_out), style='r-', label="L_r")
-        bplt.radial_plot(ax_flux(2), dump, np.abs(mass_r), ylim=(0, 10000), rlim=(0, r_out), style='b-', label="M_r")
+        bplt.radial_plot(ax_flux(2), dump, np.abs(Ang_r) / 10, ylim=(0, 10000), rlim=(0, r_out), color='r', label="L_r")
+        bplt.radial_plot(ax_flux(2), dump, np.abs(mass_r), ylim=(0, 10000), rlim=(0, r_out), color='b', label="M_r")
         ax_flux(2).legend()
     
         # Radial energy accretion rate

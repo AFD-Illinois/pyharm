@@ -38,6 +38,11 @@ from pyHARM.io.misc import load_log
 import pyHARM.util as util
 from pyHARM.util import i_of
 
+# Whether to augment or replace existing results
+# Augmenting behaves *very* badly when jobs time out or are cancelled
+# TODO more stringent checks on file validity before blindly appending
+augment = False
+
 # Whether to calculate each set of variables
 # Once performed once, calculations will be ported to each new output file
 calc_basic = True # Fluxes at horizon, often needed before movies, as basic check, etc.
@@ -239,7 +244,7 @@ def avg_dump(n):
             if do_tavgs:
                out['th/' + var + '_100'] = out['tht/' + var + '_100']
                out['thphi/' + var + '_100'] = dump[var][iBZ]
-               out['rth/' + var] = dump[var].mean(axis=-1)
+               #out['rth/' + var] = dump[var].mean(axis=-1)
 
     # Blandford-Znajek Luminosity L_BZ
     # This is a lot of luminosities!
@@ -279,6 +284,7 @@ def avg_dump(n):
             out['rt/' + lum] = shell_sum(dump, flux, mask=(dump['sigma'] > 1))
         for var in ['rho', 'Pg', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'betainv', 'Ptot']:
             out['rt/' + var + '_jet'] = shell_avg(dump, var, mask=is_jet)
+        del is_jet
         
 
     if calc_lumproxy:
@@ -424,14 +430,21 @@ if tstart > 0 or tend < 10000:
 else:
     outfname = "eht_out.h5"
 
-# Merge and write variables into outfile
-# If it exists but isn't valid HDF5, there's no saving it so we blow it away
-try:
-    outf = h5py.File(outfname, 'a')
-except OSError:
-    os.remove(outfname)
-    outf = h5py.File(outfname, 'a')
-    print("Replaced existing output: {}!!".format(outfname))
+# Open the output file -- note we keep it open the *whole time*, as we write each dump's
+# results ~immediately to save memory. (TODO could we write per-process with a lock?)
+# Delete the current one unless we're specially "augmenting" current results to save time
+if not augment:
+    outf = h5py.File(outfname, 'w')
+    print("Replacing existing output: {}".format(outfname))
+else:
+    try:
+        # This will append if file exists, otherwise create
+        outf = h5py.File(outfname, 'a')
+    except OSError:
+        # If it exists but isn't valid HDF5, there's no saving it
+        # Truncate it instead
+        outf = h5py.File(outfname, 'w')
+        print("Replacing existing output: {}".format(outfname))
 
 hdr_preserve = io.hdf5_to_dict(h5py.File(dumps[0],'r')['header'])
 if not 'header' in outf:
@@ -441,7 +454,7 @@ io.dict_to_hdf5(hdr_preserve, outf['header'])
 # Fill the output dict with all per-dump or averaged stuff
 # Hopefully in a way that doesn't keep too much of it around in memory
 if parallel:
-    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.4)
+    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.25)
     #nthreads = 5
     util.iter_parallel(avg_dump, merge_dict, outf, ND, nthreads)
 else:
