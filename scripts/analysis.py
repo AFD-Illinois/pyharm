@@ -1,14 +1,19 @@
+#!/usr/bin/env python3
+
 # This script calculates analysis reductions over an entire run, i.e. every zone of every dump file.
 # It makes use of multiprocessing, but the effect is limited due to high memory usage
 
 # Usage: python analysis.py /path/to/dump/folder/ [tstart] tavg_start tavg_end [tend]
-# All *.h5 files in the path are assumed to be HARM fluid dump files
-# * tavg_* are the interval in time (r_g/c) over which to average any time-averaged variables
-# EHT comparison standard is 5000-10000M for a 10kM run
+# All dump_*.h5 files in the path are assumed to be HARM fluid dump files
+# tavg_* are the interval in time (r_g/c) over which to average any time-averaged variables
+# EHT MAD comparison standard is 6000-10000M for a 10kM run. SANE comparison was 5-10kM
 # * t* are the start and end times for all processing -- dumps before/after this will be ignored
 # This is useful if multiple copies of analysis.py are being run and the results later merged
 # (see merge_ana.py)
+
 # Alternate usage: analysis.py /path/to/dump.h5
+# Test analysis over just 1 dump file
+# used to make sure it completes successfully/correctly before running at scale.
 
 import os
 import sys
@@ -30,12 +35,11 @@ import pyHARM
 from pyHARM.ana.variables import *
 from pyHARM.ana.reductions import *
 
- # I'm not sure how much of this functionality we really want to standardize...
 import pyHARM.io as io
-from pyHARM.defs import Loci
-
-from pyHARM.io.misc import load_log
 import pyHARM.util as util
+
+# Specific useful things 
+from pyHARM.defs import Loci
 from pyHARM.util import i_of
 
 # Whether to augment or replace existing results
@@ -466,7 +470,7 @@ else:
 vars = {'avg/start': tavg_start,
         'avg/end': tavg_end,
         'avg/w': my_avg_range / full_avg_range}
-diag = load_log(path)
+diag = io.load_log(path)
 # Move diags into a subfolder
 if diag is not None:
     for key in diag:

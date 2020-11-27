@@ -105,7 +105,7 @@ pretty_dict = {'rho': r"\rho",
 
 def pretty(var):
     if var[:4] == "log_":
-        return r"$\log_{10} \left( "+pretty_dict[var[4:]]+r" \right)$"
+        return r"$\log_{10} \left( "+pretty(var[4:])[1:-1]+r" \right)$"
     elif var in pretty_dict:
         return r"$"+pretty_dict[var]+r"$"
     else:
@@ -178,7 +178,7 @@ def Fcon(dump, i, j):
     if i != j:
         for mu in range(4):
             for nu in range(4):
-                Fconij[:, :, :] += (_antisym(i, j, mu, nu) / dump['gdet'][:, :, None]) * dump['ucov'][mu] * dump['bcov'][nu]
+                Fconij[:, :, :] += (- _antisym(i, j, mu, nu) / dump['gdet'][:, :, None]) * dump['ucov'][mu] * dump['bcov'][nu]
 
     return Fconij
 

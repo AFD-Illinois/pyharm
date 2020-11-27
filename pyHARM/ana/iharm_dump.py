@@ -6,9 +6,10 @@ import sys
 import numpy as np
 
 from pyHARM.defs import Loci
-from pyHARM.io.dump import *
 from pyHARM.grmhd import phys
 from pyHARM.grid import Grid
+
+import pyHARM.io as io
 
 import pyHARM.ana.variables as vars
 
@@ -19,8 +20,8 @@ class IharmDump:
     """
 
     def __init__(self, fname, params=None, calc_cons=False, calc_derived=False,
-                 add_jcon=False, add_floors=False, add_fails=False, add_divB=False,
-                 zones_first=False):
+                 add_jcon=False, add_floors=False, add_fails=False, add_ghosts=False, add_divB=False,
+                 tag="", zones_first=False):
         """Read the HDF5 file 'fname' into memory, and pre-calculate/cache useful variables
         @param calc_cons: calculate the conserved variables U, i.e. run 'prim_to_flux(...,0)' from HARM
         @param calc_derived: calculate the derived 4-vectors u, b and fluid Lorentz factor gamma
@@ -34,27 +35,29 @@ class IharmDump:
 
         @param zones_first: keep arrays and vectors in i,j,k,p order rather than native p,i,j,k.  This breaks
         most pyHARM functions, so only use it if you plan to do most manipulations yourself.  Even then,
-        consider the more flexible io.read_dump instead.
+        consider the more flexible functions in io.* instead.
         """
-        # TODO allow adding gamma, U from file vs calculating them
         self.fname = fname
+        self.tag = tag
         if params is None:
             params = {}
 
-        P, params = read_dump(fname, params=params)
-
+        # Choose an importer based on what we know of filenames
+        # TODO option to add U from dumps
+        my_filter = io.get_filter(fname)
+        P, params = my_filter.read_dump(fname, add_ghosts=add_ghosts, params=params)
         if add_jcon:
-            self.jcon = read_jcon(fname)
+            self.jcon = my_filter.read_jcon(fname)
         if add_fails:
-            self.fails = read_fail_flags(fname)
+            self.fails = my_filter.read_fail_flags(fname)
         if add_floors:
-            self.floors = read_floor_flags(fname)
+            self.floors = my_filter.read_floor_flags(fname)
         if add_divB:
-            self.divB = read_divb(fname)
+            self.divB = my_filter.read_divb(fname)
 
         self.header = self.params = params
 
-        if ('include_ghost' not in self.header) or (not self.header['include_ghost']):
+        if not add_ghosts:
             self.header['ng'] = 0
         G = Grid(self.header)
         self.grid = G
@@ -136,6 +139,7 @@ class IharmDump:
             pdf_window=(np.min(var_og), np.max(var_og))
             return np.histogram(var_og, bins=100, range=pdf_window,
                 weights=np.repeat(self.gdet, self.N3).reshape(var_og.shape), density=True)
+        # TODO transformed full vectors, with e.g. 'ucon_ks'
         # Return vector components
         elif key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3":
             return self[key[0]+"cov"][int(key[-1])]
@@ -145,11 +149,29 @@ class IharmDump:
         elif key[-2:] == "_t" or key[-2:] == "_r" or key[-3:] == "_th" or key[-4:] == "_phi":
             return np.einsum("i...,ij...->j...",
                                 self[key[0]+"cov"],
-                                self.grid.coords.dxdX(self.grid.coord_all()))[["t", "r", "th", "phi"].index(key.split("_")[-1])]
+                                self.grid.coords.dxdX(self.grid.coord_all())
+                            )[["t", "r", "th", "phi"].index(key.split("_")[-1])]
         elif key[-2:] == "^t" or key[-2:] == "^r" or key[-3:] == "^th" or key[-4:] == "^phi":
             return np.einsum("i...,ij...->j...",
                                 self[key[0]+"con"],
-                                self.grid.coords.dXdx(self.grid.coord_all()))[["t", "r", "th", "phi"].index(key.split("^")[-1])]
+                                self.grid.coords.dXdx(self.grid.coord_all())
+                            )[["t", "r", "th", "phi"].index(key.split("^")[-1])]
+        elif key[-2:] == "_x" or key[-2:] == "_y" or key[-2:] == "_z":
+            return np.einsum("i...,ij...->j...",
+                                self[key[0]+"cov"],
+                                np.einsum("ij...,jk...->ik...",
+                                    self.grid.coords.dxdX(self.grid.coord_all()),
+                                    self.grid.coords.dxdX(self.grid.coord_all())
+                                )
+                            )[["t", "r", "th", "phi"].index(key.split("_")[-1])]
+        elif key[-2:] == "^x" or key[-2:] == "^y" or key[-2:] == "^z":
+            return np.einsum("i...,ij...->j...",
+                                self[key[0]+"con"],
+                                np.einsum("ij...,jk...->ik...",
+                                    self.grid.coords.dxdX(self.grid.coord_all()),
+                                    self.grid.coords.dxdX(self.grid.coord_all())
+                                )
+                            )[["t", "r", "th", "phi"].index(key.split("^")[-1])]
         else:
             try:
                 # Reshape number inputs.  I swear this is useful for properly-sized constant arrays for e.g. area

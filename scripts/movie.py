@@ -1,12 +1,18 @@
+#!/usr/bin/env python3
+# Make a movie (folder full of images representing frames) with the output from a simulation
+
+# Usage: movie.py [type] [/path/to/dumpfiles]
+
+# Where [type] is a string passed to the function below representing what plotting to do in each frame,
+# and [/path/to/dumpfiles] is the path to the *folder* containing HDF5 output in any form which pyHARM can read
+
+# Generally good overview movies are 'simplest' & 'traditional', see the function body for details.
 
 
 import os
 import sys
-import pickle
 import psutil
 import numpy as np
-import h5py
-from glob import glob
 
 import matplotlib
 matplotlib.use('Agg')
@@ -15,10 +21,9 @@ import matplotlib.gridspec as gridspec
 
 import pyHARM
 import pyHARM.io as io
-from pyHARM.ana.iharm_dump import IharmDump
 from pyHARM.ana.reductions import *
-import pyHARM.ana.plot as bplt
-import pyHARM.ana.plot_results as bpltr
+import pyHARM.ana.plot as pplt
+import pyHARM.ana.plot_results as ppltr
 from pyHARM.ana.variables import T_mixed, pretty
 from pyHARM.util import i_of, calc_nthreads, run_parallel
 
@@ -29,10 +34,7 @@ FIGDPI = 100
 
 # For plotting debug, "array-space" plots
 # Certain plots can override this below
-USEARRSPACE = False
-
-LOG_MDOT = False
-LOG_PHI = False
+USEARRSPACE = True
 
 # Load diagnostic data from post-processing (eht_out.p)
 diag_post = False
@@ -69,16 +71,15 @@ def plot(n):
         to_load['add_jcon'] = True
     if "divB" in movie_type:
         to_load['add_divB'] = True
-    # TODO U if needed
-
     if "_ghost" in movie_type:
         plot_ghost = True
-        params = {'include_ghost': True}
+        to_load['add_ghosts'] = True
     else:
         plot_ghost = False
-        params = {}
+    # TODO U if needed
+
         
-    dump = pyHARM.load_dump(files[n], params=params, **to_load)
+    dump = pyHARM.load_dump(files[n], **to_load)
 
     # Title by time, otherwise number
     try:
@@ -91,17 +92,17 @@ def plot(n):
     if len(dump['r'].shape) < 3:
         window = [-20, 20, -20, 20]
         nlines = 20
-        rho_l, rho_h = -5, 2
+        rho_l, rho_h = -6, 0
     elif dump['r'][-1, 0, 0] > 100:
         window = [-25, 25, -25, 25]
         nlines = 20
-        rho_l, rho_h = -5, 1
+        rho_l, rho_h = -6, 0
         iBZ = i_of(dump['r'][:,0,0], 100) # most MADs
         rBZ = 100
     elif dump['r'][-1, 0, 0] > 10:
         window = [-50, 50, -50, 50]
         nlines = 5
-        rho_l, rho_h = -5, 2
+        rho_l, rho_h = -6, 0
         iBZ = i_of(dump['r'][:,0,0], 40)  # most SANEs
         rBZ = 40
     else: # Then this is a Minkowski simulation or something weird
@@ -126,7 +127,7 @@ def plot(n):
         arrspace=False
         vmin = rho_l
         vmax = rho_h
-        bplt.plot_xz(ax_slc, dump, var, label="",
+        pplt.plot_xz(ax_slc, dump, var, label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
@@ -138,7 +139,7 @@ def plot(n):
         arrspace=False
         vmin = rho_l
         vmax = rho_h
-        bplt.plot_xy(ax_slc, dump, 'log_rho', label="",
+        pplt.plot_xy(ax_slc, dump, 'log_rho', label="",
                      vmin=vmin+0.15, vmax=vmax+0.15, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
@@ -162,11 +163,11 @@ def plot(n):
             vmin = rho_l
             vmax = rho_h
 	
-        bplt.plot_xz(ax_slc[0], dump, var, label="",
+        pplt.plot_xz(ax_slc[0], dump, var, label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
-        bplt.plot_xy(ax_slc[1], dump, var, label="",
+        pplt.plot_xy(ax_slc[1], dump, var, label="",
                      vmin=vmin+0.15, vmax=vmax+0.15, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
@@ -179,70 +180,105 @@ def plot(n):
         gs = gridspec.GridSpec(2, 2, height_ratios=[6, 1], width_ratios=[16, 17])
         ax_slc = [fig.subplot(gs[0, 0]), fig.subplot(gs[0, 1])]
         ax_flux = [fig.subplot(gs[1, :])]
-        bplt.plot_slices(ax_slc[0], ax_slc[1], dump, 'log_rho', vmin=rho_l, vmax=rho_h, window=window,
+        pplt.plot_slices(ax_slc[0], ax_slc[1], dump, 'log_rho', vmin=rho_l, vmax=rho_h, window=window,
                          overlay_field=False, cmap='jet')
-        bpltr.plot_diag(ax_flux[0], diag, 'phi_b', tline=dump['t'], logy=LOG_PHI, xlabel=False)
+        ppltr.plot_diag(ax_flux[0], diag, 'phi_b', tline=dump['t'], logy=LOG_PHI, xlabel=False)
     elif movie_type == "simple":
         # Simple movie: RHO mdot phi
         gs = gridspec.GridSpec(3, 2, height_ratios=[4, 1, 1])
         ax_slc = [fig.subplot(gs[0, 0]), fig.subplot(gs[0, 1])]
         ax_flux = [fig.subplot(gs[1, :]), fig.subplot(gs[2, :])]
-        bplt.plot_slices(ax_slc[0], ax_slc[1], dump, 'log_rho', vmin=rho_l, vmax=rho_h, window=window, cmap='jet', arrayspace=USEARRSPACE)
-        bpltr.plot_diag(ax_flux[0], diag, 'Mdot', tline=dump['t'], logy=LOG_MDOT)
-        bpltr.plot_diag(ax_flux[1], diag, 'Phi_b', tline=dump['t'], logy=LOG_PHI)
+        pplt.plot_slices(ax_slc[0], ax_slc[1], dump, 'log_rho', vmin=rho_l, vmax=rho_h, window=window, cmap='jet', arrayspace=USEARRSPACE)
+        ppltr.plot_diag(ax_flux[0], diag, 'Mdot', tline=dump['t'], logy=LOG_MDOT)
+        ppltr.plot_diag(ax_flux[1], diag, 'Phi_b', tline=dump['t'], logy=LOG_PHI)
     
     elif movie_type == "traditional":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         # Usual movie: RHO beta fluxes
         # CUTS
-        bplt.plot_slices(ax_slc(1), ax_slc(2), dump, 'log_rho', label='log_rho', average=True,
+        pplt.plot_slices(ax_slc(1), ax_slc(2), dump, 'log_rho', label='log_rho', average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(3), ax_slc(4), dump, 'log_UU', label='log_UU', average=True,
+        pplt.plot_slices(ax_slc(3), ax_slc(4), dump, 'log_UU', label='log_UU', average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(5), ax_slc(6), dump, 'log_bsq', label='log_bsq', average=True,
+        pplt.plot_slices(ax_slc(5), ax_slc(6), dump, 'log_bsq', label='log_bsq', average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(7), ax_slc(8), dump, 'log_beta', label='log_beta', average=True,
+        pplt.plot_slices(ax_slc(7), ax_slc(8), dump, 'log_beta', label='log_beta', average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
         # FLUXES
-#            bpltr.plot_diag(ax_flux(2), diag, 't', 'Mdot', tline=dump['t'], logy=LOG_MDOT)
-#            bpltr.plot_diag(ax_flux(4), diag, 't', 'phi_b', tline=dump['t'], logy=LOG_PHI)
+#            ppltr.plot_diag(ax_flux(2), diag, 't', 'Mdot', tline=dump['t'], logy=LOG_MDOT)
+#            ppltr.plot_diag(ax_flux(4), diag, 't', 'phi_b', tline=dump['t'], logy=LOG_PHI)
         # Mixins:
         # Zoomed in RHO
-#            bplt.plot_slices(ax_slc(7), ax_slc(8), dump, 'log_rho', vmin=-3, vmax=2,
+#            pplt.plot_slices(ax_slc(7), ax_slc(8), dump, 'log_rho', vmin=-3, vmax=2,
 #                             window=[-10, 10, -10, 10], field_overlay=False)
+    elif movie_type == "prims_xz":
+        ax_slc = lambda i: plt.subplot(2, 4, i)
+        vmin, vmax = None, None
+        pplt.plot_xz(ax_slc(1), dump, 'RHO', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        pplt.plot_xz(ax_slc(2), dump, 'UU', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        pplt.plot_xz(ax_slc(3), dump, 'U1', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        pplt.plot_xz(ax_slc(4), dump, 'U2', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        pplt.plot_xz(ax_slc(5), dump, 'U3', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        pplt.plot_xz(ax_slc(6), dump, 'B1', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        pplt.plot_xz(ax_slc(7), dump, 'B2', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
+        pplt.plot_xz(ax_slc(8), dump, 'B3', label="",
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     xlabel=False, ylabel=False, xticks=[], yticks=[],
+                     cbar=False, cmap='jet')
 
     elif movie_type == "prims_xz":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         vmin, vmax = None, None
-        bplt.plot_xz(ax_slc(1), dump, 'RHO', label="",
+        pplt.plot_xz(ax_slc(1), dump, 'RHO', label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
-        bplt.plot_xz(ax_slc(2), dump, 'UU', label="",
+        pplt.plot_xz(ax_slc(2), dump, 'UU', label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
-        bplt.plot_xz(ax_slc(3), dump, 'U1', label="",
+        pplt.plot_xz(ax_slc(3), dump, 'U1', label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
-        bplt.plot_xz(ax_slc(4), dump, 'U2', label="",
+        pplt.plot_xz(ax_slc(4), dump, 'U2', label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
-        bplt.plot_xz(ax_slc(5), dump, 'U3', label="",
+        pplt.plot_xz(ax_slc(5), dump, 'U3', label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
-        bplt.plot_xz(ax_slc(6), dump, 'B1', label="",
+        pplt.plot_xz(ax_slc(6), dump, 'B1', label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
-        bplt.plot_xz(ax_slc(7), dump, 'B2', label="",
+        pplt.plot_xz(ax_slc(7), dump, 'B2', label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
-        bplt.plot_xz(ax_slc(8), dump, 'B3', label="",
+        pplt.plot_xz(ax_slc(8), dump, 'B3', label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
@@ -251,29 +287,29 @@ def plot(n):
         ax_slc = lambda i: plt.subplot(2, 4, i)
         # Usual movie: RHO beta fluxes
         # CUTS
-        bplt.plot_slices(ax_slc(1), ax_slc(5), dump, 'log_rho', label=pretty('log_rho'), average=True,
+        pplt.plot_slices(ax_slc(1), ax_slc(5), dump, 'log_rho', label=pretty('log_rho'), average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
 
         for i,var in zip((2,3,4,6,7,8), ("U1", "U2", "U3", "B1", "B2", "B3")):
-            bplt.plot_xz(ax_slc(i), dump, np.log10(dump[var]), label=var,
+            pplt.plot_xz(ax_slc(i), dump, np.log10(dump[var]), label=var,
                             vmin=rho_l, vmax=rho_h, cmap='Reds', window=window, arrayspace=USEARRSPACE)
-            bplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
+            pplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
                             vmin=rho_l, vmax=rho_h, cmap='Blues', window=window, arrayspace=USEARRSPACE)
 
     elif movie_type == "vecs_cov":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         for i,var in zip((1,2,3,4,5,6,7,8), ("u_0", "u_r", "u_th", "u_3","b_0", "b_r", "b_th", "b_3")):
-            bplt.plot_xz(ax_slc(i), dump, np.log10(dump[var]), label=var,
+            pplt.plot_xz(ax_slc(i), dump, np.log10(dump[var]), label=var,
                             vmin=rho_l, vmax=rho_h, cmap='Reds', window=window, arrayspace=USEARRSPACE)
-            bplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
+            pplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
                             vmin=rho_l, vmax=rho_h, cmap='Blues', window=window, arrayspace=USEARRSPACE)
 
     elif movie_type == "vecs_con":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         for i,var in zip((1,2,3,4,5,6,7,8), ("u^0", "u^r", "u^th", "u^3","b^0", "b^r", "b^th", "b^3")):
-            bplt.plot_xz(ax_slc(i), dump, np.log10(dump[var]), label=var,
+            pplt.plot_xz(ax_slc(i), dump, np.log10(dump[var]), label=var,
                             vmin=rho_l, vmax=rho_h, cmap='Reds', window=window, arrayspace=USEARRSPACE)
-            bplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
+            pplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
                             vmin=rho_l, vmax=rho_h, cmap='Blues', window=window, arrayspace=USEARRSPACE)
 
     elif movie_type == "b_bug":
@@ -288,16 +324,16 @@ def plot(n):
     elif movie_type == "e_ratio":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         # Energy ratios: difficult places to integrate, with failures
-        bplt.plot_slices(ax_slc(1), ax_slc(2), dump, np.log10(dump['UU'] / dump['RHO']),
+        pplt.plot_slices(ax_slc(1), ax_slc(2), dump, np.log10(dump['UU'] / dump['RHO']),
                             label=r"$\log_{10}(U / \rho)$", vmin=-3, vmax=3, average=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(3), ax_slc(4), dump, np.log10(dump['bsq'] / dump['RHO']),
+        pplt.plot_slices(ax_slc(3), ax_slc(4), dump, np.log10(dump['bsq'] / dump['RHO']),
                             label=r"$\log_{10}(b^2 / \rho)$", vmin=-3, vmax=3, average=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(5), ax_slc(6), dump, np.log10(1 / dump['beta']),
+        pplt.plot_slices(ax_slc(5), ax_slc(6), dump, np.log10(1 / dump['beta']),
                             label=r"$\beta^{-1}$", vmin=-3, vmax=3, average=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32),
+        pplt.plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32),
                             label="Failures", vmin=0, vmax=20, cmap='Reds', integrate=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
 
@@ -306,14 +342,14 @@ def plot(n):
         ax_flux = lambda i: plt.subplot(4, 2, i)
         # Continuity plots to verify local conservation of energy, angular + linear momentum
         # Integrated T01: continuity for momentum conservation
-        bplt.plot_slices(ax_slc(1), ax_slc(2), dump, T_mixed(dump, 1, 0),
+        pplt.plot_slices(ax_slc(1), ax_slc(2), dump, T_mixed(dump, 1, 0),
                             label=r"$T^1_0$ Integrated", vmin=0, vmax=600, arrspace=True, integrate=True)
         # integrated T00: continuity plot for energy conservation
-        bplt.plot_slices(ax_slc(5), ax_slc(6), dump, np.abs(T_mixed(dump, 0, 0)),
+        pplt.plot_slices(ax_slc(5), ax_slc(6), dump, np.abs(T_mixed(dump, 0, 0)),
                             label=r"$T^0_0$ Integrated", vmin=0, vmax=3000, arrspace=True, integrate=True)
     
         # Usual fluxes for reference
-        #bpltr.plot_diag(ax_flux[1], diag, 't', 'mdot', tline=dump['t'], logy=LOG_MDOT)
+        #ppltr.plot_diag(ax_flux[1], diag, 't', 'mdot', tline=dump['t'], logy=LOG_MDOT)
 
         r_out = 100
 
@@ -322,66 +358,66 @@ def plot(n):
         Ang_r = shell_sum(dump, T_mixed(dump, 0, 3))
         mass_r = shell_sum(dump, dump['ucon'][0] * dump['RHO'])
 
-        bplt.radial_plot(ax_flux(2), dump, np.abs(E_r), title='Conserved vars at R', ylim=(0, 10000), rlim=(0, r_out), label="E_r")
-        bplt.radial_plot(ax_flux(2), dump, np.abs(Ang_r) / 10, ylim=(0, 10000), rlim=(0, r_out), color='r', label="L_r")
-        bplt.radial_plot(ax_flux(2), dump, np.abs(mass_r), ylim=(0, 10000), rlim=(0, r_out), color='b', label="M_r")
+        pplt.radial_plot(ax_flux(2), dump, np.abs(E_r), title='Conserved vars at R', ylim=(0, 10000), rlim=(0, r_out), label="E_r")
+        pplt.radial_plot(ax_flux(2), dump, np.abs(Ang_r) / 10, ylim=(0, 10000), rlim=(0, r_out), color='r', label="L_r")
+        pplt.radial_plot(ax_flux(2), dump, np.abs(mass_r), ylim=(0, 10000), rlim=(0, r_out), color='b', label="M_r")
         ax_flux(2).legend()
     
         # Radial energy accretion rate
         Edot_r = shell_sum(dump, T_mixed(dump, 1, 0))
-        bplt.radial_plot(ax_flux(4), dump, Edot_r, label='Edot at R', ylim=(-200, 200), rlim=(0, r_out), arrayspace=True)
+        pplt.radial_plot(ax_flux(4), dump, Edot_r, label='Edot at R', ylim=(-200, 200), rlim=(0, r_out), arrayspace=True)
     
         # Radial integrated failures
-        bplt.radial_plot(ax_flux(6), dump, (dump['fails'] != 0).sum(axis=(1, 2)), label='Fails at R', arrayspace=True, rlim=(0, r_out), ylim=(0, 1000))
+        pplt.radial_plot(ax_flux(6), dump, (dump['fails'] != 0).sum(axis=(1, 2)), label='Fails at R', arrayspace=True, rlim=(0, r_out), ylim=(0, 1000))
 
     elif movie_type == "energies":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         # Energy ratios: difficult places to integrate, with failures
-        bplt.plot_slices(ax_slc(1), ax_slc(2), dump, 'log_rho',
+        pplt.plot_slices(ax_slc(1), ax_slc(2), dump, 'log_rho',
                             label=r"$\log_{10}(U / \rho)$", vmin=-3, vmax=3, average=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(3), ax_slc(4), dump, 'log_bsq',
+        pplt.plot_slices(ax_slc(3), ax_slc(4), dump, 'log_bsq',
                             label=r"$\log_{10}(b^2 / \rho)$", vmin=-3, vmax=3, average=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(5), ax_slc(6), dump, 'log_UU',
+        pplt.plot_slices(ax_slc(5), ax_slc(6), dump, 'log_UU',
                             label=r"$\beta^{-1}$", vmin=-3, vmax=3, average=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32),
+        pplt.plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32),
                             label="Failures", vmin=0, vmax=20, cmap='Reds', integrate=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
 
     elif movie_type == "floors":
         ax_slc = lambda i: plt.subplot(2, 4, i)
-        bplt.plot_xz(ax_slc(1), dump, 'log_rho', label=pretty('log_rho'),
+        pplt.plot_xz(ax_slc(1), dump, 'log_rho', label=pretty('log_rho'),
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
         max_fail = 20
-        bplt.plot_xz(ax_slc(2), dump, dump['floors'] & 1, label="GEOM_RHO",
+        pplt.plot_xz(ax_slc(2), dump, dump['floors'] & 1, label="GEOM_RHO",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_xz(ax_slc(3), dump, dump['floors'] & 2, label="GEOM_U",
+        pplt.plot_xz(ax_slc(3), dump, dump['floors'] & 2, label="GEOM_U",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_xz(ax_slc(4), dump, dump['floors'] & 4, label="B_RHO",
+        pplt.plot_xz(ax_slc(4), dump, dump['floors'] & 4, label="B_RHO",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_xz(ax_slc(5), dump, dump['floors'] & 8, label="B_U",
+        pplt.plot_xz(ax_slc(5), dump, dump['floors'] & 8, label="B_U",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_xz(ax_slc(6), dump, dump['floors'] & 16, label="TEMP",
+        pplt.plot_xz(ax_slc(6), dump, dump['floors'] & 16, label="TEMP",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_xz(ax_slc(7), dump, dump['floors'] & 32, label="GAMMA",
+        pplt.plot_xz(ax_slc(7), dump, dump['floors'] & 32, label="GAMMA",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        bplt.plot_xz(ax_slc(8), dump, dump['floors'] & 64, label="KTOT",
+        pplt.plot_xz(ax_slc(8), dump, dump['floors'] & 64, label="KTOT",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
 
     elif movie_type == "floors_old":
         ax_slc6 = lambda i: plt.subplot(2, 3, i)
-        bplt.plot_slices(ax_slc6(1), ax_slc6(2), dump, 'log_rho', label=pretty('log_rho'),
+        pplt.plot_slices(ax_slc6(1), ax_slc6(2), dump, 'log_rho', label=pretty('log_rho'),
                         vmin=rho_l, vmax=rho_h, cmap='jet')
         max_fail = 1
-        bplt.plot_xz(ax_slc6(3), dump, dump['floors'] == 1, label="GEOM",
+        pplt.plot_xz(ax_slc6(3), dump, dump['floors'] == 1, label="GEOM",
                     vmin=0, vmax=max_fail, cmap='Reds')
-        bplt.plot_xz(ax_slc6(4), dump, dump['floors'] == 2, label="SIGMA",
+        pplt.plot_xz(ax_slc6(4), dump, dump['floors'] == 2, label="SIGMA",
                     vmin=0, vmax=max_fail, cmap='Reds')
-        bplt.plot_xz(ax_slc6(5), dump, dump['floors'] == 3, label="GAMMA",
+        pplt.plot_xz(ax_slc6(5), dump, dump['floors'] == 3, label="GAMMA",
                     vmin=0, vmax=max_fail, cmap='Reds')
-        bplt.plot_xz(ax_slc6(6), dump, dump['floors'] == 4, label="KTOT",
+        pplt.plot_xz(ax_slc6(6), dump, dump['floors'] == 4, label="KTOT",
                     vmin=0, vmax=max_fail, cmap='Reds')
 
     else:
@@ -392,22 +428,22 @@ def plot(n):
 
         # Try to make a simple movie of just the stated variable
         if not "log_" in l_movie_type:
-            rho_l, rho_h = 0, 0.1
+            rho_l, rho_h = None, None
         if "_poloidal" in l_movie_type:
             ax = plt.subplot(1, 1, 1)
             var = l_movie_type[:-9]
-            bplt.plot_xz(ax, dump, var, label=pretty(var),
+            pplt.plot_xz(ax, dump, var, label=pretty(var),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         cbar=True, cmap='jet')
         elif "_toroidal" in l_movie_type:
             ax = plt.subplot(1, 2, 1)
             var = l_movie_type[:-9]
-            bplt.plot_xy(ax, dump, var, label=pretty(var),
+            pplt.plot_xy(ax, dump, var, label=pretty(var),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         cbar=True, cmap='jet')
         else:
             ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
-            bplt.plot_slices(ax_slc[0], ax_slc[1], dump, l_movie_type, label=pretty(l_movie_type),
+            pplt.plot_slices(ax_slc[0], ax_slc[1], dump, l_movie_type, label=pretty(l_movie_type),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         cbar=True, cmap='jet')
         if "divB" in movie_type:
@@ -439,14 +475,9 @@ if __name__ == "__main__":
         if len(sys.argv) > 4:
             tend = float(sys.argv[4])
 
-    # Load the file list
-    files = np.sort(glob(os.path.join(path, "dump_*.h5")))
-    if len(files) == 0:
-        files = np.sort(glob(os.path.join(path, "*out*.phdf")))
-    if len(files) == 0:
-        print("INVALID PATH TO DUMP FOLDER")
-        sys.exit(1)
-    
+    # Try to load known filenames
+    files = io.get_fnames(path)
+
     frame_dir = "frames_" + movie_type
     os.makedirs(frame_dir, exist_ok=True)
     
@@ -454,7 +485,7 @@ if __name__ == "__main__":
 #    if movie_type not in ["simplest", "radial", "fluxes_cap", "rho_cap", "funnel_wall"]:
 #        if diag_post:
 #            # Load fluxes from post-analysis: more flexible
-#            diag = h5py.File("eht_out.h5", 'r')
+#            diag = io.load_results() etc etc TODO
 #        else:
 #            # Load diagnostics from HARM itself
 #            diag = io.load_log(path)

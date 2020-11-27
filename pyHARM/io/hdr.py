@@ -24,6 +24,7 @@ fmks_keys = ['mks_smooth', 'poly_alpha', 'poly_xt']
 # with their counterparts in the HDF5 format
 # TODO standardize the last one, at least
 translations = {'n1': 'n1tot', 'n2': 'n2tot', 'n3': 'n3tot', 'metric': 'coordinates'}
+# TODO Parthenon translations/format here too
 
 
 def write_hdr(params, outf):
@@ -63,7 +64,7 @@ def write_hdr(params, outf):
     for key in [p for p in params if p not in ['ctx', 'queue']]:
         _write_value(outf, params[key], 'header/'+key)
 
-def read_hdr(grp):
+def read_hdr(grp, params=None):
     # Handle lots of different calling conventions
     if isinstance(grp, str):
         if grp[-5:] == ".phdf":
@@ -77,20 +78,21 @@ def read_hdr(grp):
     else:
         close_file = False
     
-    hdr = {}
+    if params is None:
+        params = {}
     try:
         # Scoop all the keys that are data, leave the sub-groups
         for key in [key for key in list(grp) if isinstance(grp[key], h5py.Dataset)]:
-            hdr[key] = grp[key][()]
+            params[key] = grp[key][()]
 
         # The 'geom' group should contain at most one more layer of sub-group
         geom = grp['geom']
         for key in geom:
             if isinstance(geom[key], h5py.Dataset):
-                hdr[key] = geom[key][()]
+                params[key] = geom[key][()]
             else:
                 for sub_key in geom[key]:
-                    hdr[sub_key] = geom[key+'/'+sub_key][()]
+                    params[sub_key] = geom[key+'/'+sub_key][()]
 
     except KeyError as e:
         print("Warning: {}".format(e))
@@ -98,70 +100,52 @@ def read_hdr(grp):
 
 
     # Fix up all the nasty non-Unicode strings
-    _decode_all(hdr)
+    _decode_all(params)
 
     # EXTRAS AND WORKAROUNDS
     # Turn the version string into components
-    if 'version' not in hdr:
-        hdr['version'] = "iharm-alpha-3.6"
-        print("Unknown version: defaulting to {}".format(hdr['version']))
+    if 'version' not in params:
+        params['version'] = "iharm-alpha-3.6"
+        print("Unknown version: defaulting to {}".format(params['version']))
 
-    hdr['codename'], hdr['codestatus'], hdr['vnum'] = hdr['version'].split("-")
-    hdr['vnum'] = [int(x) for x in hdr['vnum'].split(".")]
+    params['codename'], params['codestatus'], params['vnum'] = params['version'].split("-")
+    params['vnum'] = [int(x) for x in params['vnum'].split(".")]
 
     # iharm3d-specific workarounds:
-    if hdr['codename'] == "iharm":
+    if params['codename'] == "iharm":
         # Work around naming bug before output v3.4
-        if hdr['vnum'] < [3, 4]:
+        if params['vnum'] < [3, 4]:
             names = []
-            for name in hdr['prim_names'][0]:
+            for name in params['prim_names'][0]:
                 names.append(name)
-            hdr['prim_names'] = names
+            params['prim_names'] = names
 
         # Work around bad radius names before output v3.6
-        if ('r_in' not in hdr) and ('Rin' in hdr):
-            hdr['r_in'], hdr['r_out'] = hdr['Rin'], hdr['Rout']
+        if ('r_in' not in params) and ('Rin' in params):
+            params['r_in'], params['r_out'] = params['Rin'], params['Rout']
 
         # Grab the git revision if that's something we output
         if 'extras' in grp.parent and 'git_version' in grp.parent['extras']:
-            hdr['git_version'] = grp.parent['/extras/git_version'][()].decode('UTF-8')
+            params['git_version'] = grp.parent['/extras/git_version'][()].decode('UTF-8')
 
     # Renames we've done for pyHARM  or are useful
-    # hdr_key -> likely name in existing header
+    # params_key -> likely name in existing header
     # param_key -> desired name in conformant/pyHARM header
-    for hdr_key in translations:
-        param_key = translations[hdr_key]
-        if hdr_key in hdr:
-            if isinstance(hdr[hdr_key], str):
-                hdr[param_key] = hdr[hdr_key].lower()
+    for params_key in translations:
+        param_key = translations[params_key]
+        if params_key in params:
+            if isinstance(params[params_key], str):
+                params[param_key] = params[params_key].lower()
                 # iharm3d called FMKS (radial dependence) by the name MMKS (which we use for cylindrification only)
-                if hdr[param_key] == "mmks":
-                    hdr[param_key] = "fmks"
+                if params[param_key] == "mmks":
+                    params[param_key] = "fmks"
             else:
-                hdr[param_key] = hdr[hdr_key]
-
-    # Patch things that sometimes people forget to put in the header
-    if 'n_dim' not in hdr:
-        hdr['n_dim'] = 4
-    if 'n_prim' not in hdr: # This got messed up *often*
-        hdr['n_prim'] = hdr['n_prims']
-    if 'prim_names' not in hdr:
-        if hdr['n_prim'] == 10:
-            hdr['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KEL", "KTOT"]
-        else:
-            hdr['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
-    if 'has_electrons' not in hdr:
-        hdr['has_electrons'] = (hdr['n_prims'] == 10)
-    if 'r_eh' not in hdr and "ks" in hdr['coordinates']:
-        hdr['r_eh'] = (1. + np.sqrt(1. - hdr['a'] ** 2))
-    if 'poly_norm' not in hdr and hdr['coordinates'] in ["mmks", "fmks"]:
-        hdr['poly_norm'] = 0.5 * np.pi * 1. / (1. + 1. / (hdr['poly_alpha'] + 1.) *
-                                               1. / np.power(hdr['poly_xt'], hdr['poly_alpha']))
+                params[param_key] = params[params_key]
 
     if close_file:
         fil.close()
 
-    return parameters._fix(hdr)
+    return parameters._fix(params)
 
 
 def hdf5_to_dict(h5grp):

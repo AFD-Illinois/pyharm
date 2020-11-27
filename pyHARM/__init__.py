@@ -6,5 +6,7 @@ from .ana.variables import pretty
 
 from .ana import plot
 
+from .defs import Loci, Var
+
 def load_dump(fname, **kwargs):
     return IharmDump(fname, **kwargs)

@@ -7,8 +7,13 @@
 import glob
 import os
 import multiprocessing
-import psutil
 import numpy as np
+try:
+    import psutil
+    using_psutil = True
+except ModuleNotFoundError as e:
+    print("Not using psutil: ", e)
+    using_psutil = False
 
 # Run a function in parallel with Python's multiprocessing
 # 'function' must take only a number
@@ -83,16 +88,20 @@ def calc_nthreads(hdr, n_mkl=8, pad=0.25):
     except Exception as e:
         print(e)
 
-    # Roughly compute memory and leave some generous padding for multiple copies and Python games
-    # (N1*N2*N3*8)*(NPRIM + 4*4 + 6) = size of "dump," (N1*N2*N3*8)*(2*4*4 + 6) = size of "geom"
-    # TODO get a better model for this, and save memory in general
-    ncopies = hdr['n_prim'] + 4 * 4 + 6
-    nproc = int(pad * psutil.virtual_memory().total / (hdr['n1'] * hdr['n2'] * hdr['n3'] * 8 * ncopies))
-    if nproc < 1:
-        nproc = 1
-    if nproc > psutil.cpu_count():
-        nproc = psutil.cpu_count()
-    print("Using {} Python processes".format(nproc))
+    if using_psutil:
+        # Roughly compute memory and leave some generous padding for multiple copies and Python games
+        # (N1*N2*N3*8)*(NPRIM + 4*4 + 6) = size of "dump," (N1*N2*N3*8)*(2*4*4 + 6) = size of "geom"
+        # TODO get a better model for this, and save memory in general
+        ncopies = hdr['n_prim'] + 4 * 4 + 6
+        nproc = int(pad * psutil.virtual_memory().total / (hdr['n1'] * hdr['n2'] * hdr['n3'] * 8 * ncopies))
+        if nproc < 1:
+            nproc = 1
+        if nproc > psutil.cpu_count():
+            nproc = psutil.cpu_count()
+        print("Using {} Python processes".format(nproc))
+    else:
+        print("psutil not available: Using 4 processes as a safe default")
+
     return nproc
 
 

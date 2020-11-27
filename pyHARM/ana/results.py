@@ -3,11 +3,14 @@
 import os
 import numpy as np
 
-from pyHARM.io import hdf5_to_dict, read_hdr
 from pyHARM.grid import Grid
 from pyHARM.util import i_of
 from pyHARM.ana.variables import fns_dict
 import pyHARM.parameters as parameters
+
+# Specifically for reading the header as copied/output to result files
+from pyHARM.io.hdr import read_hdr
+
 """
 Tools for dealing with the results computed by scripts/analysis.py.  Results are organized by remaining independent
 variable -- so, a phi- and time-average will be under 'rth' since these are its remaining independent variables.

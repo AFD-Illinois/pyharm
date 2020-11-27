@@ -13,6 +13,9 @@ from scipy.integrate import trapz
 
 from pyHARM.ana.variables import pretty
 
+# TODO:
+# Unify this with 2D results plotting, including gouraud/flat mesh size changes
+
 def pcolormesh_symlog(ax, X, Y, Z, vmax=None, vmin=None, linthresh=None, decades=4, linscale=0.01, cmap='RdBu_r', cbar=True, **kwargs):
     """Wrapper for matplotlib's pcolormesh that uses it sensibly, instead of the defaults.
 
@@ -26,8 +29,9 @@ def pcolormesh_symlog(ax, X, Y, Z, vmax=None, vmin=None, linthresh=None, decades
         if vmin is not None:
             vmax = -vmin
         else:
-            vmax = np.abs(np.nanmax(Z))
+            vmax = np.abs(np.nanmax(Z))*2
             vmin = -vmax
+            #print("Using automatic range {} to {}".format(vmin, vmax))
     else:
         vmin = -vmax
 
@@ -42,7 +46,7 @@ def pcolormesh_symlog(ax, X, Y, Z, vmax=None, vmin=None, linthresh=None, decades
                       + [0.0]
                       + [(10.0 ** x) for x in range(-logthresh, int_max_pow)]
                       + [vmax])
-    pcm = ax.pcolormesh(X, Y, Z, norm=colors.SymLogNorm(linthresh=linthresh, linscale=linscale),
+    pcm = ax.pcolormesh(X, Y, Z, norm=colors.SymLogNorm(linthresh=linthresh, linscale=linscale, base=10),
                          cmap=cmap, vmin=-vmax, vmax=vmax, **kwargs)
     if cbar:
         # TODO add some more anonymous ticks
@@ -162,19 +166,20 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         else:
             ax.set_xlim([0, 1])
             ax.set_ylim([0, 1])
-        bh = False
     else:
         if xlabel: ax.set_xlabel(r"x ($r_g$)")
         if ylabel: ax.set_ylabel(r"z ($r_g$)")
         if window:
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
-        bh = True
 
     if not half_cut:
         ax.set_aspect('equal')
+    
+    if not 'bh' in kwargs:
+        kwargs['bh'] = not arrayspace
 
-    decorate_plot(ax, dump, var, bh=bh, cbar=cbar, **kwargs)
+    decorate_plot(ax, dump, var, cbar=cbar, **kwargs)
 
 def plot_xy(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             xlabel=True, ylabel=True, arrayspace=False, log=False,
@@ -218,17 +223,17 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         else:
             ax.set_xlim([0, 1])
             ax.set_ylim([0, 1])
-        bh = False
     else:
         if xlabel: ax.set_xlabel(r"x ($r_g$)")  # or \frac{G M}{c^2}
         if ylabel: ax.set_ylabel(r"y ($r_g$)")
         if window:
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
-        bh = True
 
     ax.set_aspect('equal')
-    decorate_plot(ax, dump, var, bh=bh, cbar=cbar, **kwargs)
+    if not 'bh' in kwargs:
+        kwargs['bh'] = not arrayspace
+    decorate_plot(ax, dump, var, cbar=cbar, **kwargs)
 
 
 # TODO this is currently just for profiles already in 2D
@@ -274,7 +279,7 @@ def plot_thphi(ax, dump, var, r_i, cmap='jet', vmin=None, vmax=None, window=None
         if ylabel: ax.set_ylabel(r"$y \frac{c^2}{G M}$")
 
     ax.set_aspect('equal')
-    decorate_plot(ax, dump, var, **kwargs)
+    decorate_plot(ax, dump, var, bh=False, **kwargs)
 
 # Plot two slices together without duplicating everything in the caller
 def plot_slices(ax1, ax2, dump, var, field_overlay=True, nlines=10, **kwargs):

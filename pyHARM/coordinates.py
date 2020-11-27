@@ -326,8 +326,10 @@ class MKS(KS):
         self.r_isco = 3. + z2 - (np.sqrt((3. - z1) * (3. + z1 + 2. * z2))) * np.sign(self.a)
 
     def native_startx(self, met_params):
-        # TODO take direct from params if specified
-        if 'r_in' in met_params:
+        # TODO take direct 'startx' from met params?
+        if 'startx1' in met_params and 'startx2' in met_params and 'startx3' in met_params:
+            return np.array([0, met_params['startx1'], met_params['startx2'], met_params['startx3']])
+        elif 'r_in' in met_params:
             # Set startx1 from r_in
             return np.array([0, np.log(met_params['r_in']), 0, 0])
         elif 'n1tot' in met_params and 'r_out' in met_params:
@@ -347,7 +349,17 @@ class MKS(KS):
             raise ValueError("Cannot find or guess startx!")
 
     def native_stopx(self, met_params):
-        return np.array([0, np.log(met_params['r_out']), 1, 2*np.pi])
+        if 'r_out' in met_params:
+            return np.array([0, np.log(met_params['r_out']), 1, 2*np.pi])
+        elif ('startx1' in met_params and 'dx1' in met_params and 'n1' in met_params and
+               'startx2' in met_params and 'dx2' in met_params and 'n2' in met_params and
+               'startx3' in met_params and 'dx3' in met_params and 'n3' in met_params):
+            return np.array([0, met_params['startx1'] + met_params['n1']*met_params['dx1'],
+                            met_params['startx2'] + met_params['n2']*met_params['dx2'],
+                            met_params['startx3'] + met_params['n3']*met_params['dx3']])
+        else:
+            raise ValueError("Cannot find or guess stopx!")
+
 
     def r(self, x):
         return np.exp(x[1])

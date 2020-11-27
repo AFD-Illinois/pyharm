@@ -227,7 +227,7 @@ def get_fluid_source(params, G, P, D, slc=None):
     dU = np.zeros_like(P)
     for mu in range(4):
         for nu in range(4):
-            for gam in range(1, 4):
+            for gam in range(4):
                 dU[Var.UU.value + gam][slc] += T[mu, nu][slc] * G.conn[nu, gam, mu][gslc]
 
     dU[slc] *= G.gdet[Loci.CENT.value][gslc]
