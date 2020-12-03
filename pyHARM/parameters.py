@@ -38,8 +38,11 @@ def parse_parthenon_dat(fname, params=None):
     """
     if params is None:
         params = {}
+    try:
+        fp = open(fname, "r")
+    except OSError:
+        return None
 
-    fp = open(fname, "r")
     for line in fp:
         # Trim out trailing newline, anything after '#', stray parentheses, headers
         ls = [token.strip().strip('()') for token in line[:-1].split("#")[0].split("<")[0].split("=") if token != '']

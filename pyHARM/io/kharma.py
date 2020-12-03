@@ -8,7 +8,8 @@ from .phdf import phdf
 def read_hdr(fname, params=None):
     if params is None:
         params = {}
-    parameters.parse_parthenon_dat(fname.split("/")[-1].split(".")[0] + ".par", params)
+    if parameters.parse_parthenon_dat(fname.split(".")[0] + ".par", params) is None:
+        parameters.parse_parthenon_dat(fname.split("/")[-1].split(".")[0] + ".par", params)
     return params
 
 def get_dump_time(fname):

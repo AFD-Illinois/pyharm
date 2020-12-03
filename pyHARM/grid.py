@@ -139,7 +139,7 @@ class Grid:
             # Ask our new coordinate system where to start/stop the native grid,
             # so it aligns with the KS boundaries we've been assigned
             self.startx = self.coords.native_startx(params)
-            if self.startx[1] < 0.0:
+            if params['coordinates'] not in ["minkowski", "cartesian"] and self.startx[1] < 0.0:
                 raise ValueError("Not enough radial zones! Increase N1!")
 
         self.stopx = self.coords.native_stopx(params)

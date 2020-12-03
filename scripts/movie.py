@@ -34,7 +34,7 @@ FIGDPI = 100
 
 # For plotting debug, "array-space" plots
 # Certain plots can override this below
-USEARRSPACE = True
+USEARRSPACE = False
 
 # Load diagnostic data from post-processing (eht_out.p)
 diag_post = False

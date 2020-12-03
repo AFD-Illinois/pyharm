@@ -71,7 +71,7 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=False, **kwargs):
     :arg qui Get only "quiescence" time, i.e. range over which time-averages were taken
     :arg only_nonzero Get only nonzero values
     """
-    ret_i = get_ivar(infile, ivar, **kwargs)
+    ret_i = np.array(get_ivar(infile, ivar, **kwargs))
     if var in infile[ivar]:
         ret_v = infile[ivar][var][()]
     elif var in fns_dict:
@@ -88,7 +88,7 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=False, **kwargs):
     if qui:
         qui_slc = get_quiescence(infile)
         if isinstance(ret_i, list):
-            ret_i = [i[qui_slc] for i in ret_i]
+            ret_i = np.array([i[qui_slc] for i in ret_i])
         else:
             ret_i = ret_i[qui_slc]
         ret_v = ret_v[qui_slc]
@@ -96,7 +96,7 @@ def get_result(infile, ivar, var, qui=False, only_nonzero=False, **kwargs):
     if only_nonzero and len(ret_v.shape) == 1:
         nz_slc = np.nonzero(ret_v)
         if isinstance(ret_i, list):
-            ret_i = [i[nz_slc] for i in ret_i]
+            ret_i = np.array([i[nz_slc] for i in ret_i])
         else:
             ret_i = ret_i[nz_slc]
         ret_v = ret_v[nz_slc]
