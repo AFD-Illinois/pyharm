@@ -64,7 +64,7 @@ class Grid:
     size, shape, zones' global locations, metric tensor
     """
 
-    def __init__(self, params):
+    def __init__(self, params, caches=True):
         """
         Initialize a Grid object.  This object divides a domain in native coordinates into zones, and caches the
         local metric (and some other convenient information) at several locations in each zone.
@@ -148,30 +148,31 @@ class Grid:
         self.dx = (self.stopx - self.startx) / self.NTOT
         self.dV = self.dx[1]*self.dx[2]*self.dx[3]
 
-        self.gcov = np.zeros(self.shapes.locus_geom_tensor)
-        self.gcon = np.zeros_like(self.gcov)
+        if caches:
+            self.gcov = np.zeros(self.shapes.locus_geom_tensor)
+            self.gcon = np.zeros_like(self.gcov)
 
-        self.gdet = np.zeros(self.shapes.locus_geom_scalar)
-        self.lapse = np.zeros_like(self.gdet)
+            self.gdet = np.zeros(self.shapes.locus_geom_scalar)
+            self.lapse = np.zeros_like(self.gdet)
 
-        for loc in Loci:
-            ilist = np.arange(self.GN[1])
-            jlist = np.arange(self.GN[2])
-            x = self.coord(ilist, jlist, 0, loc)
+            for loc in Loci:
+                ilist = np.arange(self.GN[1])
+                jlist = np.arange(self.GN[2])
+                x = self.coord(ilist, jlist, 0, loc)
 
-            # Save zone centers to calculate connection coefficients
-            if loc == Loci.CENT:
-                x_cent = x
+                # Save zone centers to calculate connection coefficients
+                if loc == Loci.CENT:
+                    x_cent = x
 
-            gcov_loc = self.coords.gcov(x)
-            gcon_loc = self.coords.gcon(gcov_loc)
-            gdet_loc = self.coords.gdet(gcov_loc)
-            self.gcov[loc.value] = gcov_loc
-            self.gcon[loc.value] = gcon_loc
-            self.gdet[loc.value] = gdet_loc
-            self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
+                gcov_loc = self.coords.gcov(x)
+                gcon_loc = self.coords.gcon(gcov_loc)
+                gdet_loc = self.coords.gdet(gcov_loc)
+                self.gcov[loc.value] = gcov_loc
+                self.gcon[loc.value] = gcon_loc
+                self.gdet[loc.value] = gdet_loc
+                self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
 
-        self.conn = self.coords.conn_func(x_cent)
+            self.conn = self.coords.conn_func(x_cent)
 
     def coord(self, i, j, k, loc=Loci.CENT):
         """Get the position x of zone(s) i,j,k, in _native_ coordinates

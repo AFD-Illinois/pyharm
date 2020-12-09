@@ -224,8 +224,8 @@ def avg_dump(n):
         # Minima
         for var in ['rho', 'U']:
             out['t/' + var + '_min'] = np.min(dump[var])
-        out['rt/total_floors'] = shell_sum(dump, (dump['floors'] != 0))
-        out['rt/total_fails'] = shell_sum(dump, (dump['fails'] != 0))
+        out['rt/total_floors'] = np.sum(dump['floors'] != 0, axis=(1,2))
+        out['rt/total_fails'] = np.sum(dump['fails'] != 0, axis=(1,2))
 
     if calc_phi:
         out['rt/Phi_b_sph'] = 0.5 * shell_sum(dump, np.fabs(dump['B1']))
@@ -450,10 +450,10 @@ else:
         outf = h5py.File(outfname, 'w')
         print("Replacing existing output: {}".format(outfname))
 
-hdr_preserve = io.hdf5_to_dict(h5py.File(dumps[0],'r')['header'])
+hdr_preserve = io.hdr.hdf5_to_dict(h5py.File(dumps[0],'r')['header'])
 if not 'header' in outf:
     outf.create_group('header')
-io.dict_to_hdf5(hdr_preserve, outf['header'])
+io.hdr.dict_to_hdf5(hdr_preserve, outf['header'])
 
 # Fill the output dict with all per-dump or averaged stuff
 # Hopefully in a way that doesn't keep too much of it around in memory

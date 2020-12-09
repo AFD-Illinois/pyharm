@@ -63,6 +63,10 @@ def plot(n):
     if "simple" not in movie_type and "floor" not in movie_type:
         # Everything but simple & pure floor movies needs derived vars
         to_load['calc_derived'] = True
+    if "simple" in movie_type:
+        # Save memory
+        #to_load['add_grid_caches'] = False
+        pass
     if "fail" in movie_type or movie_type == "e_ratio" or movie_type == "conservation":
         to_load['add_fails'] = True
     if "floor" in movie_type:
@@ -94,7 +98,7 @@ def plot(n):
         nlines = 20
         rho_l, rho_h = -6, 0
     elif dump['r'][-1, 0, 0] > 100:
-        window = [-25, 25, -25, 25]
+        window = [-50, 50, -50, 50]
         nlines = 20
         rho_l, rho_h = -6, 0
         iBZ = i_of(dump['r'][:,0,0], 100) # most MADs
@@ -106,7 +110,7 @@ def plot(n):
         iBZ = i_of(dump['r'][:,0,0], 40)  # most SANEs
         rBZ = 40
     else: # Then this is a Minkowski simulation or something weird
-        window = [dump['x'][0,0,0], dump['x'][-1,-1,-1], dump['y'][0,0,0], dump['y'][-1,-1,-1],]
+        window = [dump['x'][0,0,0], dump['x'][-1,-1,-1], dump['y'][0,0,0], dump['y'][-1,-1,-1]]
         nlines = 0
         rho_l, rho_h = -2, 0.0
         iBZ = 1
@@ -123,14 +127,15 @@ def plot(n):
     if movie_type == "simplest_poloidal":
         # Simplest movie: just RHO, poloidal slice
         ax_slc = plt.subplot(1, 1, 1)
-        var = 'log_rho'
+        var = 'rho'
         arrspace=False
-        vmin = rho_l
-        vmax = rho_h
+        vmin = None
+        vmax = None
         pplt.plot_xz(ax_slc, dump, var, label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
-                     cbar=False, cmap='jet')
+                     cbar=False, cmap='jet', use_imshow=True)
+        ax_slc.axis('off')
         plt.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
     elif movie_type == "simplest_toroidal":
         # Simplest movie: just RHO, toroidal slice
@@ -139,7 +144,7 @@ def plot(n):
         arrspace=False
         vmin = rho_l
         vmax = rho_h
-        pplt.plot_xy(ax_slc, dump, 'log_rho', label="",
+        pplt.plot_xy(ax_slc, dump, var, label="",
                      vmin=vmin+0.15, vmax=vmax+0.15, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
@@ -312,6 +317,15 @@ def plot(n):
             pplt.plot_xz(ax_slc(i), dump, np.log10(-dump[var]), label=var,
                             vmin=rho_l, vmax=rho_h, cmap='Blues', window=window, arrayspace=USEARRSPACE)
 
+    elif movie_type == "ejection":
+        ax_slc = lambda i: plt.subplot(1, 2, i)
+        # Usual movie: RHO beta fluxes
+        # CUTS
+        bplt.plot_xz(ax_slc(1), dump, 'log_rho', label=pretty('log_rho')+" phi-average", average=True,
+                        vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
+        bplt.plot_xz(ax_slc(2), dump, 'log_bsq', label=pretty('log_bsq')+" phi-average", average=True,
+                        vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
+
     elif movie_type == "b_bug":
         rmax = 10
         thmax = 10
@@ -342,8 +356,9 @@ def plot(n):
         ax_flux = lambda i: plt.subplot(4, 2, i)
         # Continuity plots to verify local conservation of energy, angular + linear momentum
         # Integrated T01: continuity for momentum conservation
-        pplt.plot_slices(ax_slc(1), ax_slc(2), dump, T_mixed(dump, 1, 0),
-                            label=r"$T^1_0$ Integrated", vmin=0, vmax=600, arrspace=True, integrate=True)
+
+        bplt.plot_slices(ax_slc(1), ax_slc(2), dump, T_mixed(dump, 1, 0),
+                            label=r"$T^1_0$ Integrated", vmin=0, vmax=2000, arrspace=True, integrate=True)
         # integrated T00: continuity plot for energy conservation
         pplt.plot_slices(ax_slc(5), ax_slc(6), dump, np.abs(T_mixed(dump, 0, 0)),
                             label=r"$T^0_0$ Integrated", vmin=0, vmax=3000, arrspace=True, integrate=True)
@@ -358,9 +373,10 @@ def plot(n):
         Ang_r = shell_sum(dump, T_mixed(dump, 0, 3))
         mass_r = shell_sum(dump, dump['ucon'][0] * dump['RHO'])
 
-        pplt.radial_plot(ax_flux(2), dump, np.abs(E_r), title='Conserved vars at R', ylim=(0, 10000), rlim=(0, r_out), label="E_r")
-        pplt.radial_plot(ax_flux(2), dump, np.abs(Ang_r) / 10, ylim=(0, 10000), rlim=(0, r_out), color='r', label="L_r")
-        pplt.radial_plot(ax_flux(2), dump, np.abs(mass_r), ylim=(0, 10000), rlim=(0, r_out), color='b', label="M_r")
+        max_e = 50000
+        bplt.radial_plot(ax_flux(2), dump, np.abs(E_r), title='Conserved vars at R', ylim=(0, max_e), rlim=(0, r_out), label="E_r")
+        bplt.radial_plot(ax_flux(2), dump, np.abs(Ang_r) / 10, ylim=(0, max_e), rlim=(0, r_out), color='r', label="L_r")
+        bplt.radial_plot(ax_flux(2), dump, np.abs(mass_r), ylim=(0, max_e), rlim=(0, r_out), color='b', label="M_r")
         ax_flux(2).legend()
     
         # Radial energy accretion rate
@@ -434,7 +450,7 @@ def plot(n):
             var = l_movie_type[:-9]
             pplt.plot_xz(ax, dump, var, label=pretty(var),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
-                        cbar=True, cmap='jet')
+                        cbar=True, cmap='jet', field_overlay=False)
         elif "_toroidal" in l_movie_type:
             ax = plt.subplot(1, 2, 1)
             var = l_movie_type[:-9]
@@ -449,7 +465,7 @@ def plot(n):
         if "divB" in movie_type:
             plt.suptitle("Max divB = {}".format(np.max(dump['divB'])))
 
-    plt.subplots_adjust(left=0.03, right=0.97)
+    #plt.subplots_adjust(left=0.03, right=0.97)
     plt.savefig(os.path.join(frame_dir, 'frame_%08d.png' % n), dpi=FIGDPI)
     plt.close(fig)
 

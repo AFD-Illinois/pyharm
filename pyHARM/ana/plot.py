@@ -112,7 +112,7 @@ def decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
 def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             xlabel=True, ylabel=True, arrayspace=False, log=False,
             average=False, integrate=False, half_cut=False,
-            cmap='jet', shading='gouraud', cbar=True, **kwargs):
+            cmap='jet', shading='gouraud', cbar=True, use_imshow=False, **kwargs):
     """Plot an XZ slice or average of variable var in dump.
     NOTE: also accepts all keyword arguments to decorate_plot()
     :param ax
@@ -124,6 +124,10 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
     # Use our fancy new dump definitions to advantage
     if isinstance(var, str):
         var = dump[var]
+
+    if use_imshow:
+        ax.imshow(var, cmap=cmap, vmin=vmin, vmax=vmax, origin='lower')
+        return
 
     if integrate:
         var *= dump['n3']

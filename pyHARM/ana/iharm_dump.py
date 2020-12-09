@@ -21,7 +21,7 @@ class IharmDump:
 
     def __init__(self, fname, params=None, calc_cons=False, calc_derived=False,
                  add_jcon=False, add_floors=False, add_fails=False, add_ghosts=False, add_divB=False,
-                 tag="", zones_first=False):
+                 add_grid_caches=True, tag="", zones_first=False):
         """Read the HDF5 file 'fname' into memory, and pre-calculate/cache useful variables
         @param calc_cons: calculate the conserved variables U, i.e. run 'prim_to_flux(...,0)' from HARM
         @param calc_derived: calculate the derived 4-vectors u, b and fluid Lorentz factor gamma
@@ -59,16 +59,17 @@ class IharmDump:
 
         if not add_ghosts:
             self.header['ng'] = 0
-        G = Grid(self.header)
-        self.grid = G
-        if zones_first:
-            self.gcon = G.gcon[Loci.CENT.value].transpose(2, 3, 0, 1)
-            self.gcov = G.gcov[Loci.CENT.value].transpose(2, 3, 0, 1)
-        else:
-            self.gcon = G.gcon[Loci.CENT.value]
-            self.gcov = G.gcov[Loci.CENT.value]
-        self.gdet = G.gdet[Loci.CENT.value]
-        self.lapse = G.lapse[Loci.CENT.value]
+
+        self.grid = G = Grid(self.header, caches=add_grid_caches)
+        if add_grid_caches:
+            if zones_first:
+                self.gcon = G.gcon[Loci.CENT.value].transpose(2, 3, 0, 1)
+                self.gcov = G.gcov[Loci.CENT.value].transpose(2, 3, 0, 1)
+            else:
+                self.gcon = G.gcon[Loci.CENT.value]
+                self.gcov = G.gcov[Loci.CENT.value]
+            self.gdet = G.gdet[Loci.CENT.value]
+            self.lapse = G.lapse[Loci.CENT.value]
 
         self.N1 = G.NTOT[1]
         self.N2 = G.NTOT[2]
