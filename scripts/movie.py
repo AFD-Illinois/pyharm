@@ -71,7 +71,7 @@ def plot(n):
         to_load['add_fails'] = True
     if "floor" in movie_type:
         to_load['add_floors'] = True
-    if "current" in movie_type:
+    if "current" in movie_type or "jsq" in movie_type or "jcon" in movie_type:
         to_load['add_jcon'] = True
     if "divB" in movie_type:
         to_load['add_divB'] = True
@@ -82,7 +82,6 @@ def plot(n):
         plot_ghost = False
     # TODO U if needed
 
-        
     dump = pyHARM.load_dump(files[n], **to_load)
 
     # Title by time, otherwise number
@@ -94,7 +93,7 @@ def plot(n):
     # Zoom in for small problems
     # TODO use same r1d as analysis?
     if len(dump['r'].shape) < 3:
-        window = [-20, 20, -20, 20]
+        window = [-50, 50, -50, 50]
         nlines = 20
         rho_l, rho_h = -6, 0
     elif dump['r'][-1, 0, 0] > 100:

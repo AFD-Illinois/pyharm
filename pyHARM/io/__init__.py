@@ -21,11 +21,15 @@ def get_fnames(path):
     return files
 
 def get_filter(fname):
-    # Choose an importer based on what we know of filenames
+    # Choose an importer based on what we know of file contents, or failing that, names
+    # TODO This can be smarter: test for HDF5 format at all, etc etc.
     if ".phdf" in fname:
         return kharma
     elif ".h5" in fname:
-        return ilhdf
+        if not 'header' in h5py.File(fname, 'r').keys():
+            return kharma
+        else:
+            return ilhdf
     else:
         # HARM ASCII files are *usually* named "dump" with a number
         return harm2d
