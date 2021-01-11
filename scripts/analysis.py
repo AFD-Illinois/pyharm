@@ -59,7 +59,7 @@ calc_madcc = False
 calc_phi = False
 
 # Maxima/minima over the grid that might prove useful diagnostics
-calc_diagnostics = True
+calc_diagnostics = False
 
 # Specialized calculations
 calc_thavgs = False
@@ -84,7 +84,7 @@ tavg_end = None
 tend = None
 path = sys.argv[1]
 if ".h5" not in path:
-    dumps = np.sort(glob(os.path.join(path, "dump_*.h5")))
+    dumps = io.get_fnames(path)
     if len(sys.argv) > 5:
         tstart = float(sys.argv[2])
         tavg_start = float(sys.argv[3])
@@ -132,7 +132,7 @@ jmin, jmax = get_eht_disk_j_vals(dump)
 del dump
 
 # Leave several extra zones if using MKS3 coordinates
-if hdr['metric'] == "mks3":
+if hdr['coordinates'] == "mks3":
     iEH = i_of(r1d, hdr['r_eh']) + 4
 else:
     iEH = i_of(r1d, hdr['r_eh'])
@@ -175,7 +175,8 @@ def avg_dump(n):
         return out
 
     print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
-    dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=True, add_fails=True, add_floors=True)
+    #dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=True, add_fails=True, add_floors=True)
+    dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True)
 
     # Should we compute the time-averaged quantities?
     do_tavgs = (tavg_start <= t <= tavg_end)
@@ -450,15 +451,18 @@ else:
         outf = h5py.File(outfname, 'w')
         print("Replacing existing output: {}".format(outfname))
 
-hdr_preserve = io.hdr.hdf5_to_dict(h5py.File(dumps[0],'r')['header'])
-if not 'header' in outf:
-    outf.create_group('header')
-io.hdr.dict_to_hdf5(hdr_preserve, outf['header'])
+inf = h5py.File(dumps[0],'r')
+if 'header' in inf:
+    hdr_preserve = io.hdr.hdf5_to_dict(inf['header'])
+    if not 'header' in outf:
+        outf.create_group('header')
+    io.hdr.dict_to_hdf5(hdr_preserve, outf['header'])
+inf.close()
 
 # Fill the output dict with all per-dump or averaged stuff
 # Hopefully in a way that doesn't keep too much of it around in memory
 if parallel:
-    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.25)
+    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.5)
     #nthreads = 5
     util.iter_parallel(avg_dump, merge_dict, outf, ND, nthreads)
 else:

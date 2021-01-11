@@ -89,23 +89,23 @@ def plot(n):
         fig.suptitle("t = {}".format(dump['t']))
     except ValueError:
         fig.suptitle("dump {}".format(n))
-    
+
     # Zoom in for small problems
     # TODO use same r1d as analysis?
     if len(dump['r'].shape) < 3:
         window = [-50, 50, -50, 50]
         nlines = 20
-        rho_l, rho_h = -6, 0
+        rho_l, rho_h = -6, 1
     elif dump['r'][-1, 0, 0] > 100:
         window = [-50, 50, -50, 50]
         nlines = 20
-        rho_l, rho_h = -6, 0
+        rho_l, rho_h = -5, 1
         iBZ = i_of(dump['r'][:,0,0], 100) # most MADs
         rBZ = 100
     elif dump['r'][-1, 0, 0] > 10:
         window = [-50, 50, -50, 50]
         nlines = 5
-        rho_l, rho_h = -6, 0
+        rho_l, rho_h = -6, 1
         iBZ = i_of(dump['r'][:,0,0], 40)  # most SANEs
         rBZ = 40
     else: # Then this is a Minkowski simulation or something weird
@@ -447,9 +447,10 @@ def plot(n):
         if "_poloidal" in l_movie_type:
             ax = plt.subplot(1, 1, 1)
             var = l_movie_type[:-9]
-            pplt.plot_xz(ax, dump, var, label=pretty(var),
+            pplt.plot_xz(ax, dump, var, label="",
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
-                        cbar=True, cmap='jet', field_overlay=False)
+                        xlabel=False, ylabel=False, xticks=[], yticks=[],
+                        cbar=False, cmap='jet', field_overlay=False)
         elif "_toroidal" in l_movie_type:
             ax = plt.subplot(1, 2, 1)
             var = l_movie_type[:-9]
@@ -463,6 +464,9 @@ def plot(n):
                         cbar=True, cmap='jet')
         if "divB" in movie_type:
             plt.suptitle("Max divB = {}".format(np.max(dump['divB'])))
+
+        if "jsq" in movie_type:
+            plt.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
 
     #plt.subplots_adjust(left=0.03, right=0.97)
     plt.savefig(os.path.join(frame_dir, 'frame_%08d.png' % n), dpi=FIGDPI)
@@ -515,4 +519,5 @@ if __name__ == "__main__":
             print("Using {} threads".format(nthreads))
         else:
             nthreads = calc_nthreads(io.read_hdr(files[0]), pad=0.6)
+
         run_parallel(plot, len(files), nthreads)
