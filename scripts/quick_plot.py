@@ -19,7 +19,7 @@ FIGX = 10
 FIGY = 10
 
 # TODO parse these instead of hard-coding
-USEARRSPACE = True
+USEARRSPACE = False
 
 if USEARRSPACE:
     window = (0, 1, 0, 1)

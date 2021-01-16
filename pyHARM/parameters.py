@@ -43,6 +43,11 @@ def parse_parthenon_dat(fname, params=None):
     except OSError:
         return None
 
+    # Things KHARMA will never use/modify but need to be *something* for IL HDF file header
+    params['version'] = "kharma-alpha-0.1"
+    params['gridfile'] = "grid.h5"
+    params['n_prims_passive'] = 0
+
     for line in fp:
         # Trim out trailing newline, anything after '#', stray parentheses, headers
         ls = [token.strip().strip('()') for token in line[:-1].split("#")[0].split("<")[0].split("=") if token != '']
@@ -62,8 +67,9 @@ def parse_parthenon_dat(fname, params=None):
     
     # Now do any repairs specific to translating the Parthenon->iharm3d naming scheme
     for pair in (('nx1','n1'), ('nx2','n2'), ('nx3','n3'),
+                 ('n1','n1tot'), ('n2','n2tot'), ('n3','n3tot'),
                  ('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3'),
-                 ('gamma', 'gam')):
+                 ('gamma', 'gam'), ('dt', 'dump_cadence'), ('tlim', 'tf'), ('cfl', 'cour')):
         if (pair[0] in params):
             params[pair[1]] = params[pair[0]]
 

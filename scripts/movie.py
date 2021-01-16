@@ -32,10 +32,6 @@ FIGX = 16
 FIGY = 9
 FIGDPI = 100
 
-# For plotting debug, "array-space" plots
-# Certain plots can override this below
-USEARRSPACE = False
-
 # Load diagnostic data from post-processing (eht_out.p)
 diag_post = False
 
@@ -117,6 +113,11 @@ def plot(n):
     
     # If we're in arrspace we (almost) definitely want a 0,1 window
     # TODO allow zooming in toward corners.  Original r vs th as separate plotting set?
+    if "_array" in movie_type:
+        USEARRSPACE = True
+    else:
+        USEARRSPACE = False
+
     if USEARRSPACE:
         if plot_ghost:
             window = [-0.1, 1.1, -0.1, 1.1]
@@ -436,10 +437,12 @@ def plot(n):
                     vmin=0, vmax=max_fail, cmap='Reds')
 
     else:
+        # Strip global flags from the movie string
+        l_movie_type = movie_type
         if "_ghost" in movie_type:
-            l_movie_type = movie_type.replace("_ghost","")
-        else:
-            l_movie_type = movie_type
+            l_movie_type = l_movie_type.replace("_ghost","")
+        if "_array" in l_movie_type:
+            l_movie_type = l_movie_type.replace("_array","")
 
         # Try to make a simple movie of just the stated variable
         if not "log_" in l_movie_type:

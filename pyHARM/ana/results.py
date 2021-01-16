@@ -129,7 +129,7 @@ def get_ivar(infname, ivar, th_r=None, i_xy=False, mesh=True):
         with h5py.File(infname, 'r') as infile:
             t = infile['coord']['t'][()]
             if io.get_filter(infname) == io.kharma:
-                t *= 1 # TODO
+                t *= 5 # TODO
         if mesh:
             t = np.append(t, t[-1] + (t[-1] - t[0]) / t.shape[0])
         ret_i.append(t)

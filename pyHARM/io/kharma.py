@@ -7,8 +7,11 @@ from pyHARM.grid import Grid
 from .phdf import phdf
 
 def read_hdr(fname, params=None):
+    params_was_none = False
     if params is None:
         params = {}
+        params_was_none = True
+
     # If there's just one file in the same directory, it's probably the right one.
     globpath = "/".join(fname.split("/")[:-1] + ["*.par"])
     if len(glob.glob(globpath)) == 1:
@@ -18,12 +21,17 @@ def read_hdr(fname, params=None):
         return params
     elif parameters.parse_parthenon_dat(fname.split("/")[-1].split(".")[0] + ".par", params) is not None:
         return params
-    else:
+    elif params_was_none:
         raise RuntimeError("No parameter file could be found for KHARMA dump {}".format(fname))
+    # But if params had elements, assume it was taken care of by the user and don't require a file
+    return params
 
 def get_dump_time(fname):
-    # TODO look up the dump spacing in params?  Wait for custom output?
-    return float(fname.split("/")[-1].split(".")[2])
+    try:
+        dt = read_hdr(fname)['dt']
+        return float(fname.split("/")[-1].split(".")[2])
+    except (RuntimeError, IndexError):
+        return 0
 
 def read_dump(fname, add_ghosts=False, params=None):
     f = phdf(fname)

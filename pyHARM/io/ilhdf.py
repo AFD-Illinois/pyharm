@@ -80,6 +80,7 @@ def get_dump_time(fname):
     dfile.close()
     return t
 
+# TODO wrapper that takes an IharmDump object
 def write_dump(params, G, P, t, dt, n_step, n_dump, fname, dump_gamma=True, out_type=np.float32):
     s = G.slices
 
@@ -97,13 +98,15 @@ def write_dump(params, G, P, t, dt, n_step, n_dump, fname, dump_gamma=True, out_
     outf['n_step'] = n_step
 
     # Arrays corresponding to actual data
-    if G.NG > 0:
-        outf["prims"] = np.einsum("p...->...p", P[s.allv + s.bulk]).astype(out_type)
-    else:
-        outf["prims"] = np.einsum("p...->...p", P).astype(out_type)
+    #if G.NG > 0:
+    #    outf["prims"] = np.einsum("p...->...p", P[s.allv + s.bulk]).astype(out_type)
+    #else:
+    outf["prims"] = np.einsum("p...->...p", P).astype(out_type)
 
     # Extra in-situ calculations or custom debugging additions
     if "extras" not in outf:
         outf.create_group("extras")
+    
+    # TODO current, flags
 
     outf.close()
