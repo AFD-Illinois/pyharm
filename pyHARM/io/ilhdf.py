@@ -81,7 +81,7 @@ def get_dump_time(fname):
     return t
 
 # TODO wrapper that takes an IharmDump object
-def write_dump(params, G, P, t, dt, n_step, n_dump, fname, dump_gamma=True, out_type=np.float32):
+def write_dump(params, G, P, t, dt, n_step, n_dump, fname, out_type=np.float32):
     s = G.slices
 
     outf = h5py.File(fname, "w")

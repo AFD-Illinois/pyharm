@@ -308,21 +308,16 @@ def overlay_contours(ax, dump, var, levels, color='k'):
     return ax.contour(x, z, var, levels=levels, colors=color)
 
 
-def overlay_field(ax, dump, **kwargs):
-    overlay_flowlines(ax, dump, dump['B1'], dump['B2'], **kwargs)
+def overlay_field(ax, dump, arrayspace=False, **kwargs):
+    if not arrayspace:
+        overlay_flowlines(ax, dump, dump['B1'], dump['B2'], **kwargs)
 
-
-def overlay_flowlines(ax, dump, varx1, varx2, nlines=50, arrayspace=False, reverse=False):
+def overlay_flowlines(ax, dump, varx1, varx2, nlines=50, reverse=False):
     N1 = dump['n1']
     N2 = dump['n2']
-    if arrayspace:
-        x1_norm = (dump['X1'] - dump['startx1']) / (dump['n1'] * dump['dx1'])
-        x2_norm = (dump['X2'] - dump['startx2']) / (dump['n2'] * dump['dx2'])
-        x = _flatten_xz(x1_norm)[dump['n1']:, :]
-        z = _flatten_xz(x2_norm)[dump['n1']:, :]
-    else:
-        x = _flatten_xz(dump['x'])
-        z = _flatten_xz(dump['z'])
+
+    x = _flatten_xz(dump['x'])
+    z = _flatten_xz(dump['z'])
 
     varx1 = varx1.mean(axis=-1)
     varx2 = varx2.mean(axis=-1)
@@ -341,10 +336,7 @@ def overlay_flowlines(ax, dump, varx1, varx2, nlines=50, arrayspace=False, rever
     AJ_phi -= AJ_phi.min()
     levels = np.linspace(0, AJ_phi.max(), nlines * 2)
 
-    if arrayspace:
-        ax.contour(x, z, AJ_phi[N1:, :], levels=levels, colors='k')
-    else:
-        ax.contour(x, z, AJ_phi, levels=levels, colors='k')
+    ax.contour(x, z, AJ_phi, levels=levels, colors='k')
 
 
 def overlay_quiver(ax, dump, varx1, varx2, cadence=64, norm=1):

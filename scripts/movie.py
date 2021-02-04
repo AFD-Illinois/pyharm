@@ -445,26 +445,26 @@ def plot(n):
             l_movie_type = l_movie_type.replace("_array","")
 
         # Try to make a simple movie of just the stated variable
-        if not "log_" in l_movie_type:
-            rho_l, rho_h = None, None
+        # These are *informal*.  Renormalize the colorscheme however we want
+        rho_l, rho_h = None, None
         if "_poloidal" in l_movie_type:
             ax = plt.subplot(1, 1, 1)
             var = l_movie_type[:-9]
             pplt.plot_xz(ax, dump, var, label="",
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         xlabel=False, ylabel=False, xticks=[], yticks=[],
-                        cbar=False, cmap='jet', field_overlay=False)
+                        cbar=False, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
         elif "_toroidal" in l_movie_type:
             ax = plt.subplot(1, 2, 1)
             var = l_movie_type[:-9]
             pplt.plot_xy(ax, dump, var, label=pretty(var),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
-                        cbar=True, cmap='jet')
+                        cbar=True, cmap='jet', shading=('gouraud', 'flat')[USEARRSPACE])
         else:
             ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
             pplt.plot_slices(ax_slc[0], ax_slc[1], dump, l_movie_type, label=pretty(l_movie_type),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
-                        cbar=True, cmap='jet')
+                        cbar=True, cmap='jet', shading=('gouraud', 'flat')[USEARRSPACE])
         if "divB" in movie_type:
             plt.suptitle("Max divB = {}".format(np.max(dump['divB'])))
 

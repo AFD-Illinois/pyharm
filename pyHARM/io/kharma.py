@@ -1,6 +1,7 @@
 
 import numpy as np
 import glob
+import h5py
 
 import pyHARM.parameters as parameters
 from pyHARM.grid import Grid
@@ -27,11 +28,15 @@ def read_hdr(fname, params=None):
     return params
 
 def get_dump_time(fname):
-    try:
-        dt = read_hdr(fname)['dt']
-        return float(fname.split("/")[-1].split(".")[2])
-    except (RuntimeError, IndexError):
-        return 0
+    dfile = h5py.File(fname, 'r')
+
+    if 'Info' in dfile.keys():
+        t = dfile['Info'].attrs['Time']
+    else:
+        t = 0
+
+    dfile.close()
+    return t
 
 def read_dump(fname, add_ghosts=False, params=None):
     f = phdf(fname)
@@ -66,6 +71,10 @@ def read_dump(fname, add_ghosts=False, params=None):
     else:
         ng_iz = ng_ix
 
+    # Set incidental parameters from what we've read
+    params['t'] = f.Time
+    params['n_step'] = f.NCycle
+    params['n_dump'] = int(fname.split("/")[-1].split(".")[2]) # This assumes the usual Parthenon naming
     params['startx1'] = G.startx[1]
     params['startx2'] = G.startx[2]
     params['startx3'] = G.startx[3]
@@ -101,7 +110,8 @@ def read_dump(fname, add_ghosts=False, params=None):
             o = [None, None, None, None, None, None]
         # False == don't flatten into 1D array
         #print("Bound ", b)
-        P[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = f.Get('c.c.bulk.prims', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
+        P[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
+            f.Get('c.c.bulk.prims', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
 
     return (P, params)
 
@@ -172,6 +182,7 @@ def read_jcon(fname, add_ghosts=False):
         else:
             o = [None, None, None, None, None, None]
         # False == don't flatten into 1D array
-        jcon[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = f.Get('c.c.bulk.jcon', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
+        jcon[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
+            f.Get('c.c.bulk.jcon', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
 
     return jcon

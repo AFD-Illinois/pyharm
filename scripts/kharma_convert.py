@@ -15,8 +15,7 @@ os.makedirs("dumps", exist_ok=True)
 
 for dumpname in sys.argv[1:]:
     dump = pyHARM.load_dump(dumpname)
-    ndump = int(dumpname.split(".")[2]) # This assumes the usual Parthenon output format
-    t = dump.params['dump_cadence'] * ndump
-    # The zeros are dt and nstep.  KHARMA does not record those values at all
-    pyHARM.io.ilhdf.write_dump(dump.params, dump.grid, dump.prims, t, 0, 0, ndump,
+    hdr = dump.params
+    # The zero is dt, which KHARMA does not keep
+    pyHARM.io.ilhdf.write_dump(hdr, dump.grid, dump.prims, hdr['t'], 0.0, hdr['n_step'], hdr['n_dump'],
                                 "dumps/"+dumpname.replace(".phdf", ".h5"))
