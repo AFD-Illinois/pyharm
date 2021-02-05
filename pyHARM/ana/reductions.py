@@ -24,27 +24,33 @@ def corr_midplane(var, norm=True, at_i1=None):
      """
     if at_i1 is None:
         at_i1 = range(var.shape[0])
+    if isinstance(at_i1,int):
+        at_i1 = [at_i1]
 
+    # This selects the midplane-adjacent zones N2/2-1 & N2/2
     jmin = var.shape[1] // 2 - 1
     jmax = var.shape[1] // 2 + 1
 
     R = np.zeros((len(at_i1), var.shape[2]))
 
     # TODO is there a way to vectorize over R? Also, are we going to average over adjacent r ever?
-    for i1 in at_i1:
+    for i_out,i1 in enumerate(at_i1):
         # Average over small angle around midplane
         var_phi = np.mean(var[i1, jmin:jmax, :], axis=0)
         # Calculate autocorrelation
         var_phi_normal = (var_phi - np.mean(var_phi)) / np.std(var_phi)
         var_corr = fft.ifft(np.abs(fft.fft(var_phi_normal)) ** 2)
-        R[i1] = np.real(var_corr) / var_corr.size
+        R[i_out] = np.real(var_corr) / var_corr.size
 
     if norm:
         normR = R[:, 0]
         for k in range(var.shape[2]):
             R[:, k] /= normR
 
-    return R
+    if R.shape[0] == 1:
+        return R[0,:]
+    else:
+        return R
 
 
 def corr_midplane_direct(var, norm=True):

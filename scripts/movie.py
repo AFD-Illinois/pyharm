@@ -81,10 +81,10 @@ def plot(n):
     dump = pyHARM.load_dump(files[n], **to_load)
 
     # Title by time, otherwise number
-    try:
-        fig.suptitle("t = {}".format(dump['t']))
-    except ValueError:
-        fig.suptitle("dump {}".format(n))
+    #try:
+    #    fig.suptitle("t = {}".format(int(dump['t'])))
+    #except ValueError:
+    #    fig.suptitle("dump {}".format(n))
 
     # Zoom in for small problems
     # TODO use same r1d as analysis?
@@ -93,9 +93,10 @@ def plot(n):
         nlines = 20
         rho_l, rho_h = -6, 1
     elif dump['r'][-1, 0, 0] > 100:
-        window = [-50, 50, -50, 50]
+        sz = 100
+        window = [-sz, sz, -sz, sz]
         nlines = 20
-        rho_l, rho_h = -5, 1
+        rho_l, rho_h = -3, 1.5
         iBZ = i_of(dump['r'][:,0,0], 100) # most MADs
         rBZ = 100
     elif dump['r'][-1, 0, 0] > 10:
@@ -197,7 +198,7 @@ def plot(n):
         ppltr.plot_diag(ax_flux[0], diag, 'Mdot', tline=dump['t'], logy=LOG_MDOT)
         ppltr.plot_diag(ax_flux[1], diag, 'Phi_b', tline=dump['t'], logy=LOG_PHI)
     
-    elif movie_type == "traditional":
+    elif movie_type == "traditional" or movie_type == "eht":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         # Usual movie: RHO beta fluxes
         # CUTS
@@ -321,9 +322,9 @@ def plot(n):
         ax_slc = lambda i: plt.subplot(1, 2, i)
         # Usual movie: RHO beta fluxes
         # CUTS
-        bplt.plot_xz(ax_slc(1), dump, 'log_rho', label=pretty('log_rho')+" phi-average", average=True,
+        pplt.plot_xz(ax_slc(1), dump, 'log_rho', label=pretty('log_rho')+" phi-average", average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
-        bplt.plot_xz(ax_slc(2), dump, 'log_bsq', label=pretty('log_bsq')+" phi-average", average=True,
+        pplt.plot_xz(ax_slc(2), dump, 'log_bsq', label=pretty('log_bsq')+" phi-average", average=True,
                         vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
 
     elif movie_type == "b_bug":
@@ -357,7 +358,7 @@ def plot(n):
         # Continuity plots to verify local conservation of energy, angular + linear momentum
         # Integrated T01: continuity for momentum conservation
 
-        bplt.plot_slices(ax_slc(1), ax_slc(2), dump, T_mixed(dump, 1, 0),
+        pplt.plot_slices(ax_slc(1), ax_slc(2), dump, T_mixed(dump, 1, 0),
                             label=r"$T^1_0$ Integrated", vmin=0, vmax=2000, arrspace=True, integrate=True)
         # integrated T00: continuity plot for energy conservation
         pplt.plot_slices(ax_slc(5), ax_slc(6), dump, np.abs(T_mixed(dump, 0, 0)),
@@ -374,9 +375,9 @@ def plot(n):
         mass_r = shell_sum(dump, dump['ucon'][0] * dump['RHO'])
 
         max_e = 50000
-        bplt.radial_plot(ax_flux(2), dump, np.abs(E_r), title='Conserved vars at R', ylim=(0, max_e), rlim=(0, r_out), label="E_r")
-        bplt.radial_plot(ax_flux(2), dump, np.abs(Ang_r) / 10, ylim=(0, max_e), rlim=(0, r_out), color='r', label="L_r")
-        bplt.radial_plot(ax_flux(2), dump, np.abs(mass_r), ylim=(0, max_e), rlim=(0, r_out), color='b', label="M_r")
+        pplt.radial_plot(ax_flux(2), dump, np.abs(E_r), title='Conserved vars at R', ylim=(0, max_e), rlim=(0, r_out), label="E_r")
+        pplt.radial_plot(ax_flux(2), dump, np.abs(Ang_r) / 10, ylim=(0, max_e), rlim=(0, r_out), color='r', label="L_r")
+        pplt.radial_plot(ax_flux(2), dump, np.abs(mass_r), ylim=(0, max_e), rlim=(0, r_out), color='b', label="M_r")
         ax_flux(2).legend()
     
         # Radial energy accretion rate
