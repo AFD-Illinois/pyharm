@@ -44,7 +44,7 @@ from pyHARM.util import i_of
 
 # Whether to augment or replace existing results
 # Augmenting behaves *very* badly when jobs time out or are cancelled
-# TODO more stringent checks on file validity before blindly appending
+# TODO add more file checks before appending to make augmenting more reliable
 augment = False
 
 # Whether to calculate each set of variables
@@ -53,8 +53,10 @@ calc_basic = True # Fluxes at horizon, often needed before movies, as basic chec
 calc_ravgs = True # Radial averages in the disk for code comparisons
 calc_efluxes = False # Fluxes in places other than the horizon, to judge infall equilibrium etc.
 
-# Stuff written specifically for the MAD code comparison which is long or
-calc_madcc = False
+# Stuff written specifically for the MAD code comparison
+# A little long but useful
+calc_madcc = True
+calc_madcc_optional = True
 # Field fluxes away from EH
 calc_phi = False
 
@@ -64,7 +66,7 @@ calc_diagnostics = False
 # Specialized calculations
 calc_thavgs = False
 calc_omega_bz = False
-calc_jet_profile = True
+calc_jet_profile = False
 calc_jet_cuts = False
 calc_lumproxy = False
 calc_gridtotals = False
@@ -137,7 +139,7 @@ if hdr['coordinates'] == "mks3":
 else:
     iEH = i_of(r1d, hdr['r_eh'])
 
-# Measure fluxes at event horizon. TODO option for which zone here, or multiple. Record.
+# Measure fluxes at event horizon. TODO options here?
 iF = iEH
 
 # Max radius when computing "total" energy
@@ -165,18 +167,17 @@ def avg_dump(n):
     # When we don't know times, fudge
     # TODO accept -1 as "Not available" flag in the HDF5 spec
     if t == 0 and n != 0:
-        t = n
+        t = 10*n
     # Record
     out['coord/t'] = t
 
     if t < tstart or t > tend:
-        # print("Loaded {} / {}: {} (SKIPPED)".format((n+1), len(dumps), t))
         # Still return the time
         return out
 
     print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
-    #dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=True, add_fails=True, add_floors=True)
-    dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True)
+    # TODO Add only what we need here...
+    dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=True, add_fails=True, add_floors=True)
 
     # Should we compute the time-averaged quantities?
     do_tavgs = (tavg_start <= t <= tavg_end)
@@ -193,10 +194,6 @@ def avg_dump(n):
 
     if calc_thavgs:
         if do_tavgs:
-            # CORRELATION FUNCTION
-            for var in ['rho', 'betainv']:
-                out['rphi/' + var + '_cf'] = corr_midplane(dump[var])
-
             # THETA AVERAGES
             for var in ['betainv', 'sigma']:
                 out['th/' + var + '_25'] = theta_av(dump, var, i_of(r1d, 25), 5, fold=False)
@@ -242,6 +239,36 @@ def avg_dump(n):
             for var in ['rho', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'Pg', 'betainv', 'sigma']:
                 out['rth/' + var] = dump[var].mean(axis=-1)
 
+    if calc_madcc_optional:
+        # Wavelength of fastest MRI mode for calculating suppression factor
+        out['rt/lam_MRI'] = (shell_sum(dump, dump['rho']*dump['lam_MRI']) /
+                             shell_sum(dump, dump['rho']))
+
+        # Correlation functions at specific radii
+        for var in ['rho', 'betainv']:
+            out['phit/' + var + '_cf10'] = corr_midplane(dump[var], at_i1=i_of(r1d, 10))
+            out['phit/' + var + '_cf20'] = corr_midplane(dump[var], at_i1=i_of(r1d, 20))
+            out['phit/' + var + '_cf30'] = corr_midplane(dump[var], at_i1=i_of(r1d, 30))
+            out['phit/' + var + '_cf50'] = corr_midplane(dump[var], at_i1=i_of(r1d, 50))
+
+        for w_r in [50, 100]:
+            for w_pole, w_slice in [('north', (0, jmin)), ('south', (0, jmax, dump.header['n2']))]:
+                # CMs for jet wander calculation
+                out['t/M_'+w_pole+'_'+str(w_r)] = M = shell_sum(dump, dump['jet_psi'], j_slice=w_slice, at_r=w_r)
+                out['t/X_'+w_pole+'_'+str(w_r)] = X = 1/M * shell_sum(dump, dump['x']*dump['jet_psi'], j_slice=w_slice, at_r=w_r)
+                out['t/Y_'+w_pole+'_'+str(w_r)] = Y = 1/M * shell_sum(dump, dump['y']*dump['jet_psi'], j_slice=w_slice, at_r=w_r)
+                # Moments for jet wander calculation
+                out['t/Ixx_'+w_pole+'_'+str(w_r)] = shell_sum(dump, (dump['x'] - X)**2 * dump['jet_psi'], j_slice=w_slice, at_r=w_r)
+                out['t/Iyy_'+w_pole+'_'+str(w_r)] = shell_sum(dump, (dump['y'] - Y)**2 * dump['jet_psi'], j_slice=w_slice, at_r=w_r)
+                out['t/Ixy_'+w_pole+'_'+str(w_r)] = shell_sum(dump, (dump['x'] - X)*(dump['y'] - Y)*dump['jet_psi'], j_slice=w_slice, at_r=w_r)
+                del M, X, Y
+
+        if do_tavgs:
+            # Full midplane correlation function, time-averaged
+            for var in ['rho', 'betainv']:
+                out['rphi/' + var + '_cf'] = corr_midplane(dump[var])
+
+
     # Polar profiles of different fluxes and variables
     if calc_jet_profile:
         for var in ['rho', 'bsq', 'b^r', 'b^th', 'b^3', 'u^r', 'u^th', 'u^3', 'FM', 'FE', 'FE_EM', 'FE_Fl', 'FL', 'FL_EM', 'FL_Fl', 'betagamma', 'Be_nob', 'Be_b']:
@@ -256,14 +283,11 @@ def avg_dump(n):
     if calc_jet_cuts:
         # TODO cut on phi/t averages? -- needs 2-pass cut...
         cuts = {'sigma1': lambda dump: (dump['sigma'] > 1),
-                # 'sigma10' : lambda dump : (dump['sigma'] > 10),
                 'Be_b0': lambda dump: (dump['Be_b'] > 0.02),
                 'Be_b1': lambda dump: (dump['Be_b'] > 1),
                 'Be_nob0': lambda dump: (dump['Be_nob'] > 0.02),
                 'Be_nob1': lambda dump: (dump['Be_nob'] > 1),
                 # 'mu1' : lambda dump : (dump['mu'] > 1),
-                # 'mu2' : lambda dump : (dump['mu'] > 2),
-                # 'mu3' : lambda dump : (dump['mu'] > 3),
                 'bg1': lambda dump: (dump['betagamma'] > 1.0),
                 'bg05': lambda dump: (dump['betagamma'] > 0.5),
                 'allp': lambda dump: (dump['FE'] > 0)}
@@ -369,17 +393,23 @@ def merge_dict(n, out, out_full):
     # Merge the output dicts, translate ending tags from above into HDF5 groups for easier merge/read
     for key in list(out.keys()):
         tag = key.split('/')[0]
-        if key not in out_full:  # Add the destination ndarray if not present
+        if key not in out_full:
+            # Add the destination ndarray if not present
+            # TODO this can probably be reduced to zeros(ND+out[key[-1]].shape)
             if tag == 'rt':
                 out_full[key] = np.zeros((ND, hdr['n1']))
             elif tag == 'htht':
                 out_full[key] = np.zeros((ND, hdr['n2'] // 2))
             elif tag == 'tht':
                 out_full[key] = np.zeros((ND, hdr['n2']))
+            elif tag == 'phit':
+                out_full[key] = np.zeros((ND, hdr['n3']))
             elif tag == 'rtht':
                 out_full[key] = np.zeros((ND, hdr['n1'], hdr['n2']))
             elif tag == 'thphit':
                 out_full[key] = np.zeros((ND, hdr['n2'], hdr['n3']))
+            elif tag == 'rphit':
+                out_full[key] = np.zeros((ND, hdr['n1'], hdr['n3']))
             elif tag == 'pdft':
                 out_full[key] = np.zeros((ND, pdf_nbins))
             elif tag in ['r', 'hth', 'rhth', 'th', 'phi', 'rth', 'rphi', 'thphi', 'pdf']:
@@ -462,7 +492,7 @@ inf.close()
 # Fill the output dict with all per-dump or averaged stuff
 # Hopefully in a way that doesn't keep too much of it around in memory
 if parallel:
-    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.5)
+    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.25)
     #nthreads = 5
     util.iter_parallel(avg_dump, merge_dict, outf, ND, nthreads)
 else:

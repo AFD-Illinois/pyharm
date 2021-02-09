@@ -14,7 +14,7 @@ from pyHARM.checks import divB
 fns_dict = {'rho': lambda dump: dump['RHO'],
             'bsq': lambda dump: dump.grid.dot(dump['bcov'], dump['bcon']),
             'sigma': lambda dump: dump['bsq'] / dump['RHO'],
-            'U': lambda dump: dump['UU'],
+            'u': lambda dump: dump['UU'],
             'FM': lambda dump: dump['RHO'] * dump['ucon'][1],
             'FE': lambda dump: -T_mixed(dump, 1, 0),
             'FE_EM': lambda dump: -TEM_mixed(dump, 1, 0),
@@ -27,6 +27,7 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'Be_b': lambda dump: bernoulli(dump, with_B=True),
             'Be_nob': lambda dump: bernoulli(dump, with_B=False),
             'Pg': lambda dump: (dump.header['gam'] - 1.) * dump['UU'],
+            'p': lambda dump: dump['Pg'],
             'Pb': lambda dump: dump['bsq'] / 2,
             'Ptot': lambda dump: dump['Pg'] + dump['Pb'],
             'beta': lambda dump: dump['Pg'] / dump['Pb'],
@@ -42,13 +43,15 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'JE0': lambda dump: T_mixed(dump, 0, 0),
             'JE1': lambda dump: T_mixed(dump, 1, 0),
             'JE2': lambda dump: T_mixed(dump, 2, 0),
+            'lam_MRI': lambda dump: lam_MRI(dump),
+            'jet_psi': lambda dump: jet_psi(dump),
             'divB': lambda dump: divB(dump.grid, dump.prims),
             }
 
 pretty_dict = {'rho': r"\rho",
             'bsq': r"b^{2}",
             'sigma': r"\sigma",
-            'U': r"U",
+            'u': r"u",
             'u_t': r"u_{t}",
             'u^t': r"u^{t}",
             'u_r': r"u_{r}",
@@ -67,6 +70,7 @@ pretty_dict = {'rho': r"\rho",
             'Be_b': r"Be_{\mathrm{B}}",
             'Be_nob': r"Be_{\mathrm{Fluid}}",
             'Pg': r"P_g",
+            'p': r"P_g",
             'Pb': r"P_b",
             'Ptot': r"P_{\mathrm{tot}}",
             'beta': r"\beta",
@@ -200,6 +204,12 @@ def bernoulli(dump, with_B=False):
     else:
         return -(1 + dump.header['gam'] * dump['UU'] / dump['RHO']) * dump['ucov'][0] - 1
 
+def lam_MRI(dump):
+    return (2*np.pi)/(dump['u^3']/dump['u^0']) * dump['b^th']/np.sqrt(dump['rho'] + dump['u'] + dump['p'] + dump['bsq'])
+
+def jet_psi(dump):
+    sig = dump['sigma']
+    return np.where(sig >= 1, 1, np.where(sig <= 0.1, 0, sig))
 
 # TODO needs work...
 def jnu_inv(nu, Thetae, Ne, B, theta):
