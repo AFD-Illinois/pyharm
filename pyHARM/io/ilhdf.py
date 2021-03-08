@@ -51,7 +51,7 @@ def read_floor_flags(fname, **kwargs):
     with h5py.File(fname, "r") as infile:
         return _prep_array(infile['/extras/fixup'][()], **kwargs)
 
-def _prep_array(arr, zones_first=False, as_double=False):
+def _prep_array(arr, zones_first=False, as_double=False, add_ghosts=False):
     """Re-order and optionally up-convert an array from a file,
     to put it in usual pyHARM order/format
     """

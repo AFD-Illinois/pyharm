@@ -13,9 +13,15 @@ import pyHARM
 
 os.makedirs("dumps", exist_ok=True)
 
-for dumpname in sys.argv[1:]:
+dump_list = sys.argv[1:]
+
+def convert(n):
+    dumpname = dump_list[n]
     dump = pyHARM.load_dump(dumpname, add_grid_caches=False)
     hdr = dump.params
     # The zero is dt, which KHARMA does not keep
     pyHARM.io.ilhdf.write_dump(hdr, dump.grid, dump.prims, hdr['t'], 0.0, hdr['n_step'], hdr['n_dump'],
                                 "dumps/"+dumpname.replace(".phdf", ".h5"))
+
+
+pyHARM.util.run_parallel(convert, len(dump_list), 40)
