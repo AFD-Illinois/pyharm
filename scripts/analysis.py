@@ -55,8 +55,8 @@ calc_efluxes = False # Fluxes in places other than the horizon, to judge infall 
 
 # Stuff written specifically for the MAD code comparison
 # A little long but useful
-calc_madcc = True
-calc_madcc_optional = True
+calc_madcc = False
+calc_madcc_optional = False
 # Field fluxes away from EH
 calc_phi = False
 
@@ -251,16 +251,18 @@ def avg_dump(n):
             out['phit/' + var + '_cf30'] = corr_midplane(dump[var], at_i1=i_of(r1d, 30))
             out['phit/' + var + '_cf50'] = corr_midplane(dump[var], at_i1=i_of(r1d, 50))
 
+        # Jet profile moments/ellipse
         for w_r in [50, 100]:
-            for w_pole, w_slice in [('north', (0, jmin)), ('south', (0, jmax, dump.header['n2']))]:
-                # CMs for jet wander calculation
-                out['t/M_'+w_pole+'_'+str(w_r)] = M = shell_sum(dump, dump['jet_psi'], j_slice=w_slice, at_r=w_r)
-                out['t/X_'+w_pole+'_'+str(w_r)] = X = 1/M * shell_sum(dump, dump['x']*dump['jet_psi'], j_slice=w_slice, at_r=w_r)
-                out['t/Y_'+w_pole+'_'+str(w_r)] = Y = 1/M * shell_sum(dump, dump['y']*dump['jet_psi'], j_slice=w_slice, at_r=w_r)
-                # Moments for jet wander calculation
-                out['t/Ixx_'+w_pole+'_'+str(w_r)] = shell_sum(dump, (dump['x'] - X)**2 * dump['jet_psi'], j_slice=w_slice, at_r=w_r)
-                out['t/Iyy_'+w_pole+'_'+str(w_r)] = shell_sum(dump, (dump['y'] - Y)**2 * dump['jet_psi'], j_slice=w_slice, at_r=w_r)
-                out['t/Ixy_'+w_pole+'_'+str(w_r)] = shell_sum(dump, (dump['x'] - X)*(dump['y'] - Y)*dump['jet_psi'], j_slice=w_slice, at_r=w_r)
+            for w_pole, w_slice in [('north', (0, jmin)), ('south', (jmax, dump.header['n2']))]:
+                # CM
+                out['thphit/jet_psi_'+w_pole+'_'+str(w_r)] = dump['jet_psi'][i_of(r1d, w_r), :, :]
+                out['t/M_'+w_pole+'_'+str(w_r)] = M = shell_sum(dump, dump['jet_psi'] * np.cos(dump['th']), j_slice=w_slice, at_r=w_r)
+                out['t/X_'+w_pole+'_'+str(w_r)] = X = 1/M * shell_sum(dump, dump['x']*dump['jet_psi'] * np.cos(dump['th']), j_slice=w_slice, at_r=w_r)
+                out['t/Y_'+w_pole+'_'+str(w_r)] = Y = 1/M * shell_sum(dump, dump['y']*dump['jet_psi'] * np.cos(dump['th']), j_slice=w_slice, at_r=w_r)
+                # Moments
+                out['t/Ixx_'+w_pole+'_'+str(w_r)] = shell_sum(dump, (dump['x'] - X)**2 * dump['jet_psi'] * np.cos(dump['th']), j_slice=w_slice, at_r=w_r)
+                out['t/Iyy_'+w_pole+'_'+str(w_r)] = shell_sum(dump, (dump['y'] - Y)**2 * dump['jet_psi'] * np.cos(dump['th']), j_slice=w_slice, at_r=w_r)
+                out['t/Ixy_'+w_pole+'_'+str(w_r)] = shell_sum(dump, (dump['x'] - X) * (dump['y'] - Y) * dump['jet_psi'] * np.cos(dump['th']), j_slice=w_slice, at_r=w_r)
                 del M, X, Y
 
         if do_tavgs:

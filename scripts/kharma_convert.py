@@ -14,7 +14,7 @@ import pyHARM
 os.makedirs("dumps", exist_ok=True)
 
 for dumpname in sys.argv[1:]:
-    dump = pyHARM.load_dump(dumpname)
+    dump = pyHARM.load_dump(dumpname, add_grid_caches=False)
     hdr = dump.params
     # The zero is dt, which KHARMA does not keep
     pyHARM.io.ilhdf.write_dump(hdr, dump.grid, dump.prims, hdr['t'], 0.0, hdr['n_step'], hdr['n_dump'],

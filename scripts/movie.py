@@ -93,43 +93,42 @@ def plot(n):
     # TODO use same r1d as analysis?
     if len(dump['r'].shape) < 3:
         r1d = dump['r'][:,0]
-        window = [-50, 50, -50, 50]
+        sz = 50
         nlines = 20
         rho_l, rho_h = -6, 1
     else:
         r1d = dump['r'][:,0,0]
         if dump['r'][-1, 0, 0] > 100:
-            sz = 100
-            window = [-sz, sz, -sz, sz]
+            sz = 50
             nlines = 20
-            rho_l, rho_h = -3, 1.5
+            rho_l, rho_h = -5, 1.5
             iBZ = i_of(r1d, 100) # most MADs
             rBZ = 100
         elif dump['r'][-1, 0, 0] > 10:
-            window = [-50, 50, -50, 50]
+            sz = 50
             nlines = 5
             rho_l, rho_h = -6, 1
             iBZ = i_of(r1d, 40)  # most SANEs
             rBZ = 40
-        else: # Then this is a Minkowski simulation or something weird
-            window = [dump['x'][0,0,0], dump['x'][-1,-1,-1], dump['y'][0,0,0], dump['y'][-1,-1,-1]]
+        else: # Then this is a Minkowski simulation or something weird. Guess.
+            sz = (dump['x'][-1,0,0] - dump['x'][0,0,0]) / 2
             nlines = 0
             rho_l, rho_h = -2, 0.0
             iBZ = 1
             rBZ = 1
     
+    window = [-sz, sz, -sz, sz]
+
     # If we're in arrspace we (almost) definitely want a 0,1 window
     # TODO allow zooming in toward corners.  Original r vs th as separate plotting set?
     if "_array" in movie_type:
         USEARRSPACE = True
-    else:
-        USEARRSPACE = False
-
-    if USEARRSPACE:
         if plot_ghost:
             window = [-0.1, 1.1, -0.1, 1.1]
         else:
             window = [0, 1, 0, 1]
+    else:
+        USEARRSPACE = False
     
     if movie_type == "simplest_poloidal":
         # Simplest movie: just RHO, poloidal slice
@@ -486,7 +485,7 @@ def plot(n):
 
         # Try to make a simple movie of just the stated variable
         # These are *informal*.  Renormalize the colorscheme however we want
-        rho_l, rho_h = None, None
+        #rho_l, rho_h = None, None
         if "_poloidal" in l_movie_type:
             ax = plt.subplot(1, 1, 1)
             var = l_movie_type.replace("_poloidal","")
@@ -506,6 +505,8 @@ def plot(n):
             pplt.plot_slices(ax_slc[0], ax_slc[1], dump, var, at=at, label=pretty(l_movie_type),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         cbar=True, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
+        
+        # Labels
         if "divB" in movie_type:
             plt.suptitle(r"Max $\nabla \cdot B$ = {}".format(np.max(np.abs(dump['divB']))))
 
