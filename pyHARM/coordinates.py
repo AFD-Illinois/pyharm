@@ -116,6 +116,10 @@ class CoordinateSystem(object):
         # TODO add option to return gdet for speed
         if len(gcov.shape) == 2:
             return la.inv(gcov)
+        elif len(gcov.shape) == 3:
+            # Canon ordering is mu,nu,i,j for what I swear are good reasons
+            gcov_t = gcov.transpose((2, 0, 1))
+            return la.inv(gcov_t).transpose((2, 0, 1))
         elif len(gcov.shape) == 4:
             # Canon ordering is mu,nu,i,j for what I swear are good reasons
             gcov_t = gcov.transpose((2, 3, 0, 1))
@@ -131,6 +135,10 @@ class CoordinateSystem(object):
         # TODO could share more code w/above. Worth it?
         if len(gcov.shape) == 2:
             return np.sqrt(-la.det(gcov))
+        elif len(gcov.shape) == 3:
+            gcov_t = gcov.transpose((2, 0, 1))
+            gdet = np.sqrt(-la.det(gcov_t))
+            return gdet
         elif len(gcov.shape) == 4:
             gcov_t = gcov.transpose((2, 3, 0, 1))
             gdet = np.sqrt(-la.det(gcov_t))

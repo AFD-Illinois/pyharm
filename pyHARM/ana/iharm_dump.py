@@ -12,16 +12,16 @@ from pyHARM.grid import Grid
 import pyHARM.io as io
 
 import pyHARM.ana.variables as vars
-
+from pyHARM.checks import divB
 
 class IharmDump:
     """Read and cache data from a fluid dump file in HARM HDF5 format, and allow accessing
     various derived variables directly.
     """
 
-    def __init__(self, fname, params=None, calc_cons=False, calc_derived=False,
+    def __init__(self, fname, params=None, calc_cons=False, calc_derived=False, calc_divB=False,
                  add_jcon=False, add_floors=False, add_fails=False, add_ghosts=False, add_divB=False,
-                 add_grid_caches=True, tag="", zones_first=False):
+                 add_psi_cd=False, add_grid_caches=True, tag="", zones_first=False):
         """Read the HDF5 file 'fname' into memory, and pre-calculate/cache useful variables
         @param calc_cons: calculate the conserved variables U, i.e. run 'prim_to_flux(...,0)' from HARM
         @param calc_derived: calculate the derived 4-vectors u, b and fluid Lorentz factor gamma
@@ -47,13 +47,15 @@ class IharmDump:
         my_filter = io.get_filter(fname)
         P, params = my_filter.read_dump(fname, add_ghosts=add_ghosts, params=params)
         if add_jcon:
-            self.jcon = my_filter.read_jcon(fname)
+            self.jcon = my_filter.read_jcon(fname, add_ghosts=add_ghosts)
         if add_fails:
-            self.fails = my_filter.read_fail_flags(fname)
+            self.fails = my_filter.read_fail_flags(fname, add_ghosts=add_ghosts)
         if add_floors:
-            self.floors = my_filter.read_floor_flags(fname)
+            self.floors = my_filter.read_floor_flags(fname, add_ghosts=add_ghosts)
         if add_divB:
-            self.divB = my_filter.read_divb(fname)
+            self.divB = my_filter.read_divb(fname, add_ghosts=add_ghosts)
+        if add_psi_cd:
+            self.psi_cd = my_filter.read_psi_cd(fname, add_ghosts=add_ghosts)
 
         self.header = self.params = params
 
@@ -74,6 +76,9 @@ class IharmDump:
         self.N1 = G.NTOT[1]
         self.N2 = G.NTOT[2]
         self.N3 = G.NTOT[3]
+
+        if calc_divB:
+            self.divB = divB(G, P)
 
         if calc_derived or calc_cons:
             # Derived variables

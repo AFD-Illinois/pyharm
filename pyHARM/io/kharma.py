@@ -189,11 +189,16 @@ def read_jcon(fname, add_ghosts=False):
 
     return jcon
 
-def read_psi(fname, add_ghosts=False):
+def read_psi_cd(fname, add_ghosts=False):
     return read_scalar(fname, 'c.c.bulk.psi_cd_prim', add_ghosts=add_ghosts)
 
 def read_divb(fname, add_ghosts=False):
-    return read_scalar(fname, 'c.c.bulk.divB', add_ghosts=add_ghosts)
+    divb = read_scalar(fname, 'c.c.bulk.divB_cd', add_ghosts=add_ghosts)
+    if divb is None:
+        divb = read_scalar(fname, 'c.c.bulk.divB_ct', add_ghosts=add_ghosts)
+    if divb is None:
+        divb = read_scalar(fname, 'c.c.bulk.divB', add_ghosts=add_ghosts)
+    return divb
 
 def read_fail_flags(fname, add_ghosts=False):
     return read_scalar(fname, 'c.c.bulk.pflag', dtype=np.int32, add_ghosts=add_ghosts)
@@ -265,7 +270,9 @@ def read_scalar(fname, scalar_name, dtype=np.float64, add_ghosts=False):
         else:
             o = [None, None, None, None, None, None]
         # False == don't flatten into 1D array
+        fvar = f.Get(scalar_name, False)
+        if fvar is None: return None
         var[b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
-            f.Get(scalar_name, False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+            fvar[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
 
     return var

@@ -112,7 +112,8 @@ def decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
 def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             xlabel=True, ylabel=True, arrayspace=False, log=False,
             average=False, integrate=False, half_cut=False,
-            cmap='jet', shading='gouraud', cbar=True, use_imshow=False, **kwargs):
+            cmap='jet', shading='gouraud', cbar=True, use_imshow=False,
+            at=0, **kwargs):
     """Plot an XZ slice or average of variable var in dump.
     NOTE: also accepts all keyword arguments to decorate_plot()
     :param ax
@@ -139,19 +140,19 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         x = _flatten_12(x1_norm)
         z = _flatten_12(x2_norm)
         if dump['n3'] > 1:
-            var = _flatten_xz(var, average=average)[dump['n1']:, :]
+            var = _flatten_xz(var, at=at, average=average)[dump['n1']:, :]
         else:
             var = var[:, :, 0]
     else:
         if half_cut:
-            x = _flatten_xz(dump['x'], patch_pole=True)[dump['n1']:, :]
-            z = _flatten_xz(dump['z'])[dump['n1']:, :]
-            var = _flatten_xz(var, average=average)[dump['n1']:, :]
+            x = _flatten_xz(dump['x'], at=at, patch_pole=True)[dump['n1']:, :]
+            z = _flatten_xz(dump['z'], at=at)[dump['n1']:, :]
+            var = _flatten_xz(var, at=at, average=average)[dump['n1']:, :]
             window = (0, window[1], window[2], window[3])
         else:
-            x = _flatten_xz(dump['x'], patch_pole=True)
-            z = _flatten_xz(dump['z'])
-            var = _flatten_xz(var, average=average)
+            x = _flatten_xz(dump['x'], at=at, patch_pole=True)
+            z = _flatten_xz(dump['z'], at=at)
+            var = _flatten_xz(var, at=at, average=average)
 
     #print('xshape is ', x.shape, ', zshape is ', z.shape, ', varshape is ', var.shape)
     if log:
@@ -244,6 +245,9 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
 def plot_thphi(ax, dump, var, r_i, cmap='jet', vmin=None, vmax=None, window=None,
                label=None, xlabel=True, ylabel=True, arrayspace=False,
                project=False, shading='gouraud'):
+    """Plot a theta-phi slice at index r_i
+    :param project 
+    """
     if arrayspace:
         # X3-X2 makes way more sense than X2-X3 since the disk is horizontal
         x = (dump['X3'][r_i] - dump['startx3']) / (dump['n3'] * dump['dx3'])
@@ -252,12 +256,12 @@ def plot_thphi(ax, dump, var, r_i, cmap='jet', vmin=None, vmax=None, window=None
         radius = dump['r'][r_i, 0, 0]
         max_th = dump['n2'] // 2
         if project:
-            x = _loop_phi((dump['th'] * np.cos(dump['phi']))[r_i, :max_th, :])
-            y = _loop_phi((dump['th'] * np.sin(dump['phi']))[r_i, :max_th, :])
+            x = _flatten_yz(dump['th'] * np.cos(dump['phi']), r_i)[:max_th, :]
+            y = _flatten_yz(dump['th'] * np.sin(dump['phi']), r_i)[:max_th, :]
         else:
-            x = _loop_phi(dump['x'][r_i, :max_th, :])
-            y = _loop_phi(dump['y'][r_i, :max_th, :])
-        var = _loop_phi(var[:max_th, :])
+            x = _flatten_yz(dump['x'], r_i)[:max_th, :]
+            y = _flatten_yz(dump['y'], r_i)[:max_th, :]
+        var = _flatten_yz(var[:max_th, :])
 
     if window is None:
         if arrayspace:
@@ -287,6 +291,9 @@ def plot_thphi(ax, dump, var, r_i, cmap='jet', vmin=None, vmax=None, window=None
 
 # Plot two slices together without duplicating everything in the caller
 def plot_slices(ax1, ax2, dump, var, field_overlay=True, nlines=10, **kwargs):
+    """Make adjacent plots with plot_xy and plot_xz, on the given pair of axes.
+    Basically syntactic sugar for plot_xy and plot_xz.
+    """
     if 'arrspace' in list(kwargs.keys()):
         arrspace = kwargs['arrspace']
     else:
@@ -411,7 +418,7 @@ def hist_2d(ax, var_x, var_y, xlbl, ylbl, title=None, logcolor=False, bins=40,
     ax.set_xlabel(xlbl)
     ax.set_ylabel(ylbl)
 
-def _flatten_xz(array, patch_pole=False, average=False):
+def _flatten_xz(array, at=0, patch_pole=False, average=False):
     """Get an XZ (vertical) slice or average of 3D polar data array[nr,nth,nphi]
     Returns an array of size (2*N1, N2) containing the phi={0,pi} slice,
     i.e. both "wings" of data around the BH at center
@@ -434,7 +441,7 @@ def _flatten_xz(array, patch_pole=False, average=False):
         else:
             for i in range(N1):
                 flat[i, :] = array[N1 - 1 - i, :, N3 // 2]
-                flat[i + N1, :] = array[i, :, 0]
+                flat[i + N1, :] = array[i, :, at]
 
     elif array.ndim == 2:
         N1 = array.shape[0]
@@ -475,6 +482,20 @@ def _flatten_xy(array, average=False, loop=True):
             slice = np.mean(array, axis=1)
         else:
             slice = array[:, array.shape[1] // 2, :]
+    elif array.ndim == 2:
+        slice = array
+
+    if loop:
+        return _loop_phi(slice)
+    else:
+        return slice
+
+def _flatten_yz(array, at_i, average=False, loop=True):
+    if array.ndim == 3:
+        if average:
+            slice = np.mean(array, axis=0)
+        else:
+            slice = array[at_i, :, :]
     elif array.ndim == 2:
         slice = array
 

@@ -43,11 +43,12 @@ def read_hdr(fname, params=None):
     params['startx3'] = 0
     params['dx3'] = 0
     params['n3'] = 1
-    # TODO try to read these?
+    # TODO try to read these
     params['coordinates'] = "mks"
     params['r_out'] = np.exp(params['startx1'] + params['n1']*params['dx1'])
     params['a'] = 0.9375
     params['hslope'] = 0.3
+    #params['coordinates'] = "cartesian"
 
     return _fix(params)
 

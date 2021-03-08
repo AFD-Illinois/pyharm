@@ -63,7 +63,7 @@ def plot(n):
         # Save memory
         #to_load['add_grid_caches'] = False
         pass
-    if "fail" in movie_type or movie_type == "e_ratio" or movie_type == "conservation":
+    if "fail" in movie_type or "e_ratio" in movie_type or "conservation" in movie_type:
         to_load['add_fails'] = True
     if "floor" in movie_type:
         to_load['add_floors'] = True
@@ -71,6 +71,9 @@ def plot(n):
         to_load['add_jcon'] = True
     if "divB" in movie_type:
         to_load['add_divB'] = True
+        #to_load['calc_divB'] = True
+    if "psi_cd" in movie_type:
+        to_load['add_psi_cd'] = True
     if "_ghost" in movie_type:
         plot_ghost = True
         to_load['add_ghosts'] = True
@@ -89,28 +92,31 @@ def plot(n):
     # Zoom in for small problems
     # TODO use same r1d as analysis?
     if len(dump['r'].shape) < 3:
+        r1d = dump['r'][:,0]
         window = [-50, 50, -50, 50]
         nlines = 20
         rho_l, rho_h = -6, 1
-    elif dump['r'][-1, 0, 0] > 100:
-        sz = 100
-        window = [-sz, sz, -sz, sz]
-        nlines = 20
-        rho_l, rho_h = -3, 1.5
-        iBZ = i_of(dump['r'][:,0,0], 100) # most MADs
-        rBZ = 100
-    elif dump['r'][-1, 0, 0] > 10:
-        window = [-50, 50, -50, 50]
-        nlines = 5
-        rho_l, rho_h = -6, 1
-        iBZ = i_of(dump['r'][:,0,0], 40)  # most SANEs
-        rBZ = 40
-    else: # Then this is a Minkowski simulation or something weird
-        window = [dump['x'][0,0,0], dump['x'][-1,-1,-1], dump['y'][0,0,0], dump['y'][-1,-1,-1]]
-        nlines = 0
-        rho_l, rho_h = -2, 0.0
-        iBZ = 1
-        rBZ = 1
+    else:
+        r1d = dump['r'][:,0,0]
+        if dump['r'][-1, 0, 0] > 100:
+            sz = 100
+            window = [-sz, sz, -sz, sz]
+            nlines = 20
+            rho_l, rho_h = -3, 1.5
+            iBZ = i_of(r1d, 100) # most MADs
+            rBZ = 100
+        elif dump['r'][-1, 0, 0] > 10:
+            window = [-50, 50, -50, 50]
+            nlines = 5
+            rho_l, rho_h = -6, 1
+            iBZ = i_of(r1d, 40)  # most SANEs
+            rBZ = 40
+        else: # Then this is a Minkowski simulation or something weird
+            window = [dump['x'][0,0,0], dump['x'][-1,-1,-1], dump['y'][0,0,0], dump['y'][-1,-1,-1]]
+            nlines = 0
+            rho_l, rho_h = -2, 0.0
+            iBZ = 1
+            rBZ = 1
     
     # If we're in arrspace we (almost) definitely want a 0,1 window
     # TODO allow zooming in toward corners.  Original r vs th as separate plotting set?
@@ -253,39 +259,39 @@ def plot(n):
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
 
-    elif movie_type == "prims_xz":
+    elif movie_type == "prims_xz_array":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         vmin, vmax = None, None
         pplt.plot_xz(ax_slc(1), dump, 'RHO', label="",
-                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=True,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
         pplt.plot_xz(ax_slc(2), dump, 'UU', label="",
-                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=True,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
         pplt.plot_xz(ax_slc(3), dump, 'U1', label="",
-                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=True,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
         pplt.plot_xz(ax_slc(4), dump, 'U2', label="",
-                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=True,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
         pplt.plot_xz(ax_slc(5), dump, 'U3', label="",
-                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=True,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
         pplt.plot_xz(ax_slc(6), dump, 'B1', label="",
-                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=True,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
         pplt.plot_xz(ax_slc(7), dump, 'B2', label="",
-                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=True,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
         pplt.plot_xz(ax_slc(8), dump, 'B3', label="",
-                     vmin=vmin, vmax=vmax, window=window, arrayspace=USEARRSPACE,
+                     vmin=vmin, vmax=vmax, window=window, arrayspace=True,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
 
@@ -349,6 +355,35 @@ def plot(n):
                             label=r"$\beta^{-1}$", vmin=-3, vmax=3, average=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
         pplt.plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32),
+                            label="Failures", vmin=0, vmax=20, cmap='Reds', integrate=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+
+    elif "e_ratio_funnel" in movie_type:
+        ax_slc = lambda i: plt.subplot(2, 4, i)
+        # Energy ratios: difficult places to integrate, with failures
+        r_i = i_of(r1d, float(movie_type.split("_")[-1]))
+        pplt.plot_thphi(ax_slc(1), dump, np.log10(dump['UU'] / dump['RHO']), r_i,
+                            label=r"$\log_{10}(U / \rho)$", vmin=-3, vmax=3, average=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+        pplt.plot_thphi(ax_slc(2), dump, np.log10(dump['UU'] / dump['RHO']), r_i,
+                            label=r"$\log_{10}(U / \rho)$", vmin=-3, vmax=3, average=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+        pplt.plot_thphi(ax_slc(3), dump, np.log10(dump['bsq'] / dump['RHO']), r_i,
+                            label=r"$\log_{10}(b^2 / \rho)$", vmin=-3, vmax=3, average=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+        pplt.plot_thphi(ax_slc(4), dump, np.log10(dump['bsq'] / dump['RHO']), r_i,
+                            label=r"$\log_{10}(b^2 / \rho)$", vmin=-3, vmax=3, average=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+        pplt.plot_thphi(ax_slc(5), dump, np.log10(1 / dump['beta']), r_i,
+                            label=r"$\beta^{-1}$", vmin=-3, vmax=3, average=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+        pplt.plot_thphi(ax_slc(6), dump, np.log10(1 / dump['beta']), r_i,
+                            label=r"$\beta^{-1}$", vmin=-3, vmax=3, average=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+        pplt.plot_thphi(ax_slc(7), dump, (dump['fails'] != 0).astype(np.int32), r_i,
+                            label="Failures", vmin=0, vmax=20, cmap='Reds', integrate=True,
+                            field_overlay=False, window=window, arrayspace=USEARRSPACE)
+        pplt.plot_thphi(ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32), r_i,
                             label="Failures", vmin=0, vmax=20, cmap='Reds', integrate=True,
                             field_overlay=False, window=window, arrayspace=USEARRSPACE)
 
@@ -444,30 +479,35 @@ def plot(n):
             l_movie_type = l_movie_type.replace("_ghost","")
         if "_array" in l_movie_type:
             l_movie_type = l_movie_type.replace("_array","")
+        at = 0
+        if "_cross" in l_movie_type:
+            l_movie_type = l_movie_type.replace("_cross","")
+            at = dump['n2']//2
 
         # Try to make a simple movie of just the stated variable
         # These are *informal*.  Renormalize the colorscheme however we want
         rho_l, rho_h = None, None
         if "_poloidal" in l_movie_type:
             ax = plt.subplot(1, 1, 1)
-            var = l_movie_type[:-9]
-            pplt.plot_xz(ax, dump, var, label="",
+            var = l_movie_type.replace("_poloidal","")
+            pplt.plot_xz(ax, dump, var, at=at, label=pretty(var),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         xlabel=False, ylabel=False, xticks=[], yticks=[],
                         cbar=False, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
         elif "_toroidal" in l_movie_type:
             ax = plt.subplot(1, 2, 1)
-            var = l_movie_type[:-9]
-            pplt.plot_xy(ax, dump, var, label=pretty(var),
+            var = l_movie_type.replace("_toroidal","")
+            pplt.plot_xy(ax, dump, var, at=at, label=pretty(var),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         cbar=True, cmap='jet', shading=('gouraud', 'flat')[USEARRSPACE])
         else:
             ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
-            pplt.plot_slices(ax_slc[0], ax_slc[1], dump, l_movie_type, label=pretty(l_movie_type),
+            var = l_movie_type
+            pplt.plot_slices(ax_slc[0], ax_slc[1], dump, var, at=at, label=pretty(l_movie_type),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
-                        cbar=True, cmap='jet', shading=('gouraud', 'flat')[USEARRSPACE])
+                        cbar=True, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
         if "divB" in movie_type:
-            plt.suptitle("Max divB = {}".format(np.max(dump['divB'])))
+            plt.suptitle(r"Max $\nabla \cdot B$ = {}".format(np.max(np.abs(dump['divB']))))
 
         if "jsq" in movie_type:
             plt.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)

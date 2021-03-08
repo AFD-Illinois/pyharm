@@ -62,25 +62,25 @@ def divB(G, P):
             - P[s.B1][s.l1, s.l1, s.b] * gdet[s.l1, s.l1, None]
             - P[s.B1][s.l1, s.b, s.l1] * gdet[s.l1, s.b, None]
             - P[s.B1][s.l1, s.l1, s.l1] * gdet[s.l1, s.l1, None]
-    ) / G.dx[1] + 0.25 * (
-                          P[s.B2][s.b, s.b, s.b] * gdet[s.b, s.b, None]
-                          + P[s.B2][s.l1, s.b, s.b] * gdet[s.l1, s.b, None]
-                          + P[s.B2][s.b, s.b, s.l1] * gdet[s.b, s.b, None]
-                          + P[s.B2][s.l1, s.b, s.l1] * gdet[s.l1, s.b, None]
-                          - P[s.B2][s.b, s.l1, s.b] * gdet[s.b, s.l1, None]
-                          - P[s.B2][s.l1, s.l1, s.b] * gdet[s.l1, s.l1, None]
-                          - P[s.B2][s.b, s.l1, s.l1] * gdet[s.b, s.l1, None]
-                          - P[s.B2][s.l1, s.l1, s.l1] * gdet[s.l1, s.l1, None]
-                  ) / G.dx[2] + 0.25 * (
-                          P[s.B3][s.b, s.b, s.b] * gdet[s.b, s.b, None]
-                          + P[s.B3][s.b, s.l1, s.b] * gdet[s.b, s.l1, None]
-                          + P[s.B3][s.l1, s.b, s.b] * gdet[s.l1, s.b, None]
-                          + P[s.B3][s.l1, s.l1, s.b] * gdet[s.l1, s.l1, None]
-                          - P[s.B3][s.b, s.b, s.l1] * gdet[s.b, s.b, None]
-                          - P[s.B3][s.b, s.l1, s.l1] * gdet[s.b, s.l1, None]
-                          - P[s.B3][s.l1, s.b, s.l1] * gdet[s.l1, s.b, None]
-                          - P[s.B3][s.l1, s.l1, s.l1] * gdet[s.l1, s.l1, None]
-                  ) / G.dx[3])
+            ) / G.dx[1] + 0.25 * (
+            P[s.B2][s.b, s.b, s.b] * gdet[s.b, s.b, None]
+            + P[s.B2][s.l1, s.b, s.b] * gdet[s.l1, s.b, None]
+            + P[s.B2][s.b, s.b, s.l1] * gdet[s.b, s.b, None]
+            + P[s.B2][s.l1, s.b, s.l1] * gdet[s.l1, s.b, None]
+            - P[s.B2][s.b, s.l1, s.b] * gdet[s.b, s.l1, None]
+            - P[s.B2][s.l1, s.l1, s.b] * gdet[s.l1, s.l1, None]
+            - P[s.B2][s.b, s.l1, s.l1] * gdet[s.b, s.l1, None]
+            - P[s.B2][s.l1, s.l1, s.l1] * gdet[s.l1, s.l1, None]
+            ) / G.dx[2] + 0.25 * (
+            P[s.B3][s.b, s.b, s.b] * gdet[s.b, s.b, None]
+            + P[s.B3][s.b, s.l1, s.b] * gdet[s.b, s.l1, None]
+            + P[s.B3][s.l1, s.b, s.b] * gdet[s.l1, s.b, None]
+            + P[s.B3][s.l1, s.l1, s.b] * gdet[s.l1, s.l1, None]
+            - P[s.B3][s.b, s.b, s.l1] * gdet[s.b, s.b, None]
+            - P[s.B3][s.b, s.l1, s.l1] * gdet[s.b, s.l1, None]
+            - P[s.B3][s.l1, s.b, s.l1] * gdet[s.l1, s.b, None]
+            - P[s.B3][s.l1, s.l1, s.l1] * gdet[s.l1, s.l1, None]
+            ) / G.dx[3])
     if G.NG > 0:
         return divB
     else:
