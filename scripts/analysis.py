@@ -494,7 +494,7 @@ inf.close()
 # Fill the output dict with all per-dump or averaged stuff
 # Hopefully in a way that doesn't keep too much of it around in memory
 if parallel:
-    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.25)
+    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.2)
     #nthreads = 5
     util.iter_parallel(avg_dump, merge_dict, outf, ND, nthreads)
 else:

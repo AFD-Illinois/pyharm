@@ -218,11 +218,11 @@ def _write_value(outf, value, name):
     """Write a single value to HDF5 file outf, automatically converting Python3 strings & lists"""
     if isinstance(value, list):
         if isinstance(value[0], str):
-            load = [n.upper().encode("ascii", "ignore") for n in value]
+            load = [np.array(n.upper().encode("ascii", "ignore"), dtype='S20') for n in value]
         else:
             load = value
     elif isinstance(value, str):
-        load = value.upper().encode("ascii", "ignore")
+        load = np.array(value.upper().encode("ascii", "ignore"), dtype='S20')
     else:
         load = value
 
