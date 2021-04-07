@@ -46,6 +46,7 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'lam_MRI': lambda dump: lam_MRI(dump),
             'jet_psi': lambda dump: jet_psi(dump),
             'divB': lambda dump: divB(dump.grid, dump.prims),
+            'lumproxy': lambda dump: lum_proxy(dump)
             }
 
 pretty_dict = {'rho': r"\rho",
@@ -210,6 +211,10 @@ def lam_MRI(dump):
 def jet_psi(dump):
     sig = dump['sigma']
     return np.where(sig >= 1, 1, np.where(sig <= 0.1, 0, sig))
+
+def lum_proxy(dump):
+    # See EHT code comparison paper
+    return dump['rho'] ** 3 / dump['Pg'] ** 2 * np.exp(-0.2 * (dump['rho'] ** 2 / (dump['b'] * dump['Pg'] ** 2)) ** (1. / 3.))
 
 # TODO needs work...
 def jnu_inv(nu, Thetae, Ne, B, theta):
