@@ -24,7 +24,7 @@ USEARRSPACE = False
 if USEARRSPACE:
     window = (0, 1, 0, 1)
 else:
-    SIZE = 20
+    SIZE = 100
     #window = (0, SIZE, 0, SIZE)
     window = (-SIZE, SIZE, -SIZE, SIZE)
     # window=(-SIZE/4, SIZE/4, 0, SIZE)

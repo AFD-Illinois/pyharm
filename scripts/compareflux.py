@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 
 from pyHARM.ana.results import *
 
-var = sys.argv[1]
-ivar = sys.argv[2]
+ivar = sys.argv[1]
+var = sys.argv[2]
 files = sys.argv[3:]
 
 r_at = 3
@@ -27,10 +27,12 @@ for fil in files:
             v = vr
     else:
         iv, v = get_result(fil, ivar, var)
+    iv, v = iv[np.nonzero(v)], v[np.nonzero(v)]
     plt.plot(iv, v, label=name)
-    plt.xlim((0, 10000))
+    plt.xlim((0, 20000))
     print(name,"average 6k+ is: ", np.mean(v[i_of(iv,6000):]))
+    print(name,"average 10k+ is: ", np.mean(v[i_of(iv,12000):]))
 
 
 plt.legend()
-plt.savefig("compare_"+var+"_"+ivar+".png")
+plt.savefig("compare_"+ivar+"_"+var+".png")

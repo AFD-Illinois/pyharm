@@ -107,8 +107,8 @@ class Grid:
             self.NG = params['ng']
         else:
             self.NG = 0
-        # Size of grid in-memory (with ghost zones)
-        self.GN = self.N + 2*self.NG
+        # Size of grid in-memory (with ghost zones where appropriate)
+        self.GN = self.N + (self.N > 1) * 2*self.NG
 
         # Slices and shapes sub-objects: to hold numbers in convenient namespaces
         self.slices = Slices(self.NG)

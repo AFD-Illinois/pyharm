@@ -25,13 +25,21 @@ where th is mildly r-dependent.
 We ignore this for informal plots, but for figures it can be specified with 'at_r'
 """
 
+window_sz = 21
+
+def smoothed(list):
+    new_list = list.copy()
+    for i in range(len(list)):
+        new_list[i] = np.mean(list[max(i-window_sz//2, 0):min(i+window_sz//2+1, len(list))])
+    return new_list
+
 diag_fns = {'mdot': lambda diag: diag['t/Mdot'][()],
             'phi_b_per': lambda diag: diag['t/Phi_b'][()] / np.sqrt(diag['t/Mdot'][()]),
-            'phi_b': lambda diag: diag['t/Phi_b'][()] / np.mean(np.sqrt(diag['t/Mdot'][len(diag['t/Mdot'])//2:])),
+            'phi_b': lambda diag: diag['t/Phi_b'][()] / np.sqrt(smoothed(diag['t/Mdot'][()])),
             'edot_per': lambda diag: diag['t/Edot'][()] / diag['t/Mdot'][()],
-            'edot': lambda diag: diag['t/Edot'][()] / np.mean(diag['t/Mdot'][len(diag['t/Mdot'])//2:]),
+            'edot': lambda diag: diag['t/Edot'][()] / smoothed(diag['t/Mdot'][()]),
             'ldot_per': lambda diag: diag['t/Ldot'][()] / diag['t/Mdot'][()],
-            'ldot': lambda diag: diag['t/Ldot'][()] / np.mean(diag['t/Mdot'][len(diag['t/Mdot'])//2:])
+            'ldot': lambda diag: diag['t/Ldot'][()] / smoothed(diag['t/Mdot'][()])
             }
 
 def get_header_var(infname, var):
@@ -67,7 +75,7 @@ def get_quiescence(infname, diag=False, set_time=None):
         return slice(start, end)
 
 
-def get_result(infname, ivar, var, qui=False, only_nonzero=False, **kwargs):
+def get_result(infname, ivar, var, qui=False, only_nonzero=True, **kwargs):
     """Get the values of a variable, and of the independent variable against which to plot it.
     Various common slicing options:
     :arg qui Get only "quiescence" time, i.e. range over which time-averages were taken
@@ -128,8 +136,6 @@ def get_ivar(infname, ivar, th_r=None, i_xy=False, mesh=True):
     if ivar[-1:] == 't':
         with h5py.File(infname, 'r') as infile:
             t = infile['coord']['t'][()]
-            if io.get_filter(infname) == io.kharma:
-                t *= 5 # TODO
         if mesh:
             t = np.append(t, t[-1] + (t[-1] - t[0]) / t.shape[0])
         ret_i.append(t)

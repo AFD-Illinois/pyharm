@@ -494,11 +494,16 @@ def plot(n):
                         xlabel=False, ylabel=False, xticks=[], yticks=[],
                         cbar=False, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
         elif "_toroidal" in l_movie_type:
-            ax = plt.subplot(1, 2, 1)
+            ax = plt.subplot(1, 1, 1)
             var = l_movie_type.replace("_toroidal","")
             pplt.plot_xy(ax, dump, var, at=at, label=pretty(var),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
                         cbar=True, cmap='jet', shading=('gouraud', 'flat')[USEARRSPACE])
+        elif "_1d" in l_movie_type:
+            ax = plt.subplot(1, 1, 1)
+            var = l_movie_type.replace("_1d","")
+            plt.plot(ax, dump[var], label=pretty(var), vmin=rho_l, vmax=rho_h)
+            plt.title(pretty(var))
         else:
             ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
             var = l_movie_type
