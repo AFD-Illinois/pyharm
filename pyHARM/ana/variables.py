@@ -46,7 +46,8 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'lam_MRI': lambda dump: lam_MRI(dump),
             'jet_psi': lambda dump: jet_psi(dump),
             'divB': lambda dump: divB(dump.grid, dump.prims),
-            'lumproxy': lambda dump: lum_proxy(dump)
+            'lumproxy': lambda dump: lum_proxy(dump),
+            'KTOT': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam'])
             }
 
 pretty_dict = {'rho': r"\rho",

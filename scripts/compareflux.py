@@ -29,9 +29,9 @@ for fil in files:
         iv, v = get_result(fil, ivar, var)
     iv, v = iv[np.nonzero(v)], v[np.nonzero(v)]
     plt.plot(iv, v, label=name)
-    plt.xlim((0, 20000))
+    plt.xlim((0, 30000))
     print(name,"average 6k+ is: ", np.mean(v[i_of(iv,6000):]))
-    print(name,"average 10k+ is: ", np.mean(v[i_of(iv,12000):]))
+    print(name,"average 12k+ is: ", np.mean(v[i_of(iv,12000):]))
 
 
 plt.legend()
