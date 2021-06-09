@@ -20,11 +20,12 @@ FIGY = 10
 
 # TODO parse these instead of hard-coding
 USEARRSPACE = False
+SUM = True
 
 if USEARRSPACE:
     window = (0, 1, 0, 1)
 else:
-    SIZE = 100
+    SIZE = 50
     #window = (0, SIZE, 0, SIZE)
     window = (-SIZE, SIZE, -SIZE, SIZE)
     # window=(-SIZE/4, SIZE/4, 0, SIZE)
@@ -46,7 +47,7 @@ if len(sys.argv) > 4:
 else:
     unit = 1
 
-dump = pyHARM.load_dump(dumpfile)
+dump = pyHARM.load_dump(dumpfile, add_fails=True)
 
 if "pdf_" in var:
     fig = plt.figure(figsize=(FIGX, FIGY))
@@ -77,7 +78,7 @@ if dump['n3'] > 1:
     else:
         # TODO allow specifying vmin/max, average from command line or above
         ax = plt.subplot(1, 1, 1)
-        pplt.plot_xy(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)
+        pplt.plot_xy(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, integrate=SUM, window=window)
 
     plt.tight_layout()
     plt.savefig(name + "_xy.png", dpi=100)
@@ -93,7 +94,7 @@ if var in ['jcon', 'jcov', 'ucon', 'ucov', 'bcon', 'bcov']:
         pplt.plot_xz(axes[n], dump, dump[var][n] * unit, arrayspace=USEARRSPACE, window=window)
 else:
     ax = plt.subplot(1, 1, 1)
-    pplt.plot_xz(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, window=window)
+    pplt.plot_xz(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, integrate=SUM, window=window)
 
 plt.tight_layout()
 

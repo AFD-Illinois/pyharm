@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 # Script to calculate how many zone-cycles are required to complete a simulation
-# TODO bonus points if it 
-
 # Usage: ./how_many_cycles.py spin r_out n1 n2 n3 tf
 
 import sys
@@ -22,8 +20,9 @@ else:
 print("Building grid: {}, a = {}, {}x{}x{} to r_out of {}".format(
       system, spin, n1, n2, n3, r_out))
 
-G = grid.make_some_grid(system, n1, n2, n3, a=spin, r_out=r_out)
+G = grid.make_some_grid(system, n1, n2, n3, a=spin, r_out=r_out, cache_conn=False)
 
 dt = G.dt_light()
 
-print("Somewhat generous total ZC estimate: {}".format(tf/dt*n1*n2*n3))
+print("Assuming dt: {}, total steps: {}".format(dt, tf/dt))
+print("Total ZC estimate: {:g}".format(tf/dt*n1*n2*n3))
