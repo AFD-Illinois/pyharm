@@ -74,7 +74,10 @@ def read_dump(fname, add_ghosts=False, params=None):
     # Set incidental parameters from what we've read
     params['t'] = f.Time
     params['n_step'] = f.NCycle
-    params['n_dump'] = int(fname.split("/")[-1].split(".")[2]) # This assumes the usual Parthenon naming
+    # Add dump number if we've conformed to usual naming scheme
+    fname_parts = fname.split("/")[-1].split(".")
+    if len(fname_parts) > 2:
+        params['n_dump'] = int(fname_parts[2])
     params['startx1'] = G.startx[1]
     params['startx2'] = G.startx[2]
     params['startx3'] = G.startx[3]
@@ -114,8 +117,9 @@ def read_dump(fname, add_ghosts=False, params=None):
             P[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = prim_array
         else:
             P[:5, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = prim_array
-            P[5:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
-                f.Get('c.c.bulk.B_prim', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
+            if f.Get('c.c.bulk.B_prim', False) is not None:
+                P[5:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
+                    f.Get('c.c.bulk.B_prim', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
 
     return (P, params)
 

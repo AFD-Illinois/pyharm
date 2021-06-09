@@ -126,8 +126,8 @@ def read_hdr(grp, params=None):
             params['r_in'], params['r_out'] = params['Rin'], params['Rout']
 
         # Grab the git revision if that's something we output
-        if 'extras' in grp.parent and 'git_version' in grp.parent['extras']:
-            params['git_version'] = grp.parent['/extras/git_version'][()].decode('UTF-8')
+        #if 'extras' in grp.parent and 'git_version' in grp.parent['extras']:
+        #    params['git_version'] = grp.parent['/extras/git_version'][()].decode('UTF-8')
 
     # Renames we've done for pyHARM  or are useful
     # params_key -> likely name in existing header

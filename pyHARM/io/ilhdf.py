@@ -8,7 +8,7 @@ from pyHARM.defs import Loci
 from pyHARM.grid import Grid
 import pyHARM.parameters as parameters
 
-from .hdr import *
+from pyHARM.io.hdr import *
 
 def read_dump(fname, params=None, add_ghosts=False, **kwargs):
     """Read the header and primitives from a write_dump.
@@ -70,6 +70,7 @@ def _prep_array(arr, zones_first=False, as_double=False, add_ghosts=False):
 
 # For cutting on time without loading everything
 def get_dump_time(fname):
+    # TODO use with?
     dfile = h5py.File(fname, 'r')
 
     if 't' in dfile.keys():

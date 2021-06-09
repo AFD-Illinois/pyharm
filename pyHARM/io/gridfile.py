@@ -17,9 +17,9 @@ def write_grid(G, fname="dumps/grid.h5"):
     x = G.coord_bulk(Loci.CENT).reshape(4, G.N[1], G.N[2], G.N[3])
     coords = G.coords
 
-    outf['x'] = coords.cart_x(x).astype(out_type)
-    outf['y'] = coords.cart_y(x).astype(out_type)
-    outf['z'] = coords.cart_z(x).astype(out_type)
+    outf['X'] = coords.cart_x(x).astype(out_type)
+    outf['Y'] = coords.cart_y(x).astype(out_type)
+    outf['Z'] = coords.cart_z(x).astype(out_type)
     outf['r'] = coords.r(x).astype(out_type)
     outf['th'] = coords.th(x).astype(out_type)
     outf['phi'] = coords.phi(x).astype(out_type)
