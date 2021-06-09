@@ -264,7 +264,7 @@ def sphere_sum(dump, var, r_slice=None, i_slice=None, th_slice=None, j_slice=Non
 def sphere_av(dump, var, **kwargs):
     if isinstance(var, str):
         var = dump[var]
-    return sphere_sum(dump, var, **kwargs) / sphere_sum(dump, ones_like(var), **kwargs)
+    return sphere_sum(dump, var, **kwargs) / sphere_sum(dump, np.ones_like(var), **kwargs)
 
 
 def midplane_sum(dump, var, zones=2, **kwargs):

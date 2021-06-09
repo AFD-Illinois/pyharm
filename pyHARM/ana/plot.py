@@ -124,6 +124,9 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
 
     # Use our fancy new dump definitions to advantage
     if isinstance(var, str):
+        if 'symlog_' in var:
+            log = True
+            var = var.replace("symlog_","")
         var = dump[var]
 
     if use_imshow:
@@ -157,7 +160,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
     #print('xshape is ', x.shape, ', zshape is ', z.shape, ', varshape is ', var.shape)
     if log:
         mesh = pcolormesh_symlog(ax, x, z, var, cmap=cmap, vmin=vmin, vmax=vmax,
-                             shading=shading, cbar=cbar)
+                             shading=shading, cbar=False) # We add a colorbar later
     else:
         mesh = ax.pcolormesh(x, z, var, cmap=cmap, vmin=vmin, vmax=vmax,
                              shading=shading)
@@ -192,6 +195,9 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             cmap='jet', shading='gouraud', cbar=True, **kwargs):
 
     if isinstance(var, str):
+        if 'symlog_' in var:
+            log = True
+            var = var.replace("symlog_","")
         var = dump[var]
 
     # TODO vertical integration?
@@ -214,7 +220,7 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
     # print 'xshape is ', x.shape, ', yshape is ', y.shape, ', varshape is ', var.shape
     if log:
         mesh = pcolormesh_symlog(ax, x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
-                         shading=shading, cbar=cbar)
+                         shading=shading, cbar=False) # We add a colorbar later
     else:
         mesh = ax.pcolormesh(x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
                          shading=shading)
@@ -305,15 +311,24 @@ def plot_slices(ax1, ax2, dump, var, field_overlay=True, nlines=10, **kwargs):
 
     plot_xy(ax2, dump, var, **kwargs)
 
-def overlay_contours(ax, dump, var, levels, color='k'):
+def overlay_contours(ax, dump, var, levels, color='k', **kwargs):
+    # TODO optional line cut by setting NaN according to second condition
     if isinstance(var, str):
         var = dump[var]
 
     x = _flatten_xz(dump['x'])
     z = _flatten_xz(dump['z'])
     var = _flatten_xz(var, average=True)
-    return ax.contour(x, z, var, levels=levels, colors=color)
+    return ax.contour(x, z, var, levels=levels, colors=color, **kwargs)
 
+def overlay_contourf(ax, dump, var, levels, color='k', **kwargs):
+    if isinstance(var, str):
+        var = dump[var]
+
+    x = _flatten_xz(dump['x'])
+    z = _flatten_xz(dump['z'])
+    var = _flatten_xz(var, average=True)
+    return ax.contourf(x, z, var, levels=levels, colors=color, **kwargs)
 
 def overlay_field(ax, dump, arrayspace=False, **kwargs):
     if not arrayspace:

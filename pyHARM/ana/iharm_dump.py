@@ -13,6 +13,7 @@ import pyHARM.io as io
 
 import pyHARM.ana.variables as vars
 from pyHARM.checks import divB
+from pyHARM.units import get_units
 
 class IharmDump:
     """Read and cache data from a fluid dump file in HARM HDF5 format, and allow accessing
@@ -23,6 +24,8 @@ class IharmDump:
                  add_jcon=False, add_floors=False, add_fails=False, add_ghosts=False, add_divB=False,
                  add_psi_cd=False, add_grid_caches=True, tag="", zones_first=False):
         """Read the HDF5 file 'fname' into memory, and pre-calculate/cache useful variables
+        @param params: Any existing parameters which should be added to the 
+
         @param calc_cons: calculate the conserved variables U, i.e. run 'prim_to_flux(...,0)' from HARM
         @param calc_derived: calculate the derived 4-vectors u, b and fluid Lorentz factor gamma
         @param add_jcon: Read the current jcon from the file if it exists, fail if it doesn't
@@ -114,6 +117,11 @@ class IharmDump:
         del P,G
         if calc_cons:
             del U
+    
+    # Associate a scale & units with this dump, for calculating variables
+    # normally reserved for e.g. radiative transfer
+    def set_units(self, MBH, M_unit):
+        self.units = get_units(MBH, M_unit, gam=self.params['gam'])
 
     # Act like a dict when retrieving lots of different things --
     # just compute/retrieve them on the fly!

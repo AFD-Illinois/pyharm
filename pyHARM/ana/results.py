@@ -25,7 +25,7 @@ where th is mildly r-dependent.
 We ignore this for informal plots, but for figures it can be specified with 'at_r'
 """
 
-window_sz = 21
+window_sz = 101
 
 def smoothed(list):
     new_list = list.copy()
@@ -34,12 +34,13 @@ def smoothed(list):
     return new_list
 
 diag_fns = {'mdot': lambda diag: diag['t/Mdot'][()],
+            'mdot_smooth': lambda diag: smoothed(diag['t/Mdot'][()]),
             'phi_b_per': lambda diag: diag['t/Phi_b'][()] / np.sqrt(diag['t/Mdot'][()]),
             'phi_b': lambda diag: diag['t/Phi_b'][()] / np.sqrt(smoothed(diag['t/Mdot'][()])),
             'edot_per': lambda diag: diag['t/Edot'][()] / diag['t/Mdot'][()],
             'edot': lambda diag: diag['t/Edot'][()] / smoothed(diag['t/Mdot'][()]),
             'ldot_per': lambda diag: diag['t/Ldot'][()] / diag['t/Mdot'][()],
-            'ldot': lambda diag: diag['t/Ldot'][()] / smoothed(diag['t/Mdot'][()])
+            'ldot': lambda diag: diag['t/Ldot'][()] / smoothed(diag['t/Mdot'][()]),
             }
 
 def get_header_var(infname, var):
@@ -82,20 +83,21 @@ def get_result(infname, ivar, var, qui=False, only_nonzero=True, **kwargs):
     :arg only_nonzero Get only nonzero values
     """
     ret_i = np.array(get_ivar(infname, ivar, **kwargs))
+    ivar_l = ivar.replace("log_","")
     qui_slc = get_quiescence(infname)
 
     with h5py.File(infname, 'r') as infile:
-        if var in infile[ivar]:
-            ret_v = infile[ivar][var][()]
+        if var in infile[ivar_l]:
+            ret_v = infile[ivar_l][var][()]
         elif var in fns_dict:
-            ret_v = fns_dict[var](infile[ivar])
+            ret_v = fns_dict[var](infile[ivar_l])
         elif var[:4] == 'log_':
-            ret_i, ret_v = get_result(infname, ivar, var[4:], qui=qui, only_nonzero=only_nonzero, **kwargs)
+            ret_i, ret_v = get_result(infname, ivar_l, var[4:], qui=qui, only_nonzero=only_nonzero, **kwargs)
             return ret_i, np.log10(ret_v)
         elif var in diag_fns:
                 return ret_i, diag_fns[var](infile)
         else:
-            print("Can't find variable: {} as a function of {}".format(var, ivar))
+            print("Can't find variable: {} as a function of {}".format(var, ivar_l))
             return None, None
 
         if qui:
@@ -127,6 +129,11 @@ def get_ivar(infname, ivar, th_r=None, i_xy=False, mesh=True):
     """
     ret_i = []
     G = get_grid(infname)
+
+    if ivar[:4] == "log_":
+        do_log = True
+    else:
+        do_log = False
 
     if mesh:
         native_coords = G.coord_all_mesh()
@@ -171,6 +178,11 @@ def get_ivar(infname, ivar, th_r=None, i_xy=False, mesh=True):
         x = ret_grids[-2] * np.cos(ret_grids[-1])
         y = ret_grids[-2] * np.sin(ret_grids[-1])
         ret_grids[-2:] = x, y
+
+    if do_log:
+        #print("Applying logs shape", len(ret_grids))
+        for i in range(len(ret_grids)):
+            ret_grids[i] = np.log(ret_grids[i])
 
     # Squash single-variable lists for convenience
     if len(ret_grids) == 1:

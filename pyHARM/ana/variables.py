@@ -40,6 +40,7 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'Theta': lambda dump: (dump.header['gam'] - 1) * dump['UU'] / dump['RHO'],
             'Thetap': lambda dump: (dump.header['gam_p'] - 1) * dump['UU'] / dump['RHO'],
             'Thetae': lambda dump: (dump.header['gam_e'] - 1) * dump['UU'] / dump['RHO'],
+            'Thetae_rhigh': lambda dump: thetae_rhigh(dump),
             'JE0': lambda dump: T_mixed(dump, 0, 0),
             'JE1': lambda dump: T_mixed(dump, 1, 0),
             'JE2': lambda dump: T_mixed(dump, 2, 0),
@@ -47,7 +48,8 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'jet_psi': lambda dump: jet_psi(dump),
             'divB': lambda dump: divB(dump.grid, dump.prims),
             'lumproxy': lambda dump: lum_proxy(dump),
-            'KTOT': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam'])
+            'jI': lambda dump: jnu_inv(dump),
+            'KTOT': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),
             }
 
 pretty_dict = {'rho': r"\rho",
@@ -217,16 +219,28 @@ def lum_proxy(dump):
     # See EHT code comparison paper
     return dump['rho'] ** 3 / dump['Pg'] ** 2 * np.exp(-0.2 * (dump['rho'] ** 2 / (dump['b'] * dump['Pg'] ** 2)) ** (1. / 3.))
 
-# TODO needs work...
-def jnu_inv(nu, Thetae, Ne, B, theta):
-    K2 = 2. * Thetae ** 2
-    nuc = EE * B / (2. * np.pi * ME * CL)
+def thetae_rhigh(dump, Rlow=1, Rhigh=20, beta_crit=1.0):
+    units = dump.units
+    betasq = dump['beta']**2 / beta_crit**2
+    game = dump['gam_e']; gamp = dump['gam_p']
+    trat = Rhigh * betasq/(1. + betasq) + Rlow /(1. + betasq)
+    Thetae_unit = (units['MP']/units['ME']) * \
+                  (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.) * trat)
+    return Thetae_unit * dump['Theta']
+
+def jnu_inv(dump, nu=230e9, theta=np.pi/3):
+    units = dump.units
+    Thetae = dump['Thetae_rhigh']
+    K2 = 2 * Thetae**2 # Approximate Bessel K_2(1/Thetae)
+    nuc = units['EE'] * dump['b'] / (2. * np.pi * units['ME'] * units['CL'])
     nus = (2. / 9.) * nuc * Thetae ** 2 * np.sin(theta)
-    j[nu > 1.e12 * nus] = 0.
     x = nu / nus
-    f = pow(pow(x, 1. / 2.) + pow(2., 11. / 12.) * pow(x, 1. / 6.), 2)
-    j = (np.sqrt(2.) * np.pi * EE ** 2 * Ne * nus / (3. * CL * K2)) * f * exp(-pow(x, 1. / 3.))
-    return j / nu ** 2
+    f = (np.sqrt(x) + 2**(11/12) * x**(1/6))**2
+    Ne = dump['RHO'] * units['RHO_unit'] / (units['MP'] + units['ME'])
+    j = (np.sqrt(2) * np.pi * units['EE']**2 * Ne * nus / \
+        (3. * units['CL'] * K2)) * f * np.exp(-x**(1/3))
+    j[nu > 1.e12 * nus] = 0.
+    return j / nu**2
 
 
 ## Internal functions ##
