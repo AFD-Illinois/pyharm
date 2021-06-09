@@ -87,7 +87,7 @@ def parse_parthenon_dat(fname, params=None):
     elif "mks" in params['transform'] or "modif" in params['transform']:
         params['coordinates'] = "mks"
     else:
-        print("Defaulting coordinate system...")
+        print("Defaulting KHARMA coordinate system to fmks...")
         params['coordinates'] = params['metric'] = "fmks"
 
     return _fix(params)
@@ -118,7 +118,7 @@ def _fix(params):
         if ('derefine_poles' in params) and (params['derefine_poles'] == 1):
             params['metric'] = "FMKS"
         else:
-            print("Defaulting coordinate system...")
+            print("Defaulting to MKS coordinate system...")
             params['metric'] = "MKS"
 
     if 'metric' in params and 'coordinates' not in params:

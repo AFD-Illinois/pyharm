@@ -16,7 +16,7 @@ from pyHARM.defs import Loci, Slices, Shapes
 from pyHARM.coordinates import *
 
 
-def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_out=50, params=None):
+def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_out=50, params=None, caches=True, cache_conn=True):
     """Convenience function for generating grids with default parameters used at Illinois.
     Type should be one of 'minkowski', 'mks', 'fmks'
     Size and coordinate parameters are optional with somewhat reasonable defaults.
@@ -55,7 +55,7 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_o
             params['poly_alpha'] = 14.0
             params['mks_smooth'] = 0.5
 
-    return Grid(params)
+    return Grid(params, caches=caches, cache_conn=cache_conn)
 
 
 
@@ -64,7 +64,7 @@ class Grid:
     size, shape, zones' global locations, metric tensor
     """
 
-    def __init__(self, params, caches=True):
+    def __init__(self, params, caches=True, cache_conn=True):
         """
         Initialize a Grid object.  This object divides a domain in native coordinates into zones, and caches the
         local metric (and some other convenient information) at several locations in each zone.
@@ -172,7 +172,8 @@ class Grid:
                 self.gdet[loc.value] = gdet_loc
                 self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
 
-            self.conn = self.coords.conn_func(x_cent)
+            if cache_conn:
+                self.conn = self.coords.conn_func(x_cent)
 
     def coord(self, i, j, k, loc=Loci.CENT):
         """Get the position x of zone(s) i,j,k, in _native_ coordinates
