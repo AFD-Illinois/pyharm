@@ -32,7 +32,7 @@ def get_filter(fname):
     if ".phdf" in fname:
         return kharma
     elif ".h5" in fname:
-        if 'header' in h5py.File(fname).keys():
+        if 'header' in h5py.File(fname, "r").keys():
             return ilhdf
         else:
             return kharma

@@ -30,7 +30,7 @@ else:
 def kharma_perf(zones_per_node):
     return min(np.power(zones_per_node, 1/3)*15e6/150, 16e6)*nnodes
 def grim_perf(zones_per_node):
-    return min(np.power(zones_per_node, 1/3)*3e5/64, 3e5)*nnodes
+    return min(np.power(zones_per_node, 1/3)*4.1e5/64, 4.1e5)*nnodes
 
 print("Building grid: {}, a = {}, {}x{}x{} to r_out of {}".format(
       system, spin, n1, n2, n3, r_out))
