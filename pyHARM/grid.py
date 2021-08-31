@@ -118,10 +118,10 @@ class Grid:
             # There are no parameters to Minkowski coordinates, so this is a class, not an object
             self.coords = Minkowski
         # MKS, FMKS expect the parameters a, hslope
-        elif params['coordinates'] == "fmks":
+        elif params['coordinates'] == "mmks" or params['coordinates'] == "fmks":
             # FMKS additionally requires poly_xt, poly_alpha, mks_smooth
             self.coords = FMKS(params)
-        elif params['coordinates'] == "mmks" or params['coordinates'] == "cmks":
+        elif params['coordinates'] == "cmks":
             # MMKS additionally requires poly_xt and poly_alpha
             self.coords = CMKS(params)
         elif params['coordinates'] == "bhac_mks":
