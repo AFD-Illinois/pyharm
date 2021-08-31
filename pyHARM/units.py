@@ -42,12 +42,14 @@ def get_units_SgrA(M_unit, tp_over_te=3):
     return get_units(4.14e6, M_unit, tp_over_te)
 
 def get_units(MBH, M_unit, tp_over_te=3, gam=4/3):
-    """Get derived units and certain quantities for a system, given a BH mass and accretion density M_unit.
-    Note tp_over_te and gam only matter for Thetae_unit
+    """Get derived units and certain quantities for a system, given a BH mass in Msolar,
+    and accretion density M_unit.
+    Arguments tp_over_te and gam only matter for resulting Thetae_unit
     Also note Mdotedd assumes 10% efficiency
     """
     out = {}
-    out['MBH'] = MBH * cgs['MSOLAR']
+    MBH *= cgs['MSOLAR'] # Take input in solar masses since this 
+    out['MBH'] = MBH
     out['M_unit'] = M_unit
     out['L_unit'] = L_unit = cgs['GNEWT']*MBH / cgs['CL']**2
     out['T_unit'] = L_unit / cgs['CL']

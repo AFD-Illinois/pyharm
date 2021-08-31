@@ -219,7 +219,7 @@ def lum_proxy(dump):
     # See EHT code comparison paper
     return dump['rho'] ** 3 / dump['Pg'] ** 2 * np.exp(-0.2 * (dump['rho'] ** 2 / (dump['b'] * dump['Pg'] ** 2)) ** (1. / 3.))
 
-def thetae_rhigh(dump, Rlow=1, Rhigh=20, beta_crit=1.0):
+def thetae_rhigh(dump, Rlow=1, Rhigh=10, beta_crit=1.0):
     units = dump.units
     betasq = dump['beta']**2 / beta_crit**2
     game = dump['gam_e']; gamp = dump['gam_p']

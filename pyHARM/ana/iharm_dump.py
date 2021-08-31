@@ -144,6 +144,8 @@ class IharmDump:
             return self.header[key]
         elif key in vars.fns_dict:
             return vars.fns_dict[key](self)
+        elif key[:4] == "abs_":
+            return np.abs(self[key[4:]])
         elif key[:4] == "log_":
             return np.log10(self[key[4:]])
         elif key[:3] == "ln_":

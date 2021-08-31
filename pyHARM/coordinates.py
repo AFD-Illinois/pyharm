@@ -575,25 +575,86 @@ class BL(CoordinateSystem):
         dxdX[3, 3] = 1
         return dxdX
 
+class MKS3(CoordinateSystem):
+    # Don't set a default, be careful as we only ever translate existing data with this coordinate system
+    def __init__(self, met_params):
+        self.a = met_params['bhspin']
+        self.h0 = met_params['mksh0']
+        self.r0 = met_params['mksr0']
+        if 'mksmy1' in met_params:
+            self.my1 = met_params['mksmy1']
+            self.my2 = met_params['mksmy2']
+            self.mp0 = met_params['mksmp0']
+            self.mks2 = False
+        else:
+            self.my1 = 0
+            self.my2 = 0
+            self.mp0 = 0
+            self.mks2 = True
 
-# OTHER METRICS SUPPORT TBD
-    # elif mtype == Met.MKS3:
-    #     # TODO take these as params, bring this in line with above w.r.t function name
-    #     #if koral_rad: R0=-1.35; H0=0.7; MY1=0.002; MY2=0.02; MP0=1.3
-    #     #else: MAD: R0=0; H0=0.6; MY1=0.0025; MY2=0.025; MP0=1.2
-    #     #      SANE R0=-2; H0=0.6; MY1=0.0025; MY2=0.025; MP0=1.2
-    #     R0, H0 = met_params['R0'], met_params['H0']
-    #     MY1, MY2, MP0 = met_params['MY1'], met_params['MY2'], met_params['MP0']
-    #
-    #     dxdX[1, 1] = 1./(X[1] - R0)
-    #     dxdX[2, 1] = -((np.power(2, 1 + MP0) * np.power(X[1], -1 + MP0) * MP0 * (MY1 - MY2) * np.arctan(((-2 * X[2] + np.pi) * np.tan((H0 * np.pi) / 2.)) / np.pi)) /
-    #                    (H0 * np.power(np.power(X[1], MP0) * (1 - 2 * MY1) + np.power(2, 1 + MP0) * (MY1 - MY2), 2) * np.pi))
-    #     dxdX[2, 2] = ( (-2 * np.power(X[1], MP0) * np.tan((H0 * np.pi) / 2.)) /
-    #                    (H0 * (np.power(X[1], MP0) * (-1 + 2 * MY1) +
-    #                           np.power(2, 1 + MP0) * (-MY1 + MY2)) * np.pi**2 * (1 + (np.power(-2 * X[2] + np.pi, 2) * np.power(np.tan((H0 * np.pi) / 2.), 2)) /
-    #                                                                                                          np.pi**2)))
-    #     dxdX[3, 3] = 1.
-    # elif mtype == Met.EKS:
-    #     dxdX[1, 1] = 1. / X[1]
-    #     dxdX[2, 2] = 1. / np.pi
-    #     dxdX[3, 3] = 1.
+        # For avoiding coordinate singularity
+        # We can usually leave this default
+        if 'small_theta' in met_params:
+            self.small_th = met_params['small_theta']
+        else:
+            self.small_th = 1.e-20
+
+        # Set radius of horizon
+        self.r_eh = 1. + np.sqrt(1. - self.a ** 2)
+
+    def native_startx(self, met_params):
+        rin = 0
+        if 'r_in' in met_params:
+            # Set startx1 from r_in
+            rin = met_params['r_in']
+        else:
+            # Else automatically
+            rin = np.exp((met_params['n1tot'] * np.log(self.r_eh - self.r0) / 5.5 - np.log(met_params['r_out'] - self.r0)) /
+                              (1. + met_params['n1tot'] / 5.5))
+        return np.array([0, np.log(rin - self.r0), 0, 0])
+
+    def native_stopx(self, met_params):
+        return np.array([0, np.log(met_params['r_out'] - self.r0), np.pi, 2*np.pi])
+
+    def r(self, x):
+        return np.exp(x[1]) + self.r0
+
+    def th(self, x):
+        R0, H0 = self.r0, self.h0
+        MY1, MY2, MP0 = self.my1, self.my2, self.mp0
+        return self.correct_small_th(
+                0.5 * (np.pi * (1. + 1. / np.tan((H0 * np.pi) / 2.) *
+                                np.tan(H0 * np.pi * (-0.5 + (MY1 + (2.**MP0 * (-MY1 + MY2)) / (np.exp(x[1]) + R0)**MP0)
+                                    * (1. - 2. * x[2]) + x[2]))))
+                )
+
+    def phi(self, x):
+        return x[3]
+
+    def cart_x(self, x):
+        return self.r(x)*np.sin(self.th(x))*np.cos(self.phi(x))
+
+    def cart_y(self, x):
+        return self.r(x)*np.sin(self.th(x))*np.sin(self.phi(x))
+
+    def cart_z(self, x):
+        return self.r(x)*np.cos(self.th(x))
+
+    def dxdX(self, x):
+        dxdX = np.zeros([4, 4, *x.shape[1:]])
+        # TODO take these as params, bring this in line with above w.r.t function name
+        #if koral_rad: R0=-1.35; H0=0.7; MY1=0.002; MY2=0.02; MP0=1.3
+        #else: MAD: R0=0; H0=0.6; MY1=0.0025; MY2=0.025; MP0=1.2
+        #      SANE R0=-2; H0=0.6; MY1=0.0025; MY2=0.025; MP0=1.2
+        R0, H0 = self.r0, self.h0
+        MY1, MY2, MP0 = self.my1, self.my2, self.mp0
+    
+        dxdX[1, 1] = 1./(x[1] - R0)
+        dxdX[2, 1] = -((np.power(2, 1 + MP0) * np.power(x[1], -1 + MP0) * MP0 * (MY1 - MY2) * np.arctan(((-2 * x[2] + np.pi) * np.tan((H0 * np.pi) / 2.)) / np.pi)) /
+                       (H0 * np.power(np.power(x[1], MP0) * (1 - 2 * MY1) + np.power(2, 1 + MP0) * (MY1 - MY2), 2) * np.pi))
+        dxdX[2, 2] = ( (-2 * np.power(x[1], MP0) * np.tan((H0 * np.pi) / 2.)) /
+                       (H0 * (np.power(x[1], MP0) * (-1 + 2 * MY1) +
+                              np.power(2, 1 + MP0) * (-MY1 + MY2)) * np.pi**2 * (1 + (np.power(-2 * x[2] + np.pi, 2) * np.power(np.tan((H0 * np.pi) / 2.), 2)) /
+                                                                                                             np.pi**2)))
+        dxdX[3, 3] = 1.
+        return dxdX

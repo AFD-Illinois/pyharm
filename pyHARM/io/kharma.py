@@ -13,17 +13,13 @@ def read_hdr(fname, params=None):
         params = {}
         params_was_none = True
 
-    # If there's just one file in the same directory, it's probably the right one.
-    globpath = "/".join(fname.split("/")[:-1] + ["*.par"])
-    if len(glob.glob(globpath)) == 1:
-        parameters.parse_parthenon_dat(glob.glob(globpath)[0], params)
-        return params
-    elif parameters.parse_parthenon_dat(fname.split(".")[0] + ".par", params) is not None:
-        return params
-    elif parameters.parse_parthenon_dat(fname.split("/")[-1].split(".")[0] + ".par", params) is not None:
-        return params
-    elif params_was_none:
-        raise RuntimeError("No parameter file could be found for KHARMA dump {}".format(fname))
+    # TODO fall back to actual file as well?
+    with h5py.File(fname, "r") as infile:
+        if 'Input' in infile:
+            parameters.parse_parthenon_dat(infile['Input'].attrs['File'], params)
+        else:
+            raise RuntimeError("No parameters could be found in KHARMA dump {}".format(fname))
+
     # But if params had elements, assume it was taken care of by the user and don't require a file
     return params
 
@@ -112,14 +108,29 @@ def read_dump(fname, add_ghosts=False, params=None):
         else:
             o = [None, None, None, None, None, None]
         # False == don't flatten into 1D array
-        prim_array = f.Get('c.c.bulk.prims', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
-        if prim_array.shape[0] == 8:
-            P[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = prim_array
+        if f.Get('prims.rho', False) is not None:
+            rho_array = f.Get('prims.rho', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+            P[0, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = rho_array
+            del rho_array
+            u_array = f.Get('prims.u', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+            P[1, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = u_array
+            del u_array
+            uvec_array = f.Get('prims.uvec', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
+            P[2:5, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = uvec_array
+            del uvec_array
+            if f.Get('prims.B', False) is not None:
+                B_array = f.Get('prims.B', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
+                P[5:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = B_array
+                del B_array
         else:
-            P[:5, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = prim_array
-            if f.Get('c.c.bulk.B_prim', False) is not None:
-                P[5:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
-                    f.Get('c.c.bulk.B_prim', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
+            prim_array = f.Get('c.c.bulk.prims', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
+            if prim_array.shape[0] == 8:
+                P[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = prim_array
+            else:
+                P[:5, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = prim_array
+                if f.Get('c.c.bulk.B_prim', False) is not None:
+                    P[5:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
+                        f.Get('c.c.bulk.B_prim', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
 
     return (P, params)
 
@@ -189,26 +200,26 @@ def read_jcon(fname, add_ghosts=False):
             o = [None, None, None, None, None, None]
         # False == don't flatten into 1D array
         jcon[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
-            f.Get('c.c.bulk.jcon', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
+            f.Get('jcon', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
 
     return jcon
 
 def read_psi_cd(fname, add_ghosts=False):
-    return read_scalar(fname, 'c.c.bulk.psi_cd_prim', add_ghosts=add_ghosts)
+    return read_scalar(fname, 'prims.psi_cd', add_ghosts=add_ghosts)
 
 def read_divb(fname, add_ghosts=False):
-    divb = read_scalar(fname, 'c.c.bulk.divB_cd', add_ghosts=add_ghosts)
+    divb = read_scalar(fname, 'divB', add_ghosts=add_ghosts)
     if divb is None:
-        divb = read_scalar(fname, 'c.c.bulk.divB_ct', add_ghosts=add_ghosts)
+        divb = read_scalar(fname, 'divB_ct', add_ghosts=add_ghosts)
     if divb is None:
-        divb = read_scalar(fname, 'c.c.bulk.divB', add_ghosts=add_ghosts)
+        divb = read_scalar(fname, 'divB_cd', add_ghosts=add_ghosts)
     return divb
 
 def read_fail_flags(fname, add_ghosts=False):
-    return read_scalar(fname, 'c.c.bulk.pflag', dtype=np.int32, add_ghosts=add_ghosts)
+    return read_scalar(fname, 'pflag', dtype=np.int32, add_ghosts=add_ghosts)
 
 def read_floor_flags(fname, add_ghosts=False):
-    return read_scalar(fname, 'c.c.bulk.fflag', dtype=np.int32, add_ghosts=add_ghosts)
+    return read_scalar(fname, 'fflag', dtype=np.int32, add_ghosts=add_ghosts)
 
 def read_scalar(fname, scalar_name, dtype=np.float64, add_ghosts=False):
     f = phdf(fname)

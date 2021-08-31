@@ -6,6 +6,7 @@ import pyHARM.io.ilhdf as ilhdf
 import pyHARM.io.kharma as kharma
 import pyHARM.io.harm2d as harm2d
 import pyHARM.io.hamr as hamr
+import pyHARM.io.koral as koral
 
 # Also import i/o for other filetypes directly
 from pyHARM.io.misc import *
@@ -32,12 +33,16 @@ def get_filter(fname):
     if ".phdf" in fname:
         return kharma
     elif ".h5" in fname:
-        if 'header' in h5py.File(fname).keys():
-            return ilhdf
-        else:
-            return kharma
+        with h5py.File(fname) as f:
+            if 'header' in f.keys():
+                if 'KORAL' in f["/header/version"][()].decode('UTF-8'):
+                    return koral
+                else:
+                    return ilhdf
+            else:
+                return kharma
     elif ".hdf5" in fname:
-        return hamr
+            return hamr
     elif "dump" in fname:
         # HARM ASCII files are *usually* named "dump" with a number
         return harm2d

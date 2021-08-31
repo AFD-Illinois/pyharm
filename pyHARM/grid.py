@@ -127,6 +127,9 @@ class Grid:
         elif params['coordinates'] == "bhac_mks":
             # BHAC's MKS
             self.coords = BHAC_MKS(params)
+        elif params['coordinates'] == "mks3" or params['coordinates'] == "mks2":
+            # KORAL's MKS.  MKS2 == MKS3 w/ MY1,2,MP0 == 0
+            self.coords = MKS3(params)
         elif params['coordinates'] == "mks":
             self.coords = MKS(params)
         else:
@@ -135,6 +138,8 @@ class Grid:
         # If we got native coordinates, use those
         if 'x1min' in params:
             self.startx = np.array([0, params['x1min'], params['x2min'], params['x3min']])
+        elif 'startx1' in params:
+            self.startx = np.array([0, params['startx1'], params['startx2'], params['startx3']])
         else:
             # Ask our new coordinate system where to start/stop the native grid,
             # so it aligns with the KS boundaries we've been assigned
@@ -142,10 +147,13 @@ class Grid:
             if params['coordinates'] not in ["minkowski", "cartesian"] and self.startx[1] < 0.0:
                 raise ValueError("Not enough radial zones! Increase N1!")
 
-        self.stopx = self.coords.native_stopx(params)
+        if 'dx1' in params:
+            self.dx = np.array([0, params['dx1'], params['dx2'], params['dx3']])
+            self.stopx = self.startx + self.NTOT * self.dx
+        else:
+            self.stopx = self.coords.native_stopx(params)
+            self.dx = (self.stopx - self.startx) / self.NTOT
 
-        # Finally, set up the grid
-        self.dx = (self.stopx - self.startx) / self.NTOT
         self.dV = self.dx[1]*self.dx[2]*self.dx[3]
 
         if caches:

@@ -28,7 +28,7 @@ def parse_iharm3d_dat(params, fname):
             params[ls[1]] = str(ls[-1])
     return _fix(params)
 
-def parse_parthenon_dat(fname, params=None):
+def parse_parthenon_dat(string, params=None):
     """Parse the KHARMA params.dat format to produce a Python dict.
     params.dat format:
     <header/subheader>
@@ -38,29 +38,25 @@ def parse_parthenon_dat(fname, params=None):
     """
     if params is None:
         params = {}
-    try:
-        fp = open(fname, "r")
-    except OSError:
-        return None
 
     # Things KHARMA will never use/modify but need to be *something* for IL HDF file header
     params['version'] = "kharma-alpha-0.1"
     params['gridfile'] = "grid.h5"
     params['n_prims_passive'] = 0
 
-    for line in fp:
+    for line in string.split("\n"):
         # Trim out trailing newline, anything after '#', stray parentheses, headers
-        ls = [token.strip().strip('()') for token in line[:-1].split("#")[0].split("<")[0].split("=") if token != '']
+        ls = [token.strip().strip('()') for token in line.split("#")[0].split("<")[0].split("=") if token != '']
         # And blank lines
         if len(ls) == 0:
             continue
         # Parse, assuming float->int->str and taking the largest surviving numbers (to avoid block-specific nxN)
         try:
             if "." in ls[-1]:
-                if ls[0] not in params or params[ls[0]] < float(ls[-1]):
+                if ls[0] not in params or float(params[ls[0]]) < float(ls[-1]):
                     params[ls[0]] = float(ls[-1])
             else:
-                if ls[0] not in params or params[ls[0]] < int(ls[-1]):
+                if ls[0] not in params or int(params[ls[0]]) < int(ls[-1]):
                     params[ls[0]] = int(ls[-1])
         except ValueError:
             params[ls[0]] = ls[-1]

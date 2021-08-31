@@ -21,11 +21,10 @@ geom_keys = ['dx1', 'dx2', 'dx3', 'startx1', 'startx2', 'startx3', 'n_dim']
 mks_keys = ['r_eh', 'r_in', 'r_out', 'a', 'hslope']
 mmks_keys = ['poly_alpha', 'poly_xt']
 fmks_keys = ['mks_smooth', 'poly_alpha', 'poly_xt']
-# A generally useful set of translations: names of pyHARM parameters,
-# with their counterparts in the HDF5 format
-# TODO standardize the last one, at least
-translations = {'n1': 'n1tot', 'n2': 'n2tot', 'n3': 'n3tot', 'metric': 'coordinates'}
-# TODO Parthenon translations/format here too
+# Names that other people might call parameters we care about.
+# Can be from anywhere in the header
+translations = {'n1': 'n1tot', 'n2': 'n2tot', 'n3': 'n3tot', 'metric': 'coordinates', 'metric_run': 'coordinates'}
+# TODO Translations of KORAL parameters too
 
 
 def write_hdr(params, outf):
@@ -109,7 +108,14 @@ def read_hdr(grp, params=None):
         params['version'] = "iharm-alpha-3.6"
         print("Unknown version: defaulting to {}".format(params['version']))
 
-    params['codename'], params['codestatus'], params['vnum'] = params['version'].split("-")
+    if "KORAL" in params['version']:
+        params['codename'] = "KORAL"
+        params['vnum'] = params['version'].split("v")[1]
+    else:
+        # Illinois versioning scheme
+        params['codename'], params['codestatus'], params['vnum'] = params['version'].split("-")
+    
+    # Split vnum into a list of each point-separated number
     params['vnum'] = [int(x) for x in params['vnum'].split(".")]
 
     # iharm3d-specific workarounds:
