@@ -490,6 +490,11 @@ def plot(n):
         if "_cross" in l_movie_type:
             l_movie_type = l_movie_type.replace("_cross","")
             at = dump['n2']//2
+        if "_avg" in l_movie_type:
+            l_movie_type = l_movie_type.replace("_avg","")
+            do_average = True
+        else:
+            do_average = False
 
         # Try to make a simple movie of just the stated variable
         # These are *informal*.  Renormalize the colorscheme however we want
@@ -498,14 +503,14 @@ def plot(n):
             ax = plt.subplot(1, 1, 1)
             var = l_movie_type.replace("_poloidal","")
             pplt.plot_xz(ax, dump, var, at=at, label=pretty(var),
-                        vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
+                        vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE, average=do_average,
                         xlabel=False, ylabel=False, xticks=[], yticks=[],
                         cbar=False, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
         elif "_toroidal" in l_movie_type:
             ax = plt.subplot(1, 1, 1)
             var = l_movie_type.replace("_toroidal","")
             pplt.plot_xy(ax, dump, var, at=at, label=pretty(var),
-                        vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
+                        vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE, average=do_average,
                         cbar=True, cmap='jet', shading=('gouraud', 'flat')[USEARRSPACE])
         elif "_1d" in l_movie_type:
             ax = plt.subplot(1, 1, 1)
@@ -517,7 +522,7 @@ def plot(n):
             ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
             var = l_movie_type
             pplt.plot_slices(ax_slc[0], ax_slc[1], dump, var, at=at, label=pretty(l_movie_type),
-                        vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE,
+                        vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE, average=do_average,
                         cbar=True, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
         
         # Labels
@@ -526,6 +531,8 @@ def plot(n):
 
         if "jsq" in movie_type:
             plt.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
+
+    pplt.overlay_contours(ax_slc[0], dump, 'sigma', [1])
 
     #plt.subplots_adjust(left=0.03, right=0.97)
     plt.savefig(os.path.join(frame_dir, 'frame_%08d.png' % n), dpi=FIGDPI)
