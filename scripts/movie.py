@@ -520,6 +520,7 @@ def plot(n):
             ax.set_title(pretty(var))
         else:
             ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
+            ax = ax_slc[0]
             var = l_movie_type
             pplt.plot_slices(ax_slc[0], ax_slc[1], dump, var, at=at, label=pretty(l_movie_type),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE, average=do_average,
@@ -532,7 +533,8 @@ def plot(n):
         if "jsq" in movie_type:
             plt.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
 
-    pplt.overlay_contours(ax_slc[0], dump, 'sigma', [1])
+    if not USEARRSPACE:
+    	pplt.overlay_contours(ax, dump, 'sigma', [1])
 
     #plt.subplots_adjust(left=0.03, right=0.97)
     plt.savefig(os.path.join(frame_dir, 'frame_%08d.png' % n), dpi=FIGDPI)

@@ -16,7 +16,10 @@ def read_hdr(fname, params=None):
     # TODO fall back to actual file as well?
     with h5py.File(fname, "r") as infile:
         if 'Input' in infile:
-            parameters.parse_parthenon_dat(infile['Input'].attrs['File'].decode('UTF-8'), params)
+            file_string = infile['Input'].attrs['File']
+            if type(file_string) != str:
+                files_string = file_string.decode("UTF-8")
+            parameters.parse_parthenon_dat(file_string, params)
         else:
             raise RuntimeError("No parameters could be found in KHARMA dump {}".format(fname))
 
