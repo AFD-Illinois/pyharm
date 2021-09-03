@@ -29,6 +29,10 @@ def read_dump(fname, params=None, add_ghosts=False, **kwargs):
 
         P = _prep_array(infile['/prims'][()], **kwargs)
 
+        # iharm3d doesn't update prim_names with multi e- yet
+        if P.shape[0] == 13:
+            params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KTOT", "KEL_KAWAZURA", "KEL_WERNER", "KEL_ROWAN", "KEL_SHARMA"]
+
     return P, params
 
 # Other readers, let users use as desired

@@ -19,9 +19,9 @@ def get_fnames(path):
     if len(files) == 0:
         files = np.sort(glob(os.path.join(path, "dump*")))
     if len(files) == 0:
-        files = np.sort(glob(os.path.join(path, "dump_*.h5")))
+        files = np.sort(glob(os.path.join(path, "*.h5")))
     if len(files) == 0:
-        files = np.sort(glob(os.path.join(path, "dump_*.hdf5")))
+        files = np.sort(glob(os.path.join(path, "*.hdf5")))
     if len(files) == 0:
         raise FileNotFoundError("No dump files found at {}".format(path))
     return files

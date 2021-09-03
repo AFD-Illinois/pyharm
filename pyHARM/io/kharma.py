@@ -94,8 +94,16 @@ def read_dump(fname, add_ghosts=False, params=None):
                  int((bb[4]+dz/2 - G.startx[3])/dz)-ng_iz, int((bb[5]+dz/2 - G.startx[3])/dz)+ng_iz]
         bounds.append(bound)
 
-    # Optionally allocate enough space for ghost zones
-    P = np.zeros((8, G.NTOT[1]+2*ng_ix, G.NTOT[2]+2*ng_iy, G.NTOT[3]+2*ng_iz))
+
+
+    if 'prims.Ktot' in f.Variables:
+        # If any electrons are present
+        params['n_prim'] = 13
+        params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KTOT", "KEL_KAWAZURA", "KEL_WERNER", "KEL_ROWAN", "KEL_SHARMA"]
+        # Optionally allocate enough space for ghost zones
+        P = np.zeros((13, G.NTOT[1]+2*ng_ix, G.NTOT[2]+2*ng_iy, G.NTOT[3]+2*ng_iz))
+    else:
+        P = np.zeros((8, G.NTOT[1]+2*ng_ix, G.NTOT[2]+2*ng_iy, G.NTOT[3]+2*ng_iz))
 
     # Read blocks into their slices of the full mesh
     for ib in range(f.NumBlocks):
@@ -110,8 +118,10 @@ def read_dump(fname, add_ghosts=False, params=None):
                 o = [ng_f, -ng_f, ng_f, -ng_f, ng_f, -ng_f]
         else:
             o = [None, None, None, None, None, None]
-        # False == don't flatten into 1D array
-        if f.Get('prims.rho', False) is not None:
+
+        # Try reading new fancy format
+        if 'prims.rho' in f.Variables:
+            # False == don't flatten into 1D array
             rho_array = f.Get('prims.rho', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
             P[0, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = rho_array
             del rho_array
@@ -121,17 +131,43 @@ def read_dump(fname, add_ghosts=False, params=None):
             uvec_array = f.Get('prims.uvec', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
             P[2:5, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = uvec_array
             del uvec_array
-            if f.Get('prims.B', False) is not None:
+            if 'prims.B' in f.Variables:
                 B_array = f.Get('prims.B', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
-                P[5:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = B_array
+                P[5:8, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = B_array
                 del B_array
+            if 'prims.Ktot' in f.Variables:
+                k_array = f.Get('prims.Ktot', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                P[8, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                del k_array
+            # Not part of the spec.  Read independently (read all these independently?)
+            # if 'prims.Kel_Howes' in f.Variables:
+            #     k_array = f.Get('prims.Kel_Howes', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+            #     P[9, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+            #     del k_array
+            if 'prims.Kel_Kawazura' in f.Variables:
+                k_array = f.Get('prims.Kel_Kawazura', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                P[9, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                del k_array
+            if 'prims.Kel_Werner' in f.Variables:
+                k_array = f.Get('prims.Kel_Werner', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                P[10, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                del k_array
+            if 'prims.Kel_Rowan' in f.Variables:
+                k_array = f.Get('prims.Kel_Rowan', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                P[11, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                del k_array
+            if 'prims.Kel_Sharma' in f.Variables:
+                k_array = f.Get('prims.Kel_Sharma', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                P[12, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                del k_array
         else:
+            # Old file formats
             prim_array = f.Get('c.c.bulk.prims', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
             if prim_array.shape[0] == 8:
                 P[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = prim_array
             else:
                 P[:5, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = prim_array
-                if f.Get('c.c.bulk.B_prim', False) is not None:
+                if 'c.c.bulk.B_prim' in f.Variables:
                     P[5:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
                         f.Get('c.c.bulk.B_prim', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
 

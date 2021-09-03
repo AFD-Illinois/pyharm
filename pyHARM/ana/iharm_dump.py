@@ -126,6 +126,7 @@ class IharmDump:
     # Act like a dict when retrieving lots of different things --
     # just compute/retrieve them on the fly!
     def __getitem__(self, key):
+        key = str(key)
         if key in self.header['prim_names']:
             i = self.header['prim_names'].index(key)
             if self._zones_first:
