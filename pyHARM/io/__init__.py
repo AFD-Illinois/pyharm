@@ -2,15 +2,15 @@
 # Wrap functions from individual io modules by detecting filenames
 from glob import glob
 
-import pyHARM.io.ilhdf as ilhdf
-import pyHARM.io.kharma as kharma
-import pyHARM.io.harm2d as harm2d
-import pyHARM.io.hamr as hamr
-import pyHARM.io.koral as koral
+from . import ilhdf
+from . import kharma
+from . import harm2d
+from . import hamr
+from . import koral
 
 # Also import i/o for other filetypes directly
-from pyHARM.io.misc import *
-from pyHARM.io.gridfile import *
+from .misc import *
+from .gridfile import *
 
 def get_fnames(path):
     files = np.sort(glob(os.path.join(path, "dump_*.h5")))
