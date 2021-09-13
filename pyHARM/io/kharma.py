@@ -18,7 +18,7 @@ def read_hdr(fname, params=None):
         if 'Input' in infile:
             file_string = infile['Input'].attrs['File']
             if type(file_string) != str:
-                files_string = file_string.decode("UTF-8")
+                file_string = file_string.decode("UTF-8")
             parameters.parse_parthenon_dat(file_string, params)
         else:
             raise RuntimeError("No parameters could be found in KHARMA dump {}".format(fname))
