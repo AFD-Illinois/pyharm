@@ -21,8 +21,8 @@ def convert(n):
     hdr = dump.params
     # The zero is dt, which KHARMA does not keep
     pyHARM.io.ilhdf.write_dump(hdr, dump.grid, dump.prims, hdr['t'], 0.0, hdr['n_step'], hdr['n_dump'],
-                                dumpname.replace(".phdf", ".h5"))
+                                dumpname.replace("dumps_kharma/","dumps/").replace(".phdf", ".h5"))
 
-#pyHARM.util.run_parallel(convert, len(dump_list), 40)
-for i in range(len(dump_list)):
-    convert(i)
+pyHARM.util.run_parallel(convert, len(dump_list), 40)
+#for i in range(len(dump_list)):
+#    convert(i)

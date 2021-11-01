@@ -15,6 +15,8 @@ from .gridfile import *
 def get_fnames(path):
     files = np.sort(glob(os.path.join(path, "dump_*.h5")))
     if len(files) == 0:
+        files = np.sort(glob(os.path.join(path, "*out*.h5")))
+    if len(files) == 0:
         files = np.sort(glob(os.path.join(path, "*out*.phdf")))
     if len(files) == 0:
         files = np.sort(glob(os.path.join(path, "dump*")))
@@ -33,7 +35,7 @@ def get_filter(fname):
     if ".phdf" in fname:
         return kharma
     elif ".h5" in fname:
-        with h5py.File(fname) as f:
+        with h5py.File(fname, 'r') as f:
             if 'header' in f.keys():
                 if 'KORAL' in f["/header/version"][()].decode('UTF-8'):
                     return koral

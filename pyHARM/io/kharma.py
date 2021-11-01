@@ -255,10 +255,10 @@ def read_divb(fname, add_ghosts=False):
     return divb
 
 def read_fail_flags(fname, add_ghosts=False):
-    return read_scalar(fname, 'pflag', dtype=np.int32, add_ghosts=add_ghosts)
+    return read_scalar(fname, 'pflag', dtype=np.int32, add_ghosts=add_ghosts).astype(int)
 
 def read_floor_flags(fname, add_ghosts=False):
-    return read_scalar(fname, 'fflag', dtype=np.int32, add_ghosts=add_ghosts)
+    return read_scalar(fname, 'fflag', dtype=np.int32, add_ghosts=add_ghosts).astype(int) // 32
 
 def read_scalar(fname, scalar_name, dtype=np.float64, add_ghosts=False):
     f = phdf(fname)
