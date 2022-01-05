@@ -76,7 +76,10 @@ def read_dump(fname, add_ghosts=False, params=None):
     # Add dump number if we've conformed to usual naming scheme
     fname_parts = fname.split("/")[-1].split(".")
     if len(fname_parts) > 2:
-        params['n_dump'] = int(fname_parts[2])
+        try:
+            params['n_dump'] = int(fname_parts[2])
+        except ValueError:
+            params['n_dump'] = fname_parts[2]
     params['startx1'] = G.startx[1]
     params['startx2'] = G.startx[2]
     params['startx3'] = G.startx[3]
@@ -94,16 +97,32 @@ def read_dump(fname, add_ghosts=False, params=None):
                  int((bb[4]+dz/2 - G.startx[3])/dz)-ng_iz, int((bb[5]+dz/2 - G.startx[3])/dz)+ng_iz]
         bounds.append(bound)
 
-
-
-    if 'prims.Ktot' in f.Variables:
-        # If any electrons are present
-        params['n_prim'] = 13
-        params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KTOT", "KEL_KAWAZURA", "KEL_WERNER", "KEL_ROWAN", "KEL_SHARMA"]
-        # Optionally allocate enough space for ghost zones
-        P = np.zeros((13, G.NTOT[1]+2*ng_ix, G.NTOT[2]+2*ng_iy, G.NTOT[3]+2*ng_iz))
-    else:
-        P = np.zeros((8, G.NTOT[1]+2*ng_ix, G.NTOT[2]+2*ng_iy, G.NTOT[3]+2*ng_iz))
+    # Set number and names of primitives in the right order (will have to be modified if KHARMA uses beyond the regular GRMHD and Electrons packages)
+    # Initialize 'P' to zeroes of right shape
+    if 'prims.rho' in f.Variables: # If there is something, it's reasonable to assume it is hot and is in motion
+        if 'prims.B' in f.Variables: # If magnetic fields were turned on
+            if 'prims.Ktot' in f.Variables: # If Electrons pacakge was turned on
+                params['prim_names'] = ['RHO'] + ['UU'] + ['U1'] + ['U2'] + ['U3'] + ['B1'] + ['B2'] + ['B3'] + ['KTOT']
+                params['n_prim'] = 9
+                for key in f.Variables:
+                    if 'prims.Kel_' in key:
+                        params['prim_names'].append(key.split('.')[-1].upper())
+                        params['n_prim'] += 1
+            else: #If Electrons pacakge was turned off
+                params['prim_names'] = ['RHO'] + ['UU'] + ['U1'] + ['U2'] + ['U3'] + ['B1'] + ['B2'] + ['B3']
+                params['n_prim'] = 8
+        else: # If magnetic fields were turned off
+            if 'prims.Ktot' in f.Variables: # If Electrons pacakge was turned on
+                params['prim_names'] = ['RHO'] + ['UU'] + ['U1'] + ['U2'] + ['U3'] + ['KTOT']
+                params['n_prim'] = 6
+                for key in f.Variables:
+                    if 'prims.Kel_' in key:
+                        params['prim_names'].append(key.split('.')[-1].upper())
+                        params['n_prim'] += 1
+            else:# If Electrons pacakge was turned off
+                params['prim_names'] = ['RHO'] + ['UU'] + ['U1'] + ['U2'] + ['U3']
+                params['n_prim'] = 5
+    P = np.zeros((params['n_prim'], G.NTOT[1]+2*ng_ix, G.NTOT[2]+2*ng_iy, G.NTOT[3]+2*ng_iz))
 
     # Read blocks into their slices of the full mesh
     for ib in range(f.NumBlocks):
@@ -135,31 +154,71 @@ def read_dump(fname, add_ghosts=False, params=None):
                 B_array = f.Get('prims.B', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
                 P[5:8, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = B_array
                 del B_array
-            if 'prims.Ktot' in f.Variables:
-                k_array = f.Get('prims.Ktot', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                P[8, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                del k_array
-            # Not part of the spec.  Read independently (read all these independently?)
-            # if 'prims.Kel_Howes' in f.Variables:
-            #     k_array = f.Get('prims.Kel_Howes', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-            #     P[9, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-            #     del k_array
-            if 'prims.Kel_Kawazura' in f.Variables:
-                k_array = f.Get('prims.Kel_Kawazura', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                P[9, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                del k_array
-            if 'prims.Kel_Werner' in f.Variables:
-                k_array = f.Get('prims.Kel_Werner', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                P[10, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                del k_array
-            if 'prims.Kel_Rowan' in f.Variables:
-                k_array = f.Get('prims.Kel_Rowan', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                P[11, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                del k_array
-            if 'prims.Kel_Sharma' in f.Variables:
-                k_array = f.Get('prims.Kel_Sharma', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                P[12, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                del k_array
+                if 'prims.Ktot' in f.Variables:
+                    k_array = f.Get('prims.Ktot', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                    P[8, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                    del k_array
+
+                    kel_counter = 9
+                    if 'prims.Kel_Constant' in f.Variables:
+                        k_array = f.Get('prims.Kel_Constant', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                        del k_array
+                        kel_counter += 1
+                    if 'prims.Kel_Kawazura' in f.Variables:
+                        k_array = f.Get('prims.Kel_Kawazura', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                        del k_array
+                        kel_counter += 1
+                    if 'prims.Kel_Werner' in f.Variables:
+                        k_array = f.Get('prims.Kel_Werner', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                        del k_array
+                        kel_counter += 1
+                    if 'prims.Kel_Rowan' in f.Variables:
+                        k_array = f.Get('prims.Kel_Rowan', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                        del k_array
+                        kel_counter += 1
+                    if 'prims.Kel_Sharma' in f.Variables:
+                        k_array = f.Get('prims.Kel_Sharma', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                        del k_array
+                        kel_counter += 1
+
+            else:
+                if 'prims.Ktot' in f.Variables:
+                    k_array = f.Get('prims.Ktot', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                    P[5, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                    del k_array
+
+                    kel_counter = 6
+                    if 'prims.Kel_Constant' in f.Variables:
+                        k_array = f.Get('prims.Kel_Constant', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                        del k_array
+                        kel_counter += 1
+                    if 'prims.Kel_Kawazura' in f.Variables:
+                        k_array = f.Get('prims.Kel_Kawazura', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                        del k_array
+                        kel_counter += 1
+                    if 'prims.Kel_Werner' in f.Variables:
+                        k_array = f.Get('prims.Kel_Werner', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                        del k_array
+                        kel_counter += 1
+                    if 'prims.Kel_Rowan' in f.Variables:
+                        k_array = f.Get('prims.Kel_Rowan', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                        del k_array
+                        kel_counter += 1
+                    if 'prims.Kel_Sharma' in f.Variables:
+                        k_array = f.Get('prims.Kel_Sharma', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
+                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
+                        del k_array
+                        kel_counter += 1
+
         else:
             # Old file formats
             prim_array = f.Get('c.c.bulk.prims', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)

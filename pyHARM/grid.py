@@ -162,6 +162,13 @@ class Grid:
 
             self.gdet = np.zeros(self.shapes.locus_geom_scalar)
             self.lapse = np.zeros_like(self.gdet)
+            # For 1D problems
+            if self.gcov.shape[-1] == 1:
+                self.gcov = np.squeeze(self.gcov)
+                self.gcon = np.squeeze(self.gcon)
+                self.gdet = np.squeeze(self.gdet)
+                self.lapse = np.zeros_like(self.gdet)
+            #
 
             for loc in Loci:
                 ilist = np.arange(self.GN[1])
