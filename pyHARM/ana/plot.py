@@ -330,9 +330,9 @@ def overlay_contourf(ax, dump, var, levels, color='k', **kwargs):
     var = _flatten_xz(var, average=True)
     return ax.contourf(x, z, var, levels=levels, colors=color, **kwargs)
 
-def overlay_field(ax, dump, arrayspace=False, **kwargs):
+def overlay_field(ax, dump, arrayspace=False, nlines=20, **kwargs):
     if not arrayspace:
-        overlay_flowlines(ax, dump, dump['B1'], dump['B2'], **kwargs)
+        overlay_flowlines(ax, dump, dump['B1'], dump['B2'], nlines=nlines, **kwargs)
 
 def overlay_flowlines(ax, dump, varx1, varx2, nlines=50, reverse=False):
     N1 = dump['n1']

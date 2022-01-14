@@ -19,8 +19,8 @@ FIGX = 10
 FIGY = 10
 
 # TODO parse these instead of hard-coding
-USEARRSPACE = False
-SUM = True
+USEARRSPACE = True
+SUM = False
 
 if USEARRSPACE:
     window = (0, 1, 0, 1)
@@ -47,7 +47,7 @@ if len(sys.argv) > 4:
 else:
     unit = 1
 
-dump = pyHARM.load_dump(dumpfile, add_fails=True)
+dump = pyHARM.load_dump(dumpfile) #, add_fails=True)
 
 if "pdf_" in var:
     fig = plt.figure(figsize=(FIGX, FIGY))

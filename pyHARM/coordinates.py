@@ -76,6 +76,9 @@ class CoordinateSystem(object):
     def gcov_ks(self, X):
         gcov_ks = np.zeros([4, 4, *(X.shape[1:])])
         r, th, _ = self.ks_coord(X)
+        if 'small_th' not in self.__dict__:
+            self.small_th = 1e-20
+        th = self.correct_small_th(th)
 
         # TODO Un-C this.
         cth = np.cos(th)

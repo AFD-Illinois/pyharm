@@ -82,6 +82,10 @@ def parse_parthenon_dat(string, params=None):
         params['coordinates'] = "fmks"
     elif "mks" in params['transform'] or "modif" in params['transform']:
         params['coordinates'] = "mks"
+    elif "null" in params['transform'] and "ks" in params['base']:
+        params['coordinates'] = "ks"
+    elif "null" in params['transform'] and "bl" in params['base']:
+        params['coordinates'] = "bl"
     else:
         print("Defaulting KHARMA coordinate system to fmks...")
         params['coordinates'] = params['metric'] = "fmks"

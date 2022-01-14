@@ -101,8 +101,8 @@ def plot(n):
         rho_l, rho_h = None, None
     elif len(dump['r'].shape) == 2:
         r1d = dump['r'][:,0]
-        sz = 50
-        nlines = 20
+        sz = 30
+        nlines = 10
         rho_l, rho_h = -6, 1
     else:
         r1d = dump['r'][:,0,0]
@@ -489,7 +489,10 @@ def plot(n):
         at = 0
         if "_cross" in l_movie_type:
             l_movie_type = l_movie_type.replace("_cross","")
-            at = dump['n2']//2
+            at = dump['n3']//2
+        if "_quarter" in l_movie_type:
+            l_movie_type = l_movie_type.replace("_quarter","")
+            at = dump['n3']//4
         if "_avg" in l_movie_type:
             l_movie_type = l_movie_type.replace("_avg","")
             do_average = True
@@ -503,7 +506,7 @@ def plot(n):
             ax = plt.subplot(1, 1, 1)
             var = l_movie_type.replace("_poloidal","")
             pplt.plot_xz(ax, dump, var, at=at, label=pretty(var),
-                        vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE, average=do_average,
+                        vmin=None, vmax=None, window=window, arrayspace=USEARRSPACE, average=do_average,
                         xlabel=False, ylabel=False, xticks=[], yticks=[],
                         cbar=False, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
         elif "_toroidal" in l_movie_type:
@@ -534,7 +537,7 @@ def plot(n):
             plt.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
 
     if not USEARRSPACE:
-    	pplt.overlay_contours(ax, dump, 'sigma', [1])
+    	pplt.overlay_field(ax, dump, nlines=nlines)
 
     #plt.subplots_adjust(left=0.03, right=0.97)
     plt.savefig(os.path.join(frame_dir, 'frame_%08d.png' % n), dpi=FIGDPI)
