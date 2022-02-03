@@ -289,10 +289,11 @@ def avg_dump(n):
                 'Be_b1': lambda dump: (dump['Be_b'] > 1),
                 'Be_nob0': lambda dump: (dump['Be_nob'] > 0.02),
                 'Be_nob1': lambda dump: (dump['Be_nob'] > 1),
-                # 'mu1' : lambda dump : (dump['mu'] > 1),
+                #'mu1' : lambda dump : (dump['mu'] > 1),
                 'bg1': lambda dump: (dump['betagamma'] > 1.0),
                 'bg05': lambda dump: (dump['betagamma'] > 0.5),
-                'allp': lambda dump: (dump['FE'] > 0)}
+                'allp': lambda dump: (dump['FE'] > 0,
+                'morep': lambda dump: (dump['FE'] - dump['rho']*dump['ucon'][:,:,:,1] > 0)}
 
         # Terminology:
         # LBZ = E&M energy only, any cut

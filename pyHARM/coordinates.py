@@ -7,6 +7,8 @@ import scipy.optimize as opt
 default_met_params = {'a': 0.9375, 'hslope': 0.3, 'r_out': 50.0, 'n1tot': 192,
                       'poly_xt': 0.82, 'poly_alpha': 14.0, 'mks_smooth': 0.5}
 
+legacy_small_th = True
+
 class CoordinateSystem(object):
     """ Base class for representing coordinate systems
     Coordinate classes define, as functions of their native coordinates X:
@@ -277,7 +279,7 @@ class KS(CoordinateSystem):
         return x[1]
 
     def th(self, x):
-        return x[2]
+        return self.correct_small_th(x[2])
 
     def phi(self, x):
         return x[3]
@@ -375,6 +377,7 @@ class MKS(KS):
 
     def th(self, x):
         return self.correct_small_th(np.pi*x[2] + ((1. - self.hslope)/2.)*np.sin(2.*np.pi*x[2]))
+        #return np.pi*x[2] + ((1. - self.hslope)/2.)*np.sin(2.*np.pi*x[2])
 
     def phi(self, x):
         return x[3]
@@ -392,6 +395,7 @@ class MKS(KS):
         dxdX = np.zeros([4, 4, *x.shape[1:]])
         dxdX[0, 0] = 1
         dxdX[1, 1] = np.exp(x[1])
+
         dxdX[2, 2] = np.pi - (self.hslope - 1.) * np.pi * np.cos(2. * np.pi * x[2])
         dxdX[3, 3] = 1
         return dxdX
@@ -409,7 +413,10 @@ class CMKS(MKS):
         y = 2 * x[2] - 1.
         th_j = self.poly_norm * y * (
                     1. + np.power(y / self.poly_xt, self.poly_alpha) / (self.poly_alpha + 1.)) + 0.5 * np.pi
-        return self.correct_small_th(th_j)
+        if legacy_small_th:
+            return self.correct_small_th(th_j)
+        else:
+            return th_j
 
     # TODO TODO dxdX
 
@@ -431,6 +438,7 @@ class FMKS(MKS):
         th_j = self.poly_norm * y * (
                     1. + np.power(y / self.poly_xt, self.poly_alpha) / (self.poly_alpha + 1.)) + 0.5 * np.pi
         return self.correct_small_th(th_g + np.exp(self.mks_smooth * (self.startx1 - x[1])) * (th_j - th_g))
+        #return th_g + np.exp(self.mks_smooth * (self.startx1 - x[1])) * (th_j - th_g)
 
     def dxdX(self, x):
         # TODO evaluate these numerically?
@@ -498,7 +506,10 @@ class BHAC_MKS(CoordinateSystem):
 
     def th(self, x):
         # BHAC MKS uses 0<X2<pi
-        return self.correct_small_th(x[2] + 2*self.hslope/(np.pi**2)*x[2]*(np.pi - 2*x[2])*(np.pi-x[2]))
+        if legacy_small_th:
+            return self.correct_small_th(x[2] + 2*self.hslope/(np.pi**2)*x[2]*(np.pi - 2*x[2])*(np.pi-x[2]))
+        else:
+            return x[2] + 2*self.hslope/(np.pi**2)*x[2]*(np.pi - 2*x[2])*(np.pi-x[2])
 
     def phi(self, x):
         return x[3]
@@ -625,11 +636,13 @@ class MKS3(CoordinateSystem):
     def th(self, x):
         R0, H0 = self.r0, self.h0
         MY1, MY2, MP0 = self.my1, self.my2, self.mp0
-        return self.correct_small_th(
-                0.5 * (np.pi * (1. + 1. / np.tan((H0 * np.pi) / 2.) *
+        th = 0.5 * (np.pi * (1. + 1. / np.tan((H0 * np.pi) / 2.) *
                                 np.tan(H0 * np.pi * (-0.5 + (MY1 + (2.**MP0 * (-MY1 + MY2)) / (np.exp(x[1]) + R0)**MP0)
                                     * (1. - 2. * x[2]) + x[2]))))
-                )
+        if legacy_small_th:
+            return self.correct_small_th(th)
+        else:
+            return th
 
     def phi(self, x):
         return x[3]

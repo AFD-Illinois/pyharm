@@ -32,10 +32,15 @@ def get_filter(fname):
     """Choose an importer based on what we know of file contents, or failing that, names
     Purposefully a bit dumb, just trusts the filename
     """
-    if ".phdf" in fname:
+    if type(fname) == h5py._hl.files.File:
+        _fname = fname.filename
+    else:
+        _fname = fname
+
+    if ".phdf" in _fname or ".rhdf" in _fname:
         return kharma
-    elif ".h5" in fname:
-        with h5py.File(fname, 'r') as f:
+    elif ".h5" in _fname:
+        with h5py.File(_fname, 'r') as f:
             if 'header' in f.keys():
                 if 'KORAL' in f["/header/version"][()].decode('UTF-8'):
                     return koral
@@ -43,9 +48,9 @@ def get_filter(fname):
                     return ilhdf
             else:
                 return kharma
-    elif ".hdf5" in fname:
+    elif ".hdf5" in _fname:
             return hamr
-    elif "dump" in fname:
+    elif "dump" in _fname:
         # HARM ASCII files are *usually* named "dump" with a number
         return harm2d
     else:

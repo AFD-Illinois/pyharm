@@ -187,7 +187,7 @@ def dict_to_hdf5(wdict, h5grp):
     """
     do_close = False
     if isinstance(h5grp, str):
-        h5grp = h5py.File(h5grp, "r+")
+        h5grp = h5py.File(h5grp, "r")
         do_close = True
 
     for key, item in wdict.items():

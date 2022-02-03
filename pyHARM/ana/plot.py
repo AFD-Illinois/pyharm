@@ -46,8 +46,8 @@ def pcolormesh_symlog(ax, X, Y, Z, vmax=None, vmin=None, linthresh=None, decades
                       + [0.0]
                       + [(10.0 ** x) for x in range(-logthresh, int_max_pow)]
                       + [vmax])
-    pcm = ax.pcolormesh(X, Y, Z, norm=colors.SymLogNorm(linthresh=linthresh, linscale=linscale, base=10),
-                         cmap=cmap, vmin=-vmax, vmax=vmax, **kwargs)
+    pcm = ax.pcolormesh(X, Y, Z, norm=colors.SymLogNorm(linthresh=linthresh, linscale=linscale, base=10, vmin=-vmax, vmax=vmax),
+                         cmap=cmap, **kwargs)
     if cbar:
         # TODO add some more anonymous ticks
         plt.colorbar(pcm, ax=ax, ticks=tick_locations, format=ticker.LogFormatterMathtext())

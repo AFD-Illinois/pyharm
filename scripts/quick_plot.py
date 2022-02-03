@@ -47,7 +47,7 @@ if len(sys.argv) > 4:
 else:
     unit = 1
 
-dump = pyHARM.load_dump(dumpfile) #, add_fails=True)
+dump = pyHARM.load_dump(dumpfile, calc_derived=True) #, add_fails=True)
 
 if "pdf_" in var:
     fig = plt.figure(figsize=(FIGX, FIGY))

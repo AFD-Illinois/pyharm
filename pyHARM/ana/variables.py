@@ -41,9 +41,9 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'Thetap': lambda dump: (dump.header['gam_p'] - 1) * dump['UU'] / dump['RHO'],
             'Thetae': lambda dump: (dump.header['gam_e'] - 1) * dump['UU'] / dump['RHO'],
             'Thetae_rhigh': lambda dump: thetae_rhigh(dump),
-            'JE0': lambda dump: T_mixed(dump, 0, 0),
-            'JE1': lambda dump: T_mixed(dump, 1, 0),
-            'JE2': lambda dump: T_mixed(dump, 2, 0),
+            'JE0': lambda dump: -T_mixed(dump, 0, 0),
+            'JE1': lambda dump: -T_mixed(dump, 1, 0),
+            'JE2': lambda dump: -T_mixed(dump, 2, 0),
             'lam_MRI': lambda dump: lam_MRI(dump),
             'jet_psi': lambda dump: jet_psi(dump),
             'divB': lambda dump: divB(dump.grid, dump.prims),
@@ -111,11 +111,21 @@ pretty_dict = {'rho': r"\rho",
             'phi': r"\phi"
             }
 
-def pretty(var):
+def pretty(var, segment=False):
+    """Return a pretty LaTeX form of the named variable"""
+    pretty_var = ""
     if var[:4] == "log_":
-        return r"$\log_{10} \left( "+pretty(var[4:])[1:-1]+r" \right)$"
+        return r"$\log_{10} \left( "+pretty(var[4:], segment=True)+r" \right)$"
+    if var[:4] == "abs_":
+        if segment:
+            return r"\left| "+pretty(var[4:], segment=True)+r" \right|"
+        else:
+            return r"$\left| "+pretty(var[4:], segment=True)+r" \right|$"
     elif var in pretty_dict:
-        return r"$"+pretty_dict[var]+r"$"
+        if segment:
+            return pretty_dict[var]
+        else:
+            return r"$"+pretty_dict[var]+r"$"
     else:
         # Give up
         return var

@@ -236,7 +236,7 @@ def get_lc(infname, angle=163, rhigh=20, add_pol=False, qui=False):
 
 
 def get_diag(infname, var, only_nonzero=True, qui=False, **kwargs):
-    with h5py.File(infname) as infile:
+    with h5py.File(infname, 'r') as infile:
         if 'diag' in infile and 't' in infile['diag'] and var in infile['diag']:
             ret_i, ret_v = infile['diag']['t'][()], infile['diag'][var][()]
 

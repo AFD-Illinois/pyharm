@@ -131,30 +131,3 @@ class Shapes:
 
         self.halo1_scalar = (G.N[1] + 2, G.N[2] + 2, G.N[3] + 2)
         self.halo1_primitives = (params['n_prim'],) + self.halo1_scalar
-
-
-        # ISL language definitions of common kernel sizes
-        # TODO any advantage to actually _defining_ the numbers?
-        self.isl_geom_scalar = """{ [i,j]: 0 <= i < n1 and 0 <= j < n2 }"""
-        self.isl_geom_vector = """{ [mu,nu,i,j]: 0 <= mu < ndim and 0 <= i < n1 and 0 <= j < n2 }"""
-        self.isl_geom_tensor = """{ [mu,nu,i,j]: 0 <= mu < ndim and 0 <= nu < ndim and 0 <= i < n1 and 0 <= j < n2 }"""
-        self.isl_geom_primitives = """{ [p,i,j,k]: 0 <= p < nprims and 0 <= i < n1 and 0 <= j < n2 and 0 <= k < n3 }"""
-
-        self.isl_grid_scalar = """{ [i,j,k]: 0 <= i < n1 and 0 <= j < n2 and 0 <= k < n3 }"""
-        self.isl_grid_vector = """{ [mu,i,j,k]: 0 <= mu < ndim and 0 <= i < n1 and 0 <= j < n2 and 0 <= k < n3 }"""
-        self.isl_grid_tensor = """{ [mu,nu,i,j,k]: 0 <= mu < ndim and 0 <= nu < ndim and
-                                        0 <= i < n1 and 0 <= j < n2 and 0 <= k < n3 }"""
-        self.isl_grid_3vector = """{ [mu,i,j,k]: 0 <= mu < ndim-1 and 0 <= i < n1 and 0 <= j < n2 and 0 <= k < n3 }"""
-        self.isl_grid_3tensor = """{ [mu,nu,i,j,k]: 0 <= mu < ndim-1 and 0 <= nu < ndim-1 and
-                                        0 <= i < n1 and 0 <= j < n2 and 0 <= k < n3 }"""
-
-        self.isl_grid_primitives = """{ [p,i,j,k]: 0 <= p < nprim and 0 <= i < n1 and 0 <= j < n2 and 0 <= k < n3 }"""
-        self.isl_grid_primitives_fixup = """{ [p,i,j,k,l,m,n]: 0 <= p < nprim
-                                    and 0 <= i < n1 and 0 <= j < n2 and 0 <= k < n3 
-                                    and -1 <= l <= 1 and -1 <= m <= 1 and -1 <= n <= 1}"""
-        self.isl_grid_scalar_fixup = """{ [p,i,j,k,l,m,n]: 0 <= i < n1 and 0 <= j < n2 and 0 <= k < n3 
-                                    and -1 <= l <= 1 and -1 <= m <= 1 and -1 <= n <= 1}"""
-
-        self.assume_grid = "n1 mod 2 = 0 and n2 mod 2 = 0 and n3 mod 2 = 0 and n1 >= 1 and n2 >= 1 and n3 >= 1 "
-        self.assume_grid_primitives = self.assume_grid + "and nprim >= 1 "
-

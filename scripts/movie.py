@@ -58,7 +58,7 @@ def plot(n):
     to_load = {}
     if "simple" not in movie_type and "floor" not in movie_type:
         # Everything but simple & pure floor movies needs derived vars
-        to_load['calc_derived'] = True
+        to_load['calc_derived'] = False
     if "simple" in movie_type:
         # Save memory
         #to_load['add_grid_caches'] = False
@@ -101,13 +101,13 @@ def plot(n):
         rho_l, rho_h = None, None
     elif len(dump['r'].shape) == 2:
         r1d = dump['r'][:,0]
-        sz = 30
+        sz = 200
         nlines = 10
         rho_l, rho_h = -6, 1
     else:
         r1d = dump['r'][:,0,0]
         if dump['r'][-1, 0, 0] > 100:
-            sz = 50
+            sz = 300
             nlines = 20
             rho_l, rho_h = -5, 1.5
             iBZ = i_of(r1d, 100) # most MADs
@@ -508,7 +508,7 @@ def plot(n):
             pplt.plot_xz(ax, dump, var, at=at, label=pretty(var),
                         vmin=None, vmax=None, window=window, arrayspace=USEARRSPACE, average=do_average,
                         xlabel=False, ylabel=False, xticks=[], yticks=[],
-                        cbar=False, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
+                        cbar=True, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
         elif "_toroidal" in l_movie_type:
             ax = plt.subplot(1, 1, 1)
             var = l_movie_type.replace("_toroidal","")
