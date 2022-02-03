@@ -320,6 +320,83 @@ class KS(CoordinateSystem):
         dxdX[3, 3] = 0
         return dxdX
 
+class EKS(KS):
+    def __init__(self, met_params=default_met_params):
+        self.a = met_params['a']
+
+        # For avoiding coordinate singularity
+        # We can usually leave this default
+        if 'small_theta' in met_params:
+            self.small_th = met_params['small_theta']
+        else:
+            self.small_th = 1.e-20
+
+        # Set radii
+        self.r_eh = 1. + np.sqrt(1. - self.a ** 2)
+        z1 = 1. + (1. - self.a**2)**(1/3) * ((1. + self.a)**(1/3) + (1. - self.a)**(1. / 3.))
+        z2 = np.sqrt(3. * self.a**2 + z1**2)
+        self.r_isco = 3. + z2 - (np.sqrt((3. - z1) * (3. + z1 + 2. * z2))) * np.sign(self.a)
+
+    def native_startx(self, met_params):
+        # TODO take direct 'startx' from met params?
+        if 'startx1' in met_params and 'startx2' in met_params and 'startx3' in met_params:
+            return np.array([0, met_params['startx1'], met_params['startx2'], met_params['startx3']])
+        elif 'r_in' in met_params:
+            # Set startx1 from r_in
+            return np.array([0, np.log(met_params['r_in']), 0, 0])
+        elif 'n1tot' in met_params and 'r_out' in met_params:
+            # Else via a guess, which we propagate back to the originating parameter file
+            met_params['r_in'] = np.exp((met_params['n1tot'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
+                                    (-1. + met_params['n1tot'] / 5.5))
+            return np.array([0, np.log(met_params['r_in']), 0, 0])
+        elif 'n1' in met_params and 'r_out' in met_params:
+            # Or a more questionable guess
+            met_params['r_in'] = np.exp((met_params['n1'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
+                                    (-1. + met_params['n1'] / 5.5))
+            return np.array([0, np.log(met_params['r_in']), 0, 0])
+        else:
+            print("The only parameters provided to native_startx were: ", met_params)
+            raise ValueError("Cannot find or guess startx!")
+
+    def native_stopx(self, met_params):
+        if 'r_out' in met_params:
+            return np.array([0, np.log(met_params['r_out']), 1, 2*np.pi])
+        elif ('startx1' in met_params and 'dx1' in met_params and 'n1' in met_params and
+               'startx2' in met_params and 'dx2' in met_params and 'n2' in met_params and
+               'startx3' in met_params and 'dx3' in met_params and 'n3' in met_params):
+            return np.array([0, met_params['startx1'] + met_params['n1']*met_params['dx1'],
+                            met_params['startx2'] + met_params['n2']*met_params['dx2'],
+                            met_params['startx3'] + met_params['n3']*met_params['dx3']])
+        else:
+            raise ValueError("Cannot find or guess stopx!")
+
+
+    def r(self, x):
+        return np.exp(x[1])
+
+    def th(self, x):
+        return self.correct_small_th(x[2])
+
+    def phi(self, x):
+        return x[3]
+
+    def cart_x(self, x):
+        return self.r(x)*np.sin(self.th(x))*np.cos(self.phi(x))
+
+    def cart_y(self, x):
+        return self.r(x)*np.sin(self.th(x))*np.sin(self.phi(x))
+
+    def cart_z(self, x):
+        return self.r(x)*np.cos(self.th(x))
+
+    def dxdX(self, x):
+        dxdX = np.zeros([4, 4, *x.shape[1:]])
+        dxdX[0, 0] = 1
+        dxdX[1, 1] = np.exp(x[1])
+        dxdX[2, 2] = 1
+        dxdX[3, 3] = 1
+        return dxdX
+
 class MKS(KS):
     def __init__(self, met_params=default_met_params):
         self.a = met_params['a']

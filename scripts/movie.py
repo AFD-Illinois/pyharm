@@ -50,13 +50,13 @@ def plot(n):
     tdump = io.get_dump_time(files[n])
     if (tstart is not None and tdump < tstart) or (tend is not None and tdump > tend):
         return
-    
+
     print("frame {} / {}".format(n, len(files)-1))
-    
+
     fig = plt.figure(figsize=(FIGX, FIGY))
-    
+
     to_load = {}
-    if "simple" not in movie_type and "floor" not in movie_type:
+    if "simple" not in movie_type and "floor" not in movie_type and "rho" not in movie_type and "UU" not in movie_type:
         # Everything but simple & pure floor movies needs derived vars
         to_load['calc_derived'] = False
     if "simple" in movie_type:
@@ -103,13 +103,13 @@ def plot(n):
         r1d = dump['r'][:,0]
         sz = 200
         nlines = 10
-        rho_l, rho_h = -6, 1
+        rho_l, rho_h = None, None #-6, 1
     else:
         r1d = dump['r'][:,0,0]
         if dump['r'][-1, 0, 0] > 100:
-            sz = 300
+            sz = 200
             nlines = 20
-            rho_l, rho_h = -5, 1.5
+            rho_l, rho_h = None, None #-5, 1.5
             iBZ = i_of(r1d, 100) # most MADs
             rBZ = 100
         elif dump['r'][-1, 0, 0] > 10:
@@ -124,7 +124,7 @@ def plot(n):
             rho_l, rho_h = -2, 0.0
             iBZ = 1
             rBZ = 1
-    
+
     window = [-sz, sz, -sz, sz]
 
     # If we're in arrspace we (almost) definitely want a 0,1 window
@@ -137,7 +137,7 @@ def plot(n):
             window = [0, 1, 0, 1]
     else:
         USEARRSPACE = False
-    
+
     if movie_type == "simplest_poloidal":
         # Simplest movie: just RHO, poloidal slice
         ax_slc = plt.subplot(1, 1, 1)
@@ -181,7 +181,7 @@ def plot(n):
             var = 'log_rho'
             vmin = rho_l
             vmax = rho_h
-	
+
         pplt.plot_xz(ax_slc[0], dump, var, label="",
                      vmin=vmin, vmax=vmax, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
@@ -190,10 +190,10 @@ def plot(n):
                      vmin=vmin+0.15, vmax=vmax+0.15, window=window, arrayspace=arrspace,
                      xlabel=False, ylabel=False, xticks=[], yticks=[],
                      cbar=False, cmap='jet')
-    
+
         pad = 0.0
         plt.subplots_adjust(hspace=0, wspace=0, left=pad, right=1 - pad, bottom=pad, top=1 - pad)
-    
+
     elif movie_type == "simpler":
         # Simpler movie: RHO and phi
         gs = gridspec.GridSpec(2, 2, height_ratios=[6, 1], width_ratios=[16, 17])
@@ -210,7 +210,7 @@ def plot(n):
         pplt.plot_slices(ax_slc[0], ax_slc[1], dump, 'log_rho', vmin=rho_l, vmax=rho_h, window=window, cmap='jet', arrayspace=USEARRSPACE)
         ppltr.plot_diag(ax_flux[0], diag, 'Mdot', tline=dump['t'], logy=LOG_MDOT)
         ppltr.plot_diag(ax_flux[1], diag, 'Phi_b', tline=dump['t'], logy=LOG_PHI)
-    
+
     elif movie_type == "traditional" or movie_type == "eht":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         # Usual movie: RHO beta fluxes
@@ -405,7 +405,7 @@ def plot(n):
         # integrated T00: continuity plot for energy conservation
         pplt.plot_slices(ax_slc(5), ax_slc(6), dump, np.abs(T_mixed(dump, 0, 0)),
                             label=r"$T^0_0$ Integrated", vmin=0, vmax=3000, arrspace=True, integrate=True)
-    
+
         # Usual fluxes for reference
         #ppltr.plot_diag(ax_flux[1], diag, 't', 'mdot', tline=dump['t'], logy=LOG_MDOT)
 
@@ -421,11 +421,11 @@ def plot(n):
         pplt.radial_plot(ax_flux(2), dump, np.abs(Ang_r) / 10, ylim=(0, max_e), rlim=(0, r_out), color='r', label="L_r")
         pplt.radial_plot(ax_flux(2), dump, np.abs(mass_r), ylim=(0, max_e), rlim=(0, r_out), color='b', label="M_r")
         ax_flux(2).legend()
-    
+
         # Radial energy accretion rate
         Edot_r = shell_sum(dump, T_mixed(dump, 1, 0))
         pplt.radial_plot(ax_flux(4), dump, Edot_r, label='Edot at R', ylim=(-200, 200), rlim=(0, r_out), arrayspace=True)
-    
+
         # Radial integrated failures
         pplt.radial_plot(ax_flux(6), dump, (dump['fails'] != 0).sum(axis=(1, 2)), label='Fails at R', arrayspace=True, rlim=(0, r_out), ylim=(0, 1000))
 
@@ -448,21 +448,21 @@ def plot(n):
     elif movie_type == "floors":
         ax_slc = lambda i: plt.subplot(2, 4, i)
         pplt.plot_xz(ax_slc(1), dump, 'log_rho', label=pretty('log_rho'),
-                        vmin=rho_l, vmax=rho_h, cmap='jet', window=window, arrayspace=USEARRSPACE)
+                        vmin=None, vmax=None, cmap='jet', window=window, arrayspace=USEARRSPACE)
         max_fail = 20
-        pplt.plot_xz(ax_slc(2), dump, dump['floors'] & 1, label="GEOM_RHO",
+        pplt.plot_xz(ax_slc(2), dump, dump['floors'] & 32, label="GEOM_RHO",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        pplt.plot_xz(ax_slc(3), dump, dump['floors'] & 2, label="GEOM_U",
+        pplt.plot_xz(ax_slc(3), dump, dump['floors'] & 64, label="GEOM_U",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        pplt.plot_xz(ax_slc(4), dump, dump['floors'] & 4, label="B_RHO",
+        pplt.plot_xz(ax_slc(4), dump, dump['floors'] & 128, label="B_RHO",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        pplt.plot_xz(ax_slc(5), dump, dump['floors'] & 8, label="B_U",
+        pplt.plot_xz(ax_slc(5), dump, dump['floors'] & 256, label="B_U",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        pplt.plot_xz(ax_slc(6), dump, dump['floors'] & 16, label="TEMP",
+        pplt.plot_xz(ax_slc(6), dump, dump['floors'] & 512, label="TEMP",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        pplt.plot_xz(ax_slc(7), dump, dump['floors'] & 32, label="GAMMA",
+        pplt.plot_xz(ax_slc(7), dump, dump['floors'] & 1024, label="GAMMA",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
-        pplt.plot_xz(ax_slc(8), dump, dump['floors'] & 64, label="KTOT",
+        pplt.plot_xz(ax_slc(8), dump, dump['floors'] & 2048, label="KTOT",
                     vmin=0, vmax=max_fail, cmap='Reds', integrate=True, window=window, arrayspace=USEARRSPACE)
 
     elif movie_type == "floors_old":
@@ -528,7 +528,7 @@ def plot(n):
             pplt.plot_slices(ax_slc[0], ax_slc[1], dump, var, at=at, label=pretty(l_movie_type),
                         vmin=rho_l, vmax=rho_h, window=window, arrayspace=USEARRSPACE, average=do_average,
                         cbar=True, cmap='jet', field_overlay=False, shading=('gouraud', 'flat')[USEARRSPACE])
-        
+
         # Labels
         if "divB" in movie_type:
             plt.suptitle(r"Max $\nabla \cdot B$ = {}".format(np.max(np.abs(dump['divB']))))
@@ -536,8 +536,8 @@ def plot(n):
         if "jsq" in movie_type:
             plt.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
 
-    if not USEARRSPACE:
-    	pplt.overlay_field(ax, dump, nlines=nlines)
+        #if not USEARRSPACE:
+    	#    pplt.overlay_field(ax, dump, nlines=nlines)
 
     #plt.subplots_adjust(left=0.03, right=0.97)
     plt.savefig(os.path.join(frame_dir, 'frame_%08d.png' % n), dpi=FIGDPI)
@@ -570,7 +570,7 @@ if __name__ == "__main__":
 
     frame_dir = "frames_" + movie_type
     os.makedirs(frame_dir, exist_ok=True)
-    
+
     # TODO diag loading
 #    if movie_type not in ["simplest", "radial", "fluxes_cap", "rho_cap", "funnel_wall"]:
 #        if diag_post:
@@ -579,7 +579,7 @@ if __name__ == "__main__":
 #        else:
 #            # Load diagnostics from HARM itself
 #            diag = io.load_log(path)
-    
+
     if debug:
         # Run sequentially to make backtraces work
         for i in range(len(files)):
@@ -590,5 +590,7 @@ if __name__ == "__main__":
             print("Using {} threads".format(nthreads))
         else:
             nthreads = calc_nthreads(io.read_hdr(files[0]), pad=0.6)
+            if psutil.cpu_count() < nthreads:
+                nthreads = psutil.cpu_count()
 
         run_parallel(plot, len(files), nthreads)

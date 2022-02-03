@@ -36,6 +36,7 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']),
             'current': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,
             'b': lambda dump: np.sqrt(dump['bsq']),
+            'gamma': lambda dump: lorentz_calc(dump),
             'betagamma': lambda dump: np.sqrt((dump['FE'] / dump['FM'])**2 - 1),
             'Theta': lambda dump: (dump.header['gam'] - 1) * dump['UU'] / dump['RHO'],
             'Thetap': lambda dump: (dump.header['gam_p'] - 1) * dump['UU'] / dump['RHO'],
@@ -210,6 +211,8 @@ def Fcov(dump, i, j):
 
     return Fcovij
 
+def lorentz_calc(dump):
+    return dump['ucon'][0, :, :, :] / np.sqrt(-dump['gcon'][0, 0, :, :, None])
 
 def bernoulli(dump, with_B=False):
     if with_B:

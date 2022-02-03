@@ -132,6 +132,8 @@ class Grid:
             self.coords = MKS3(params)
         elif params['coordinates'] == "mks":
             self.coords = MKS(params)
+        elif params['coordinates'] == "eks":
+            self.coords = EKS(params)
         elif params['coordinates'] == "ks":
             self.coords = KS(params)
         elif params['coordinates'] == "bl":
