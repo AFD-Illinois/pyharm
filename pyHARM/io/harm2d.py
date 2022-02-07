@@ -2,79 +2,86 @@
 
 import numpy as np
 
-from pyHARM.parameters import _fix
+from .. import parameters
 
-"""
-Read iharm2d_v3 dumps
+from .interface import DumpFile
 
-This can also serve as a basis for reading ASCII dumps from the other HARM-alikes
-"""
+class HARM2DFile(DumpFile):
+    """
+    Read iharm2d_v3 dumps.
+    Caches all values on creation, which is bad for larger file types.
+    """
 
-def read_hdr(fname, params=None):
-    if params is None:
+    @classmethod
+    def get_dump_time(cls, fname):
+        data = np.loadtxt(fname, max_rows=1)
+        return data[0]
+
+    def __init__(self, fname):
+        self.fname = fname
+        # First line is header
+        self.params = self.read_params()
+        # Just cache the whole file, it's 2D
+        self.data = np.loadtxt(fname, skiprows=1)
+        self.sz = (self.params['n1'], self.params['n2'], self.params['n3'])
+        self.prims = self.data[:,2:10].reshape(*self.sz, self.params['n_prim']).transpose(3,0,1,2)
+
+    def read_params(self):
         params = {}
 
-    # Stolen from iharm2d_v3 
-    # open data file and get data
-    data = np.loadtxt(fname, max_rows=1)
+        data = np.loadtxt(self.fname, max_rows=1)
 
-    # first get line 0 header info
-    params['t']       = data[0]
-    params['n1']      = int(data[1])
-    params['n2']      = int(data[2])
-    params['startx1'] = data[3]
-    params['startx2'] = data[4]
-    params['dx1']    = data[5]
-    params['dx2']     = data[6]
-    params['tf'] 	= data[7]
-    params['nstep'] 	= int(data[8])
-    params['gam']     = data[9]
-    params['cour'] 	= data[10]
-    params['DTd']	= data[11]  # dump freq
-    params['DTl'] 	= data[12]  # log freq
-    params['DTi'] 	= data[13]  # imag freq
-    params['DTr'] 	= data[14]  # restart freq
-    params['dump_cnt'] = int(data[15])
-    params['image_cnt'] = int(data[16])
-    params['rdump_cnt'] = int(data[17])
-    params['dt']  	= data[18]
+        # first get line 0 header info
+        params['t']       = data[0]
+        params['n1']      = int(data[1])
+        params['n2']      = int(data[2])
+        params['startx1'] = data[3]
+        params['startx2'] = data[4]
+        params['dx1']     = data[5]
+        params['dx2']     = data[6]
+        params['tf']   = data[7]
+        params['n_step']  = int(data[8])
+        params['gam']     = data[9]
+        params['cour']    = data[10]
+        params['dump_cadence']  = params['full_dump_cadence'] = data[11]
+        params['log_cadence']   = data[12]
+        params['image_cadence']     = data[13]
+        params['restart_cadence']   = data[14]
+        params['n_dump']    = int(data[15])
+        params['image_cnt'] = int(data[16])
+        params['rdump_cnt'] = int(data[17])
+        params['dt']        = data[18]
 
-    # Then add anything else we need.
-    params['startx3'] = 0
-    params['dx3'] = 0
-    params['n3'] = 1
-    # TODO try to read these
-    params['coordinates'] = "mks"
-    params['r_out'] = np.exp(params['startx1'] + params['n1']*params['dx1'])
-    params['a'] = 0.9375
-    params['hslope'] = 0.3
-    #params['coordinates'] = "cartesian"
+        # Then add anything else we need.
+        params['startx3'] = 0
+        params['dx3'] = 0
+        params['n3'] = 1
+        params['n_prim'] = 8
+        # TODO try to read these?
+        params['coordinates'] = "mks"
+        params['r_out'] = np.exp(params['startx1'] + params['n1']*params['dx1'])
+        params['a'] = 0.9375
+        params['hslope'] = 0.3
+        # OR
+        #params['coordinates'] = "cartesian"
 
-    return _fix(params)
+        return parameters.fix(params)
 
-def read_dump(fname, params=None, **kwargs):
-    """Read the header and primitives from an iharm2d v3 ASCII file.
-    No analysis or extra processing is performed
-    @return P, params in standard pyHARM
-    """
-    # Stolen from iharm2d_v3
-    # Just fetch the primitives.  iharm2d caches u/b, we could fetch those too but meh.
-    params = read_hdr(fname)
-    data = np.loadtxt(fname, skiprows=1)
-    P 	= data[:,2:10].reshape(params['n1'], params['n2'], params['n3'], params['n_prim']).transpose(3,0,1,2)
-    return P, params
-
-def read_jcon(fname, **kwargs):
-    params = read_hdr(fname)
-    data = np.loadtxt(fname, skiprows=1)
-    return data[:,32:36].reshape(params['n1'], params['n2'], params['n3'], 4).transpose(3,0,1,2)
-
-def read_divb(fname, **kwargs):
-    params = read_hdr(fname)
-    data = np.loadtxt(fname, skiprows=1)
-    return data[:,10].reshape(params['n1'], params['n2'], params['n3'])
-
-# For cutting on time without loading everything
-def get_dump_time(fname):
-    data = np.loadtxt(fname, max_rows=1)
-    return data[0]
+    def read_var(self, var, slc=(), **kwargs):
+        """Read the header and primitives from an iharm2d v3 ASCII file.
+        No analysis or extra processing is performed
+        @return P, params in standard pyHARM
+        """
+        i = self.index_of(var)
+        if i is not None:
+            return self.prims[i][slc]
+        elif var == "ucon": # iharm2d caches u/b, we could fetch those
+            return None
+        elif var == "bcon":
+            return None
+        elif var == "jcon":
+            return self.data[:,32:36].reshape(*self.sz, 4).transpose(3,0,1,2)[slc]
+        elif var == "divB":
+            return self.data[:,10].reshape(*self.sz)[slc]
+        else:
+            return None

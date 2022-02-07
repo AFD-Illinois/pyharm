@@ -5,7 +5,7 @@ import h5py
 
 import matplotlib.pyplot as plt
 
-from pyHARM.ana.results import *
+from pyHARM.ana_results import *
 
 var = sys.argv[1]
 ivar = sys.argv[2]

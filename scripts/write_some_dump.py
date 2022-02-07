@@ -6,7 +6,7 @@ import numpy as np
 import pyHARM.grid as grid
 import pyHARM.coordinates as coords
 import pyHARM.io.dump as h5io
-from pyHARM.phys import fourvel_to_prim, set_fourvel_t
+from pyHARM.init_tools import fourvel_to_prim, set_fourvel_t
 from pyHARM.units import get_units_M87
 
 # Problem-specific parameters

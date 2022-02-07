@@ -190,11 +190,11 @@ def get_eht_disk_j_vals(dump, th_min=np.pi / 3., th_max=2*np.pi / 3.):
 
 def shell_sum(dump, var, at_r=None, at_zone=None, th_slice=None, j_slice=None, mask=None):
     """Sum a variable over spherical shells. Returns a radial profile (array length N1) or single-shell sum
-    @param at_r: Single radius at which to sum (nearest-neighbor smaller zone is used)
-    @param at_zone: Specific radial zone at which to sum, for compatibility
-    @param th_slice: Tuple of minimum and maximum theta value to sum
-    @param j_slice: Tuple of x2 indices instead of specifying theta
-    @param mask: array of 1/0 of remaining size which is multiplied with the result
+    :param at_r: Single radius at which to sum (nearest-neighbor smaller zone is used)
+    :param at_zone: Specific radial zone at which to sum, for compatibility
+    :param th_slice: Tuple of minimum and maximum theta value to sum
+    :param j_slice: Tuple of x2 indices instead of specifying theta
+    :param mask: array of 1/0 of remaining size which is multiplied with the result
     """
     if isinstance(var, str):
         var = dump[var]

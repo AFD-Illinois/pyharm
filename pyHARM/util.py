@@ -76,18 +76,6 @@ def iter_parallel(function, merge_function, out_dict, nmax, nthreads, debug=Fals
 # Lower pad values are safer
 def calc_nthreads(hdr, n_mkl=8, pad=0.25):
     # Limit threads for 192^3+ problem due to memory
-    # Try to add some parallelism w/MKL.  Don't freak if it doesn't work
-    try:
-        import ctypes
-
-        mkl_rt = ctypes.CDLL('libmkl_rt.so')
-        mkl_set_num_threads = mkl_rt.MKL_Set_Num_Threads
-        mkl_get_max_threads = mkl_rt.MKL_Get_Max_Threads
-        mkl_set_num_threads(n_mkl)
-        print("Using {} MKL threads".format(mkl_get_max_threads()))
-    except Exception as e:
-        print(e)
-
     if using_psutil:
         # Roughly compute memory and leave some generous padding for multiple copies and Python games
         # (N1*N2*N3*8)*(NPRIM + 4*4 + 6) = size of "dump," (N1*N2*N3*8)*(2*4*4 + 6) = size of "geom"
@@ -127,8 +115,3 @@ def i_of(var, val, behind=True, fail=False):
         i -= 1
 
     return i
-
-def make_dir(path):
-    """Make a directory if it does not exist"""
-    if not os.path.exists(path):
-        os.makedirs(path)

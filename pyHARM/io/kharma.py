@@ -1,391 +1,195 @@
 
 import numpy as np
-import glob
 import h5py
 
-import pyHARM.parameters as parameters
-from pyHARM.grid import Grid
+from .. import parameters
+from ..grid import Grid
+from .interface import DumpFile
+
+# This is where we drop in the Parthenon reader
 from .phdf import phdf
 
-def read_hdr(fname, params=None):
-    params_was_none = False
-    if params is None:
-        params = {}
-        params_was_none = True
+class KHARMAFile(DumpFile):
+    """File filter for KHARMA files"""
+    # Names which aren't directly prims.x or cons.x, but which we can translate
+    prim_names_dict = {"RHO": "rho",
+                       "UU": "u",
+                       "U1": "u1",
+                       "U2": "u2",
+                       "U3": "u3",
+                       "KTOT": "Ktot",
+                       "KEL_KAWAZURA": "Kel_Kawazura",
+                       "KEL_WERNER":   "Kel_Werner",
+                       "KEL_ROWAN":    "Kel_Rowan",
+                       "KEL_SHARMA":   "Kel_Sharma",
+                       "KEL_CONSTANT": "Kel_Constant"}
 
-    # TODO fall back to actual file as well?
-    with h5py.File(fname, "r") as infile:
-        if 'Input' in infile:
-            file_string = infile['Input'].attrs['File']
-            if type(file_string) != str:
-                file_string = file_string.decode("UTF-8")
-            parameters.parse_parthenon_dat(file_string, params)
+    @classmethod
+    def get_dump_time(cls, fname):
+        """Quickly get just the simulation time represented in the dump file.
+        For cutting on time without loading everything
+        """
+        with h5py.File(fname, 'r') as dfile:
+            if 'Info' in dfile.keys():
+                return dfile['Info'].attrs['Time']
+        return None
+
+    def kharma_standardize(self, var):
+        """Standardize the names we're asked for, so we cache only one copy"""
+        # Translate certain caps
+        if var in self.prim_names_dict.keys():
+            var = self.prim_names_dict[var]
+
+        # Pick out indices and return their vectors
+        ind = None
+        if var[-1:] in ("1", "2", "3"):
+            # Mark which index we want
+            ind = int(var[-1:]) - 1
+            # Then read the corresponding vector, cons/prims.u/B
+            var = var[:-2] + ("B" if "B" in var[-2:] else "uvec")
+
+        # Extend the shorthand for primitive variables to their full names in KHARMA,
+        # but not other variables.
+        if var in ("rho", "u", "uvec", "B"):
+            var = "prims."+var
+        if ("Kel" in var or "Ktot" in var) and ("cons" not in var):
+            var = "prims."+var
+        
+        return var, ind
+
+    def __init__(self, filename, ghost_zones=False):
+        """Create an Iharm3DFile object -- note that the file handle will stay
+        open as long as the object
+        """
+        self.fname = filename
+        self.file = phdf(filename)
+        self.params = self.read_params()
+        self.params['ghost_zones'] = ghost_zones
+        self.params['ng'] = ghost_zones * self.params['ng_file']
+        self.cache = {}
+        if ghost_zones and self.params['ng_file'] == 0:
+            raise ValueError("Ghost zones aren't available in file {}".format(self.fname))
+
+    # def __del__(self):
+    #     # Make sure Parthenon *actually* closed the HDF5 file
+    #     self.file.fid.close()
+
+    def read_params(self):
+        # TODO if reading very old output, fall back to text .par file in dumps folder
+        # TODO there's likely a nice way to get all this from phdf
+        if 'Input' in self.file.fid:
+            par_string = self.file.fid['Input'].attrs['File']
+            if type(par_string) != str:
+                par_string = par_string.decode("UTF-8")
+            params = parameters.parse_parthenon_dat(par_string)
         else:
-            raise RuntimeError("No parameters could be found in KHARMA dump {}".format(fname))
+            raise RuntimeError("No parameters could be found in KHARMA dump {}".format(self.fname))
 
-    # But if params had elements, assume it was taken care of by the user and don't require a file
-    return params
+        # Use Parthenon's reader for the file-specific stuff
+        params['ng_file'] = self.file.NGhost * self.file.IncludesGhost
+        # Set incidental parameters from what we've read
+        params['t'] = self.file.Time
+        params['n_step'] = self.file.NCycle
+        # Add dump number if we've conformed to usual naming scheme
+        fname_parts = self.fname.split("/")[-1].split(".")
+        if len(fname_parts) > 2:
+            try:
+                params['n_dump'] = int(fname_parts[2])
+            except ValueError:
+                # dumps named 'final'.  Drop them?
+                params['n_dump'] = fname_parts[2]
 
-def get_dump_time(fname):
-    dfile = h5py.File(fname, 'r')
+        return params
 
-    if 'Info' in dfile.keys():
-        t = dfile['Info'].attrs['Time']
-    else:
-        t = 0
-
-    dfile.close()
-    return t
-
-def read_dump(fname, add_ghosts=False, params=None):
-    f = phdf(fname)
-
-    params = read_hdr(fname, params)
-    G = Grid(params)
-
-    # First, quit if we've been asked for ghost zones but can't produce them
-    if add_ghosts and not f.IncludesGhost:
-        raise ValueError("Ghost zones aren't available in file {}".format(fname))
-
-    # This is the number of ghost zones present in the file
-    ng_f = f.IncludesGhost * f.NGhost
-
-    if add_ghosts:
-        params['ng'] = f.NGhost
-        # This is the number we should include on output
-        ng_ix = ng_f
-    else:
-        params['ng'] = 0
-        # This is the number we should include on output
-        ng_ix = 0
-
-    # Trivial dimensions don't have ghosts
-    if params['n2'] == 1:
-        ng_iy = 0
-    else:
-        ng_iy = ng_ix
-
-    if params['n3'] == 1:
-        ng_iz = 0
-    else:
-        ng_iz = ng_ix
-
-    # Set incidental parameters from what we've read
-    params['t'] = f.Time
-    params['n_step'] = f.NCycle
-    # Add dump number if we've conformed to usual naming scheme
-    fname_parts = fname.split("/")[-1].split(".")
-    if len(fname_parts) > 2:
-        try:
-            params['n_dump'] = int(fname_parts[2])
-        except ValueError:
-            params['n_dump'] = fname_parts[2]
-    params['startx1'] = G.startx[1]
-    params['startx2'] = G.startx[2]
-    params['startx3'] = G.startx[3]
-    params['dx1'] = dx = G.dx[1]
-    params['dx2'] = dy = G.dx[2]
-    params['dx3'] = dz = G.dx[3]
-
-    # Lay out the blocks and determine total mesh size
-    bounds = []
-    for ib in range(f.NumBlocks):
-        bb = f.BlockBounds[ib]
-        # Internal location of the block i.e. starting/stopping indices in the final, big mesh
-        bound = [int((bb[0]+dx/2 - G.startx[1])/dx)-ng_ix, int((bb[1]+dx/2 - G.startx[1])/dx)+ng_ix,
-                 int((bb[2]+dy/2 - G.startx[2])/dy)-ng_iy, int((bb[3]+dy/2 - G.startx[2])/dy)+ng_iy,
-                 int((bb[4]+dz/2 - G.startx[3])/dz)-ng_iz, int((bb[5]+dz/2 - G.startx[3])/dz)+ng_iz]
-        bounds.append(bound)
-
-    # Set number and names of primitives in the right order (will have to be modified if KHARMA uses beyond the regular GRMHD and Electrons packages)
-    # Initialize 'P' to zeroes of right shape
-    if 'prims.rho' in f.Variables: # If there is something, it's reasonable to assume it is hot and is in motion
-        if 'prims.B' in f.Variables: # If magnetic fields were turned on
-            if 'prims.Ktot' in f.Variables: # If Electrons pacakge was turned on
-                params['prim_names'] = ['RHO'] + ['UU'] + ['U1'] + ['U2'] + ['U3'] + ['B1'] + ['B2'] + ['B3'] + ['KTOT']
-                params['n_prim'] = 9
-                for key in f.Variables:
-                    if 'prims.Kel_' in key:
-                        params['prim_names'].append(key.split('.')[-1].upper())
-                        params['n_prim'] += 1
-            else: #If Electrons pacakge was turned off
-                params['prim_names'] = ['RHO'] + ['UU'] + ['U1'] + ['U2'] + ['U3'] + ['B1'] + ['B2'] + ['B3']
-                params['n_prim'] = 8
-        else: # If magnetic fields were turned off
-            if 'prims.Ktot' in f.Variables: # If Electrons pacakge was turned on
-                params['prim_names'] = ['RHO'] + ['UU'] + ['U1'] + ['U2'] + ['U3'] + ['KTOT']
-                params['n_prim'] = 6
-                for key in f.Variables:
-                    if 'prims.Kel_' in key:
-                        params['prim_names'].append(key.split('.')[-1].upper())
-                        params['n_prim'] += 1
-            else:# If Electrons pacakge was turned off
-                params['prim_names'] = ['RHO'] + ['UU'] + ['U1'] + ['U2'] + ['U3']
-                params['n_prim'] = 5
-    P = np.zeros((params['n_prim'], G.NTOT[1]+2*ng_ix, G.NTOT[2]+2*ng_iy, G.NTOT[3]+2*ng_iz))
-
-    # Read blocks into their slices of the full mesh
-    for ib in range(f.NumBlocks):
-        b = bounds[ib]
-        # Exclude ghost zones if we don't want them
-        if ng_ix == 0 and ng_f != 0:
-            if params['n2'] == 1:
-                o = [ng_f, -ng_f, None, None, None, None]
-            elif params['n3'] == 1:
-                o = [ng_f, -ng_f, ng_f, -ng_f, None, None]
+    def read_var(self, var, astype=None, slc=()):
+        var, ind = self.kharma_standardize(var)
+        if var in self.cache:
+            if ind is not None:
+                return self.cache[var][ind]
             else:
-                o = [ng_f, -ng_f, ng_f, -ng_f, ng_f, -ng_f]
+                return self.cache[var]
+
+        # All primitives/conserved. We added this to iharm3d, special case it here
+        if var == "prims":
+            return np.array([self.read_var(v2) for v2 in self.file.Variables if "prims" in v2])
+        elif var == "cons":
+            return np.array([self.read_var(v2) for v2 in self.file.Variables if "cons" in v2])
+
+        if var not in self.file.Variables and self.index_of(var) is None:
+            raise IOError("Cannot find variable "+var+" in dump "+self.fname+". Should it have been calculated?")
+
+        params = self.params
+        # Recall ng=0 if ghost_zones is False.  Thus this says:
+        # if we want ghost zones, set them in nontrivial dimensions
+        ntot = (params['n1'], params['n2'], params['n3'])
+        ng_ix = params['ng']
+        ng_iy = params['ng'] if ntot[1] > 1 else 0
+        ng_iz = params['ng'] if ntot[2] > 1 else 0
+        # Even if we don't want ghosts, we'll need to cut them from the file
+        ng_f = params['ng_file']
+        # Finally, we need to decipher where to put each meshblock vs the whole grid
+        dx = params['dx1']
+        dy = params['dx2']
+        dz = params['dx3']
+        startx = (0., params['startx1'], params['startx2'], params['startx3'])
+
+        # Allocate the full mesh size
+        if "jcon" in var:
+            out = np.zeros((4, ntot[0]+2*ng_ix, ntot[1]+2*ng_iy, ntot[2]+2*ng_iz), dtype=astype)
+        elif "B" in var or "uvec" in var and ind is None:
+            out = np.zeros((3, ntot[0]+2*ng_ix, ntot[1]+2*ng_iy, ntot[2]+2*ng_iz), dtype=astype)
         else:
-            o = [None, None, None, None, None, None]
+            out = np.zeros((ntot[0]+2*ng_ix, ntot[1]+2*ng_iy, ntot[2]+2*ng_iz), dtype=astype)
 
-        # Try reading new fancy format
-        if 'prims.rho' in f.Variables:
-            # False == don't flatten into 1D array
-            rho_array = f.Get('prims.rho', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-            P[0, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = rho_array
-            del rho_array
-            u_array = f.Get('prims.u', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-            P[1, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = u_array
-            del u_array
-            uvec_array = f.Get('prims.uvec', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
-            P[2:5, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = uvec_array
-            del uvec_array
-            if 'prims.B' in f.Variables:
-                B_array = f.Get('prims.B', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
-                P[5:8, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = B_array
-                del B_array
-                if 'prims.Ktot' in f.Variables:
-                    k_array = f.Get('prims.Ktot', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                    P[8, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                    del k_array
+        # The slice we need of each block is just ng to -ng, with 0->None for the whole slice
+        o = [None if i == 0 else i for i in [ng_ix, -ng_ix, ng_iy, -ng_iy, ng_iz, -ng_iz]]
 
-                    kel_counter = 9
-                    if 'prims.Kel_Constant' in f.Variables:
-                        k_array = f.Get('prims.Kel_Constant', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                        del k_array
-                        kel_counter += 1
-                    if 'prims.Kel_Kawazura' in f.Variables:
-                        k_array = f.Get('prims.Kel_Kawazura', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                        del k_array
-                        kel_counter += 1
-                    if 'prims.Kel_Werner' in f.Variables:
-                        k_array = f.Get('prims.Kel_Werner', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                        del k_array
-                        kel_counter += 1
-                    if 'prims.Kel_Rowan' in f.Variables:
-                        k_array = f.Get('prims.Kel_Rowan', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                        del k_array
-                        kel_counter += 1
-                    if 'prims.Kel_Sharma' in f.Variables:
-                        k_array = f.Get('prims.Kel_Sharma', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                        del k_array
-                        kel_counter += 1
+        # Lay out the blocks and determine total mesh size
+        for ib in range(self.file.NumBlocks):
+            bb = self.file.BlockBounds[ib]
+            # Internal location of the block i.e. starting/stopping indices in the final, big mesh
+            b = [int((bb[0]+dx/2 - startx[1])/dx)-ng_ix, int((bb[1]+dx/2 - startx[1])/dx)+ng_ix,
+                 int((bb[2]+dy/2 - startx[2])/dy)-ng_iy, int((bb[3]+dy/2 - startx[2])/dy)+ng_iy,
+                 int((bb[4]+dz/2 - startx[3])/dz)-ng_iz, int((bb[5]+dz/2 - startx[3])/dz)+ng_iz]
+            # Slices with locations
+            fil_slc = (ib, slice(o[4], o[5]), slice(o[2], o[3]), slice(o[0], o[1]))
+            out_slc = (slice(b[0]+ng_ix, b[1]+ng_ix),
+                       slice(b[2]+ng_iy, b[3]+ng_iy),
+                       slice(b[4]+ng_iz, b[5]+ng_iz))
+            if slc != ():
+                # TODO Add this on top of the two slices
+                pass
+
+            if 'prims.rho' in self.file.Variables:
+                # New file format. Read whatever
+                if ind is not None: # Read index of a vector
+                    # Read our optionally-sliced file into our optionally-offset memory locations
+                    # False == don't flatten into 1D array
+                    out[out_slc] = self.file.Get(var, False)[fil_slc + (ind,)].transpose(2,1,0)
+                elif len(out.shape) == 4: # Read a full vector
+                    out[(slice(None),) + out_slc] = self.file.Get(var, False)[fil_slc + (slice(None),)].transpose(3,2,1,0)
+                else: # Read a scalar
+                    out[out_slc] = self.file.Get(var, False)[fil_slc].transpose(2,1,0)
 
             else:
-                if 'prims.Ktot' in f.Variables:
-                    k_array = f.Get('prims.Ktot', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                    P[5, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                    del k_array
+                # Old file formats.  If we'd split prims/B_prim:
+                if "B" in var and 'c.c.bulk.B_prim' in self.file.Variables:
+                        if ind is not None:
+                            out[out_slc] = self.file.Get(var, False)[fil_slc + (ind,)].transpose(2,1,0)
+                        else:
+                            out[(slice(None),) + out_slc] = self.file.Get('c.c.bulk.B_prim', False)[fil_slc + (slice(None),)].transpose(3,2,1,0)
+                else:
+                    i = self.index_of(var)
+                    if i is None:
+                        # We're not grabbing anything except primitives from old KHARMA files.
+                        raise IOError("Cannot find variable "+var+" in file "+self.file+"!")
+                    elif type(i) == int:
+                        out[out_slc] = self.file.Get('c.c.bulk.prims', False)[fil_slc + (i,)].transpose(2,1,0)
+                    else:
+                        out[Ellipsis, out_slc] = self.file.Get('c.c.bulk.prims', False)[fil_slc + (i,)].transpose(2,1,0)
 
-                    kel_counter = 6
-                    if 'prims.Kel_Constant' in f.Variables:
-                        k_array = f.Get('prims.Kel_Constant', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                        del k_array
-                        kel_counter += 1
-                    if 'prims.Kel_Kawazura' in f.Variables:
-                        k_array = f.Get('prims.Kel_Kawazura', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                        del k_array
-                        kel_counter += 1
-                    if 'prims.Kel_Werner' in f.Variables:
-                        k_array = f.Get('prims.Kel_Werner', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                        del k_array
-                        kel_counter += 1
-                    if 'prims.Kel_Rowan' in f.Variables:
-                        k_array = f.Get('prims.Kel_Rowan', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                        del k_array
-                        kel_counter += 1
-                    if 'prims.Kel_Sharma' in f.Variables:
-                        k_array = f.Get('prims.Kel_Sharma', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-                        P[kel_counter, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = k_array
-                        del k_array
-                        kel_counter += 1
+        # TODO then not here
+        # Currently this reads/caches a whole 
+        self.cache[var] = out[slc]
+        return out[slc]
 
-        else:
-            # Old file formats
-            prim_array = f.Get('c.c.bulk.prims', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
-            if prim_array.shape[0] == 8:
-                P[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = prim_array
-            else:
-                P[:5, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = prim_array
-                if 'c.c.bulk.B_prim' in f.Variables:
-                    P[5:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
-                        f.Get('c.c.bulk.B_prim', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
-
-    return (P, params)
-
-def read_jcon(fname, add_ghosts=False):
-    # TODO take params and don't re-read etc
-    f = phdf(fname)
-
-    params = read_hdr(fname)
-    G = Grid(params)
-
-    # First, quit if we've been asked for ghost zones but can't produce them
-    if add_ghosts and not f.IncludesGhost:
-        raise ValueError("Ghost zones aren't available in file {}".format(fname))
-
-    # This is the number of ghost zones present in the file
-    ng_f = f.IncludesGhost * f.NGhost
-
-    if add_ghosts:
-        params['ng'] = f.NGhost
-        # This is the number we should include on output
-        ng_ix = ng_f
-    else:
-        params['ng'] = 0
-        # This is the number we should include on output
-        ng_ix = 0
-
-    # Trivial dimensions don't have ghosts
-    if params['n2'] == 1:
-        ng_iy = 0
-    else:
-        ng_iy = ng_ix
-
-    if params['n3'] == 1:
-        ng_iz = 0
-    else:
-        ng_iz = ng_ix
-
-    dx = G.dx[1]
-    dy = G.dx[2]
-    dz = G.dx[3]
-
-    # Lay out the blocks and determine total mesh size
-    bounds = []
-    for ib in range(f.NumBlocks):
-        bb = f.BlockBounds[ib]
-        # Internal location of the block i.e. starting/stopping indices in the final, big mesh
-        bound = [int((bb[0]+dx/2 - G.startx[1])/dx)-ng_ix, int((bb[1]+dx/2 - G.startx[1])/dx)+ng_ix,
-                 int((bb[2]+dy/2 - G.startx[2])/dy)-ng_iy, int((bb[3]+dy/2 - G.startx[2])/dy)+ng_iy,
-                 int((bb[4]+dz/2 - G.startx[3])/dz)-ng_iz, int((bb[5]+dz/2 - G.startx[3])/dz)+ng_iz]
-        bounds.append(bound)
-
-    # Optionally allocate enough space for ghost zones
-    jcon = np.zeros((4, G.NTOT[1]+2*ng_ix, G.NTOT[2]+2*ng_iy, G.NTOT[3]+2*ng_iz))
-
-    # Read blocks into their slices of the full mesh
-    for ib in range(f.NumBlocks):
-        b = bounds[ib]
-        # Exclude ghost zones if we don't want them
-        if ng_ix == 0 and ng_f != 0:
-            if params['n2'] == 1:
-                o = [ng_f, -ng_f, None, None, None, None]
-            elif params['n3'] == 1:
-                o = [ng_f, -ng_f, ng_f, -ng_f, None, None]
-            else:
-                o = [ng_f, -ng_f, ng_f, -ng_f, ng_f, -ng_f]
-        else:
-            o = [None, None, None, None, None, None]
-        # False == don't flatten into 1D array
-        jcon[:, b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
-            f.Get('jcon', False)[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1],:].transpose(3,2,1,0)
-
-    return jcon
-
-def read_psi_cd(fname, add_ghosts=False):
-    return read_scalar(fname, 'prims.psi_cd', add_ghosts=add_ghosts)
-
-def read_divb(fname, add_ghosts=False):
-    divb = read_scalar(fname, 'divB', add_ghosts=add_ghosts)
-    if divb is None:
-        divb = read_scalar(fname, 'divB_ct', add_ghosts=add_ghosts)
-    if divb is None:
-        divb = read_scalar(fname, 'divB_cd', add_ghosts=add_ghosts)
-    return divb
-
-def read_fail_flags(fname, add_ghosts=False):
-    return read_scalar(fname, 'pflag', dtype=np.int32, add_ghosts=add_ghosts).astype(int)
-
-def read_floor_flags(fname, add_ghosts=False):
-    return read_scalar(fname, 'fflag', dtype=np.int32, add_ghosts=add_ghosts).astype(int) // 32
-
-def read_scalar(fname, scalar_name, dtype=np.float64, add_ghosts=False):
-    f = phdf(fname)
-
-    params = read_hdr(fname)
-    G = Grid(params)
-
-    # First, quit if we've been asked for ghost zones but can't produce them
-    if add_ghosts and not f.IncludesGhost:
-        raise ValueError("Ghost zones aren't available in file {}".format(fname))
-
-    # This is the number of ghost zones present in the file
-    ng_f = f.IncludesGhost * f.NGhost
-
-    if add_ghosts:
-        params['ng'] = f.NGhost
-        # This is the number we should include on output
-        ng_ix = ng_f
-    else:
-        params['ng'] = 0
-        # This is the number we should include on output
-        ng_ix = 0
-
-    # Trivial dimensions don't have ghosts
-    if params['n2'] == 1:
-        ng_iy = 0
-    else:
-        ng_iy = ng_ix
-
-    if params['n3'] == 1:
-        ng_iz = 0
-    else:
-        ng_iz = ng_ix
-
-    dx = G.dx[1]
-    dy = G.dx[2]
-    dz = G.dx[3]
-
-    # Lay out the blocks and determine total mesh size
-    bounds = []
-    for ib in range(f.NumBlocks):
-        bb = f.BlockBounds[ib]
-        # Internal location of the block i.e. starting/stopping indices in the final, big mesh
-        bound = [int((bb[0]+dx/2 - G.startx[1])/dx)-ng_ix, int((bb[1]+dx/2 - G.startx[1])/dx)+ng_ix,
-                 int((bb[2]+dy/2 - G.startx[2])/dy)-ng_iy, int((bb[3]+dy/2 - G.startx[2])/dy)+ng_iy,
-                 int((bb[4]+dz/2 - G.startx[3])/dz)-ng_iz, int((bb[5]+dz/2 - G.startx[3])/dz)+ng_iz]
-        bounds.append(bound)
-
-    # Optionally allocate enough space for ghost zones
-    var = np.zeros((G.NTOT[1]+2*ng_ix, G.NTOT[2]+2*ng_iy, G.NTOT[3]+2*ng_iz))
-
-    # Read blocks into their slices of the full mesh
-    for ib in range(f.NumBlocks):
-        b = bounds[ib]
-        # Exclude ghost zones if we don't want them
-        if ng_ix == 0 and ng_f != 0:
-            if params['n2'] == 1:
-                o = [ng_f, -ng_f, None, None, None, None]
-            elif params['n3'] == 1:
-                o = [ng_f, -ng_f, ng_f, -ng_f, None, None]
-            else:
-                o = [ng_f, -ng_f, ng_f, -ng_f, ng_f, -ng_f]
-        else:
-            o = [None, None, None, None, None, None]
-        # False == don't flatten into 1D array
-        fvar = f.Get(scalar_name, False)
-        if fvar is None: return None
-        var[b[0]+ng_ix:b[1]+ng_ix, b[2]+ng_iy:b[3]+ng_iy, b[4]+ng_iz:b[5]+ng_iz] = \
-            fvar[ib,o[4]:o[5],o[2]:o[3],o[0]:o[1]].transpose(2,1,0)
-
-    return var

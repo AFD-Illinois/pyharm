@@ -7,20 +7,20 @@ import h5py
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
-from pyHARM.ana.plot import pcolormesh_symlog
-from pyHARM.ana.results import get_ivar
+from pyHARM.plots.plots import pcolormesh_symlog
+from pyHARM.ana_results import AnaResults
 
-infile = sys.argv[1]
+infname = sys.argv[1]
 
-dirpath = os.path.join(os.path.dirname(infile), "auto_plots")
+dirpath = os.path.join(os.path.dirname(infname), "auto_plots")
 if not os.path.exists(dirpath):
     os.mkdir(dirpath)
 
-inf_hdf5 = h5py.File(infile, "r")
-#for ivar in [key for key in inf_hdf5.keys() if key not in ['avg', 'coord', 'diag', 'header', 'pdf', 'pdft']]:
-for ivar in 't':
+results_file = AnaResults(infname)
+
+for ivar in [key for key in inf_hdf5.keys() if key not in ['avg', 'coord', 'diag', 'header', 'pdf', 'pdft']]:
     # Split independent and dependent variable retrieval for efficiency
-    ivar_d = get_ivar(infile, ivar, i_xy=True)
+    ivar_d = results_file.get_ivar(ivar, i_xy=True)
 
     for var in inf_hdf5[ivar].keys():
         try:

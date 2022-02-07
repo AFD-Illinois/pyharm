@@ -32,8 +32,8 @@ import psutil
 
 import pyHARM
 # Spam base namespace so we don't have to type pyHARM or even ph
-from pyHARM.ana.variables import *
-from pyHARM.ana.reductions import *
+from pyHARM.variables import *
+from pyHARM.reductions import *
 
 import pyHARM.io as io
 import pyHARM.util as util

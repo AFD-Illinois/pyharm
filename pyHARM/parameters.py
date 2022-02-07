@@ -1,12 +1,14 @@
-# Parse parameters files and sys.argv
+
 
 import os
 import sys
 import numpy as np
 
+"""Parse and handle parameters
+"""
 
 def parse_iharm3d_dat(params, fname):
-    """Parse the HARM params.dat format to produce a Python dict.
+    """Parse the iharm3d params.dat file format to produce a Python dict.
     params.dat format:
     [tag] name = value
     Where tag is in {dbl, float, int, str} corresponding to desired datatype.
@@ -26,22 +28,24 @@ def parse_iharm3d_dat(params, fname):
             params[ls[1]] = int(ls[-1])
         elif ls[0] == "[str]":
             params[ls[1]] = str(ls[-1])
-    return _fix(params)
+    return fix(params)
 
-def parse_parthenon_dat(string, params=None):
-    """Parse the KHARMA params.dat format to produce a Python dict.
+def parse_parthenon_dat(string):
+    """Parse the Parthenon/KHARMA params.dat format to produce a Python dict.
     params.dat format:
     <header/subheader>
     name = value
     All lines not in this format are ignored, though conventionally comments begin with '# '
-    Note this parser is far less robust than Parthenon's
     """
-    if params is None:
-        params = {}
+    # TODO:
+    # parse & include headers, so we can guarantee picking out the correct nx1/2/3
+    # parse lists and line continuations (&) correctly
+
+    params = {}
 
     # Things KHARMA will never use/modify but need to be *something* for IL HDF file header
     params['version'] = "kharma-alpha-0.1"
-    params['gridfile'] = "grid.h5"
+    params['gridfile'] = "NONE"
     params['n_prims_passive'] = 0
 
     for line in string.split("\n"):
@@ -70,6 +74,7 @@ def parse_parthenon_dat(string, params=None):
             params[pair[1]] = params[pair[0]]
 
     if 'x1min' in params:
+        # KHARMA inputs will never have these: they are calculated internally
         params['r_in'] = np.exp(params['x1min'])
         params['r_out'] = np.exp(params['x1max'])
         params['dx1'] = (params['x1max'] - params['x1min'])/params['nx1']
@@ -92,46 +97,48 @@ def parse_parthenon_dat(string, params=None):
         print("Defaulting KHARMA coordinate system to fmks...")
         params['coordinates'] = params['metric'] = "fmks"
 
-    return _fix(params)
+    return fix(params)
 
 
-def _fix(params):
-    # Fix common parameter mistakes
-    if 'n_prim' not in params and 'n_prims' in params: # This got messed up *often*
-        params['n_prim'] = params['n_prims']
+def fix(params):
+    """Fix a bunch of common problems and omissions in parameters dictionaries."""
 
-    if ('derefine_poles' in params) and (params['derefine_poles'] == 1):
-        params['metric'] = "fmks"
-    if 'Rout' in params:
+    if (not 'r_out' in params) and 'Rout' in params:
         params['r_out'] = params['Rout']
-    if 'electrons' in params and params['electrons'] == 1:
-        params['electrons'] = True
-        params['n_prim'] = 10 # TODO be less aggressive about this stuff
-        params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KTOT", "KEL"]
-    else:
-        params['electrons'] = False
-        params['n_prim'] = params['np'] = 8
-        params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
+
+    if not ('prim_names' in params):
+        if 'electrons' in params and params['electrons']:
+            params['electrons'] = True # In case it was an int
+            params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KTOT", "KEL"]
+        else:
+            params['electrons'] = False
+            params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
+
+    if 'n_prim' not in params:
+        if 'n_prims' in params: # This got messed up *often*
+            params['n_prim'] = params['n_prims']
+        elif 'prim_names' in params:
+            params['n_prim'] = len(params['prim_names'])
 
     # Lots of layers of legacy coordinate specification
-    # To be clear the modern way is 'coordiantes' key as one of usually 'fmks','mks','cartesian'
-    # The old 'metric' key was uppercase
-    if 'metric' not in params and 'coordinates' not in params:
-        if ('derefine_poles' in params) and (params['derefine_poles'] == 1):
-            params['metric'] = "FMKS"
+    # To be clear the modern way is to use the 'coordiantes' key,
+    # as one of usually 'fmks','mks','cartesian' (or 'eks', 'mks3', 'bhac_mks', etc, see grid.py)
+    if 'coordinates' not in params:
+        if 'metric' in params:
+            # The old 'metric' key was uppercase
+            params['coordinates'] = params['metric'].lower()
+        elif ('derefine_poles' in params) and (params['derefine_poles'] == 1):
+            # Very old iharm3d specified derefine_poles
+            params['coordinates'] = "fmks"
         else:
             print("Defaulting to MKS coordinate system...")
-            params['metric'] = "MKS"
+            params['coordinates'] = "mks"
 
-    if 'metric' in params and 'coordinates' not in params:
-        params['coordinates'] = params['metric'].lower()
-
+    # Also add eh radius
     if params['coordinates'] != "cartesian" and 'r_eh' not in params and 'a' in params:
         params['r_eh'] = (1. + np.sqrt(1. - params['a'] ** 2))
 
     # Metric defaults we're pretty safe in setting
-    if not 'n_dim' in params:
-        params['n_dim'] = 4
     if params['coordinates'] == "fmks":
         if not 'mks_smooth' in params:
             params['mks_smooth'] = 0.5

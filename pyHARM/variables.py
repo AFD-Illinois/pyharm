@@ -1,17 +1,21 @@
 # Convenient analysis functions for physical calculations and averages
 # Largely can be used via IharmDump objects, see iharm_dump.py
 
-import os
-import sys
 import numpy as np
 
-from pyHARM.checks import divB
+from .defs import Loci
+from .grmhd.b_field import divB
 
 # Define a dict of names, coupled with the functions required to obtain their variables.
 # That way, we only need to specify lists and final operations in eht_analysis,
 # AND don't need to cart all these things around in memory
 
-fns_dict = {'rho': lambda dump: dump['RHO'],
+fns_dict = {# 4-vectors
+            'ucon': lambda dump: ucon_calc(dump),
+            'ucov': lambda dump: dump.grid.lower_grid(dump['ucon']),
+            'bcon': lambda dump: bcon_calc(dump),
+            'bcov': lambda dump: dump.grid.lower_grid(dump['bcon']),
+            # Miscallany!
             'bsq': lambda dump: dump.grid.dot(dump['bcov'], dump['bcon']),
             'sigma': lambda dump: dump['bsq'] / dump['RHO'],
             'u': lambda dump: dump['UU'],
@@ -26,7 +30,7 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'FL_Fl': lambda dump: TFl_mixed(dump, 1, 3),
             'Be_b': lambda dump: bernoulli(dump, with_B=True),
             'Be_nob': lambda dump: bernoulli(dump, with_B=False),
-            'Pg': lambda dump: (dump.header['gam'] - 1.) * dump['UU'],
+            'Pg': lambda dump: (dump['gam'] - 1.) * dump['UU'],
             'p': lambda dump: dump['Pg'],
             'Pb': lambda dump: dump['bsq'] / 2,
             'Ptot': lambda dump: dump['Pg'] + dump['Pb'],
@@ -38,9 +42,9 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'b': lambda dump: np.sqrt(dump['bsq']),
             'gamma': lambda dump: lorentz_calc(dump),
             'betagamma': lambda dump: np.sqrt((dump['FE'] / dump['FM'])**2 - 1),
-            'Theta': lambda dump: (dump.header['gam'] - 1) * dump['UU'] / dump['RHO'],
-            'Thetap': lambda dump: (dump.header['gam_p'] - 1) * dump['UU'] / dump['RHO'],
-            'Thetae': lambda dump: (dump.header['gam_e'] - 1) * dump['UU'] / dump['RHO'],
+            'Theta': lambda dump: (dump['gam'] - 1) * dump['UU'] / dump['RHO'],
+            'Thetap': lambda dump: (dump['gam_p'] - 1) * dump['UU'] / dump['RHO'],
+            'Thetae': lambda dump: (dump['gam_e'] - 1) * dump['UU'] / dump['RHO'],
             'Thetae_rhigh': lambda dump: thetae_rhigh(dump),
             'JE0': lambda dump: -T_mixed(dump, 0, 0),
             'JE1': lambda dump: -T_mixed(dump, 1, 0),
@@ -49,107 +53,66 @@ fns_dict = {'rho': lambda dump: dump['RHO'],
             'jet_psi': lambda dump: jet_psi(dump),
             'divB': lambda dump: divB(dump.grid, dump.prims),
             'lumproxy': lambda dump: lum_proxy(dump),
-            'jI': lambda dump: jnu_inv(dump),
-            'KTOT': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),
+            'jI': lambda dump: jnu(dump),
+            'K': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),
             }
-
-pretty_dict = {'rho': r"\rho",
-            'bsq': r"b^{2}",
-            'sigma': r"\sigma",
-            'u': r"u",
-            'u_t': r"u_{t}",
-            'u^t': r"u^{t}",
-            'u_r': r"u_{r}",
-            'u^r': r"u^{r}",
-            'u_th': r"u_{\theta}",
-            'u^th': r"u^{\theta}",
-            'u_phi': r"u_{\phi}",
-            'u^phi': r"u^{\phi}",
-            'FM': r"FM",
-            'FE':r"FE_{\mathrm{tot}}",
-            'FE_EM': r"FE_{EM}",
-            'FE_Fl': r"FE_{Fl}",
-            'FL':r"FL_{\mathrm{tot}}",
-            'FL_EM': r"FL_{\mathrm{EM}}",
-            'FL_Fl': r"FL_{\mathrm{Fl}}",
-            'Be_b': r"Be_{\mathrm{B}}",
-            'Be_nob': r"Be_{\mathrm{Fluid}}",
-            'Pg': r"P_g",
-            'p': r"P_g",
-            'Pb': r"P_b",
-            'Ptot': r"P_{\mathrm{tot}}",
-            'beta': r"\beta",
-            'betainv': r"\beta^{-1}",
-            'jcov': r"j_{\mu}",
-            'jsq': r"j^{2}",
-            'current': r"J^{2}",
-            'B': r"B",
-            'betagamma': r"\beta \gamma",
-            'Theta': r"\Theta",
-            'Thetap': r"\Theta_{\mathrm{e}}",
-            'Thetae': r"\Theta_{\mathrm{p}}",
-            'JE0': r"JE^{t}",
-            'JE1': r"JE^{r}",
-            'JE2': r"JE^{\theta}",
-            'divB': r"\nabla \cdot B",
-            # Results of reductions which are canonically named
-            'MBH': r"M_{\mathrm{BH}}",
-            'Mdot': r"\dot{M}",
-            'mdot': r"\dot{M}",
-            'Phi_b': r"\Phi_{BH}",
-            'Edot': r"\dot{E}",
-            'Ldot': r"\dot{L}",
-            'phi_b': r"\Phi_{BH} / \sqrt{\dot{M}}",
-            'edot': r"\dot{E} / \dot{M}",
-            'ldot': r"\dot{L} / \dot{M}",
-            # Independent variables
-            't': r"t \; \left( \frac{G M}{c^3} \right)",
-            'x': r"x \; \left( \frac{G M}{c^2} \right)",
-            'y': r"y \; \left( \frac{G M}{c^2} \right)",
-            'z': r"z \; \left( \frac{G M}{c^2} \right)",
-            'r': r"r \; \left( \frac{G M}{c^2} \right)",
-            'th': r"\theta",
-            'phi': r"\phi"
-            }
-
-def pretty(var, segment=False):
-    """Return a pretty LaTeX form of the named variable"""
-    pretty_var = ""
-    if var[:4] == "log_":
-        return r"$\log_{10} \left( "+pretty(var[4:], segment=True)+r" \right)$"
-    if var[:4] == "abs_":
-        if segment:
-            return r"\left| "+pretty(var[4:], segment=True)+r" \right|"
-        else:
-            return r"$\left| "+pretty(var[4:], segment=True)+r" \right|$"
-    elif var in pretty_dict:
-        if segment:
-            return pretty_dict[var]
-        else:
-            return r"$"+pretty_dict[var]+r"$"
-    else:
-        # Give up
-        return var
 
 ## Physics functions ##
 
+def lorentz_calc(dump, loc=Loci.CENT):
+    """Find relativistic gamma-factor w.r.t. normal observer"""
+    if 'ucon' in dump.cache:
+        # 
+        return dump['ucon'][0] * dump['lapse'][loc.value, :,:,None]
+    else:
+        G = dump.grid
+        return np.sqrt(1 + (G.gcov[(loc.value, 1, 1)] * dump['U1'] ** 2 +
+                            G.gcov[(loc.value, 2, 2)] * dump['U2'] ** 2 +
+                            G.gcov[(loc.value, 3, 3)] * dump['U3'] ** 2) + \
+                            2. * (G.gcov[(loc.value, 1, 2)] * dump['U1'] * dump['U2'] +
+                                  G.gcov[(loc.value, 1, 3)] * dump['U1'] * dump['U3'] +
+                                  G.gcov[(loc.value, 2, 3)] * dump['U2'] * dump['U3']))
+
+def ucon_calc(dump, loc=Loci.CENT):
+    """Find contravariant fluid four-velocity"""
+    G = dump.grid
+    ucon = np.zeros((4, *dump['U1'].shape))
+    ucon[0] = dump['gamma'] / G.lapse[loc.value, :,:,None]
+    for mu in range(1, 4):
+        ucon[mu] = dump['uvec'][mu-1] - dump['gamma'] * G.lapse[loc.value, :,:,None] * G.gcon[loc.value, 0, mu, :, :, None]
+
+    return ucon
+
+
+def bcon_calc(dump):
+    """Calculate magnetic field four-vector"""
+    bcon = np.zeros_like(dump['ucon'])
+    bcon[0] = dump['B'][0] * dump['ucov'][1] + \
+              dump['B'][1] * dump['ucov'][2] + \
+              dump['B'][2] * dump['ucov'][3]
+    for mu in range(1, 4):
+        bcon[mu] = (dump['B'][mu-1] + bcon[0] * dump['ucon'][mu]) \
+                        / dump['ucon'][0]
+
+    return bcon
+
 # These are separated because raising/lowering is slow
 def T_con(dump, i, j):
-    gam = dump.header['gam']
+    gam = dump['gam']
     return ((dump['RHO'] + gam * dump['UU'] + dump['bsq']) * dump['ucon'][i] * dump['ucon'][j] +
             ((gam - 1) * dump['UU'] + dump['bsq'] / 2) * dump['gcon'][i, j, :, :, None] - dump['bcon'][i] *
             dump['bcon'][j])
 
 
 def T_cov(dump, i, j):
-    gam = dump.header['gam']
+    gam = dump['gam']
     return ((dump['RHO'] + gam * dump['UU'] + dump['bsq']) * dump['ucov'][i] * dump['ucov'][j] +
             ((gam - 1) * dump['UU'] + dump['bsq'] / 2) * dump['gcov'][i, j, :, :, None] - dump['bcov'][i] *
             dump['bcov'][j])
 
 
 def T_mixed(dump, i, j):
-    gam = dump.header['gam']
+    gam = dump['gam']
     if i != j:
         return ((dump['RHO'] + gam * dump['UU'] + dump['bsq']) * dump['ucon'][i] * dump['ucov'][j] +
                 - dump['bcon'][i] * dump['bcov'][j])
@@ -173,7 +136,7 @@ def TPAKE_mixed(dump, i, j):
         return dump['RHO'] * (dump['ucov'][j] + 1) * dump['ucon'][i]
 
 def TEN_mixed(dump, i, j):
-    gam = dump.header['gam']
+    gam = dump['gam']
     if i != j:
         # (u + p) u^i u_j + p delta(i,j)
         return (gam * dump['UU']) * dump['ucon'][i] * dump['ucov'][j]
@@ -181,7 +144,7 @@ def TEN_mixed(dump, i, j):
         return (gam * dump['UU']) * dump['ucon'][i] * dump['ucov'][j] + (gam - 1) * dump['UU']
 
 def TFl_mixed(dump, i, j):
-    gam = dump.header['gam']
+    gam = dump['gam']
     if i != j:
         return (dump['RHO'] + gam * dump['UU']) * dump['ucon'][i] * dump['ucov'][j]
     else:
@@ -190,14 +153,12 @@ def TFl_mixed(dump, i, j):
 
 def Fcon(dump, i, j):
     """Return the i,j component of contravariant Maxwell tensor"""
-    # TODO loopy this for currents on the backend & use results here
-    # TODO make sure this pulls gdet for vectors, for dual-system KORAL-like dumps
 
     Fconij = np.zeros_like(dump['RHO'])
     if i != j:
         for mu in range(4):
             for nu in range(4):
-                Fconij[:, :, :] += (- _antisym(i, j, mu, nu) / dump['gdet'][:, :, None]) * dump['ucov'][mu] * dump['bcov'][nu]
+                Fconij += (- _antisym(i, j, mu, nu) / dump['gdet'][:, :, None]) * dump['ucov'][mu] * dump['bcov'][nu]
 
     return Fconij
 
@@ -211,15 +172,12 @@ def Fcov(dump, i, j):
 
     return Fcovij
 
-def lorentz_calc(dump):
-    return dump['ucon'][0, :, :, :] / np.sqrt(-dump['gcon'][0, 0, :, :, None])
-
 def bernoulli(dump, with_B=False):
     if with_B:
         #return -(T_mixed(dump, 0, 0) / dump['FM']) - 1
         return np.sqrt( (-T_mixed(dump, 1, 0) / (dump['rho']*dump['u^1']))**2 - 1)
     else:
-        return -(1 + dump.header['gam'] * dump['UU'] / dump['RHO']) * dump['ucov'][0] - 1
+        return -(1 + dump['gam'] * dump['UU'] / dump['RHO']) * dump['ucov'][0] - 1
 
 def lam_MRI(dump):
     return (2*np.pi)/(dump['u^3']/dump['u^0']) * dump['b^th']/np.sqrt(dump['rho'] + dump['u'] + dump['p'] + dump['bsq'])
@@ -241,7 +199,7 @@ def thetae_rhigh(dump, Rlow=1, Rhigh=10, beta_crit=1.0):
                   (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.) * trat)
     return Thetae_unit * dump['Theta']
 
-def jnu_inv(dump, nu=230e9, theta=np.pi/3):
+def jnu(dump, nu=230e9, theta=np.pi/3):
     units = dump.units
     Thetae = dump['Thetae_rhigh']
     K2 = 2 * Thetae**2 # Approximate Bessel K_2(1/Thetae)

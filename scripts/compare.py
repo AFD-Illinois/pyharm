@@ -6,11 +6,9 @@
 #                                                                              #
 ################################################################################
 
-from __future__ import print_function, division
-
 import pyHARM
 from pyHARM import parameters
-import pyHARM.ana.plot as pplt
+import pyHARM.plots.plots as pplt
 import pyHARM.util as util
 
 import os,sys
@@ -32,11 +30,9 @@ dump1file = sys.argv[1]
 dump2file = sys.argv[2]
 imname = sys.argv[3]
 
-dump1 = pyHARM.load_dump(dump1file, add_grid_caches=False)
+dump1 = pyHARM.load_dump(dump1file, grid_cache=False)
 #Hopefully this fails for dumps that shouldn't be compared
-dump2 = pyHARM.load_dump(dump2file, add_grid_caches=False)
-
-N1 = dump1['n1']; N2 = dump1['n2']; N3 = dump1['n3']
+dump2 = pyHARM.load_dump(dump2file, grid_cache=False)
 
 log_floor = -8
 
@@ -45,39 +41,39 @@ def plot_diff_xy(ax, var, rel=False, lim=None, log=True):
     if rel:
         if lim is not None:
             pplt.plot_xy(ax, dump1, np.abs((dump1[var] - dump2[var])/dump1[var]),
-                vmin=0, vmax=lim, label=var, arrayspace=USEARRSPACE, window=window)
+                vmin=0, vmax=lim, label=var, native=USEARRSPACE, window=window)
         else:
             pplt.plot_xy(ax, dump1, np.abs((dump1[var] - dump2[var])/dump1[var]),
-                label=var, arrayspace=USEARRSPACE, window=window)
+                label=var, native=USEARRSPACE, window=window)
     elif not log:
         pplt.plot_xy(ax, dump1, np.abs(dump1[var] - dump2[var]),
-            vmin=0, vmax=lim, label=var, arrayspace=USEARRSPACE, window=window)
+            vmin=0, vmax=lim, label=var, native=USEARRSPACE, window=window)
     else:
         if lim is not None:
             pplt.plot_xy(ax, dump1, np.log10(np.abs(dump1[var] - dump2[var])),
-                vmin=log_floor, vmax=lim, label=var, arrayspace=USEARRSPACE, window=window)
+                vmin=log_floor, vmax=lim, label=var, native=USEARRSPACE, window=window)
         else:
             pplt.plot_xy(ax, dump1, np.log10(np.abs(dump1[var] - dump2[var])),
-                vmin=log_floor, vmax=0, label=var, arrayspace=USEARRSPACE, window=window)
+                vmin=log_floor, vmax=0, label=var, native=USEARRSPACE, window=window)
 
 def plot_diff_xz(ax, var, rel=False, lim=None, log=True):
     if rel:
         if lim is not None:
             pplt.plot_xz(ax, dump1, np.abs((dump1[var] - dump2[var])/dump1[var]),
-            vmin=0, vmax=lim, label=var, arrayspace=USEARRSPACE, window=window)
+            vmin=0, vmax=lim, label=var, native=USEARRSPACE, window=window)
         else:
             pplt.plot_xz(ax, dump1, np.abs((dump1[var] - dump2[var])/dump1[var]),
-            label=var, arrayspace=USEARRSPACE, window=window)
+            label=var, native=USEARRSPACE, window=window)
     elif not log:
         pplt.plot_xz(ax, dump1, np.abs(dump1[var] - dump2[var]),
-            vmin=0, vmax=lim, label=var, arrayspace=USEARRSPACE, window=window)
+            vmin=0, vmax=lim, label=var, native=USEARRSPACE, window=window)
     else:
         if lim is not None:
             pplt.plot_xz(ax, dump1, np.log10(np.abs(dump1[var] - dump2[var])),
-            vmin=log_floor, vmax=lim, label=var, arrayspace=USEARRSPACE, window=window)
+            vmin=log_floor, vmax=lim, label=var, native=USEARRSPACE, window=window)
         else:
             pplt.plot_xz(ax, dump1, np.log10(np.abs(dump1[var] - dump2[var])),
-            vmin=log_floor, vmax=0, label=var, arrayspace=USEARRSPACE, window=window)
+            vmin=log_floor, vmax=0, label=var, native=USEARRSPACE, window=window)
 
 # Plot the difference
 nxplot = 3

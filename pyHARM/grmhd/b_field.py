@@ -1,48 +1,10 @@
-# Various debugging tools: mapping areas of the grid, checks for NaNs, etc.
-
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from pyHARM.defs import Loci, Slices
 
-def check_nan_prims(params, P):
-    # Print the surrounding areas of the first 10 NaNs found
-    # TODO allow to specify one prim to check, slice to check
-    nidxs = np.argwhere(np.isnan(P))
-    if nidxs.shape[0] > 10:
-        nidxs = nidxs[:10]
-    for idx in nidxs:
-        print_area_prims(params, P, idx)
+"""Magnetic field tools. Currently just divB"""
 
-
-def check_nan_array(arr, slc=None):
-    if slc is not None:
-        nidxs = np.argwhere(np.isnan(arr))
-    else:
-        nidxs = np.argwhere(np.isnan(arr[slc]))
-    print(nidxs)
-    if nidxs.shape[0] > 10:
-        nidxs = nidxs[:10]
-    for idx in nidxs:
-        print_area_array(arr, idx)
-
-
-def print_area_prims(params, P, idx):
-    # Print surrounding zones of a location idx in form [prim_number, i, j, k]
-    dbg_slice = P[idx[0], idx[1]-1:idx[1]+1, idx[2]-1:idx[2]+1, idx[3]-1:idx[3]+1]
-    print(params['var_names'][idx[0]], ":", dbg_slice)
-
-
-def print_area_array(arr, idx):
-    dbg_slice = arr[idx[0]-1:idx[0]+1, idx[1]-1:idx[1]+1, idx[2]-1:idx[2]+1]
-    print(dbg_slice)
-
-
-def shape_of_nonzero_portion(arr, tag=""):
-    for i, idx_list in enumerate(np.nonzero(arr)):
-        print("{} axis {} {}:{}".format(tag, i, np.min(idx_list), np.max(idx_list)))
-
+# TODO flux_ct in numpy, to take a step for jcon
 
 def divB(G, P):
     gdet = G.gdet[Loci.CENT.value]

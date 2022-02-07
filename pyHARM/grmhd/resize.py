@@ -2,7 +2,7 @@
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
-from pyHARM.defs import Var, Loci
+from pyHARM.defs import Loci
 from pyHARM.grid import Grid
 
 def resize(params, G, P, n1, n2, n3, method='linear'):

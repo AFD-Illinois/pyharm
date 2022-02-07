@@ -21,46 +21,54 @@ class Loci(Enum):
     CENT = 3
     CORN = 4
 
+class InversionStatus(Enum):
+    unused = -1
+    success = 0
+    neg_input = 1
+    max_iter = 2
+    bad_ut = 3
+    bad_gamma = 4
+    neg_rho = 5
+    neg_u = 6
+    neg_rhou = 7
 
-class Var(Enum):
-    """All variables HARM currently supports evolving.
-    May not all be used in a given run.
-    See Gammie et al '03, Gammie & McKinney '04, Ressler et al '17 for definitions
-    """
-    RHO = 0
-    UU = 1
-    U1 = 2
-    U2 = 3
-    U3 = 4
-    B1 = 5
-    B2 = 6
-    B3 = 7
-    KTOT = 8
-    KEL = 9
+class FloorFlag_iharm3d(Enum):
+    # Floor Codes: bit masks
+    HIT_FLOOR_GEOM_RHO = 1
+    HIT_FLOOR_GEOM_U = 2
+    HIT_FLOOR_B_RHO = 4
+    HIT_FLOOR_B_U = 8
+    HIT_FLOOR_TEMP = 16
+    HIT_FLOOR_GAMMA = 32
+    HIT_FLOOR_KTOT = 64
+    FLOOR_UTOP_FAIL = 128
 
+class FloorFlag_KHARMA(Enum):
+    # Floor codes are non-exclusive, so it makes little sense to use an enum
+    # Instead, we use bitflags, starting high enough that we can stick the enum in the bottom 5 bits
+    # See floors.hpp for explanations of the flags
+    HIT_FLOOR_GEOM_RHO = 32
+    HIT_FLOOR_GEOM_U = 64
+    HIT_FLOOR_B_RHO = 128
+    HIT_FLOOR_B_U = 256
+    HIT_FLOOR_TEMP = 512
+    HIT_FLOOR_GAMMA = 1024
+    HIT_FLOOR_KTOT = 2048
+    #  Separate flags for when the floors are applied after reconstruction.
+    #  Not yet used, as this will likely have some speed penalty paid even if
+    #  the flags aren't written
+    HIT_FLOOR_GEOM_RHO_FLUX = 4096
+    HIT_FLOOR_GEOM_U_FLUX = 8192
 
 class Slices:
-    """Name commonly used slices of the full grid :
+    """Named slices
     The "bulk" fluid is the physical zones only, without any of the surrounding "ghost" zones obtained
     from other MPI ranks.  When parts of the set of ghost zones are used, they're called a "halo"
-    Primitive physical values are also given slices, to be able to add them to zone slices to index P
     """
 
     def __init__(self, ng):
-        # Slices to represent variables, to add to below for picking out e.g. bulk of RHO
+        # General slice for all of a given dimension
         self.allv = (slice(None),)
-        self.RHO = (Var.RHO.value,)
-        self.UU = (Var.UU.value,)
-        self.U1 = (Var.U1.value,)
-        self.U2 = (Var.U2.value,)
-        self.U3 = (Var.U3.value,)
-        self.U3VEC = (slice(Var.U1.value, Var.U3.value + 1),)
-        self.B1 = (Var.B1.value,)
-        self.B2 = (Var.B2.value,)
-        self.B3 = (Var.B3.value,)
-        self.B3VEC = (slice(Var.B1.value, Var.B3.value+1),)
-        self.KTOT = (Var.KTOT.value,)
-        self.KEL = (Var.KEL.value,)
 
         # General slice for 3vec portion of 4vec
         self.VEC3 = (slice(1, None),)
@@ -86,17 +94,9 @@ class Slices:
         self.diffr2 = (self.b, slice(ng + 1, -ng + 1), self.b)
         self.diffr3 = (self.b, self.b, slice(ng + 1, -ng + 1))
 
-        # Name boundaries slices for readability
-        # Left side
+        # Boundaries
         self.ghostl = slice(0, ng)
-        self.boundl = slice(ng, 2*ng)
-        self.boundl_r = slice(2 * ng, ng, -1)  # Reverse
-        self.boundl_o = slice(ng, ng + 1)  # Outflow (1-zone slice for replication)
-        # Right side
         self.ghostr = slice(-ng, None)
-        self.boundr = slice(-2 * ng, -ng)
-        self.boundr_r = slice(-ng, -2 * ng, -1)
-        self.boundr_o = slice(-ng - 1, -ng)
 
     def geom_slc(self, slc):
         """Return the version of a 3D slice suitable for 2D geometry variables"""
@@ -122,12 +122,9 @@ class Shapes:
         self.grid_scalar = (G.GN[1], G.GN[2], G.GN[3])
         self.grid_vector = (4,) + self.grid_scalar
         self.grid_tensor = (4,) + self.grid_vector
-        self.grid_primitives = (params['n_prim'],) + self.grid_scalar
 
         self.bulk_scalar = (G.N[1], G.N[2], G.N[3])
         self.bulk_vector = (4,) + self.bulk_scalar
         self.bulk_tensor = (4,) + self.bulk_vector
-        self.bulk_primitives = (params['n_prim'],) + self.bulk_scalar
 
         self.halo1_scalar = (G.N[1] + 2, G.N[2] + 2, G.N[3] + 2)
-        self.halo1_primitives = (params['n_prim'],) + self.halo1_scalar

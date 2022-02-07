@@ -6,7 +6,7 @@ import numpy as np
 
 import pyHARM
 from pyHARM.grmhd.resize import resize
-from pyHARM.io.ilhdf import write_dump
+from pyHARM.io.iharm3d import write_dump
 
 dump = pyHARM.load_dump(sys.argv[1], calc_derived=False, add_ghosts=True)
 

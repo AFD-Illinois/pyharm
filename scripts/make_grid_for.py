@@ -6,10 +6,10 @@ import sys
 import h5py
 from pyHARM.grid import Grid
 from pyHARM.io import gridfile
-from pyHARM.io import hdr
+from pyHARM.io import iharm3d_header
 
 # Read the header data of a given file to a dictionary
-header = hdr.read_hdr(sys.argv[1])
+header = iharm3d_header.read_hdr(sys.argv[1])
 
 # Generate a grid from the parameters in a standard
 # header dictionary

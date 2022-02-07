@@ -1,29 +1,19 @@
 # Module defining coordinate grids
 
+import copy
 import numpy as np
-
-try:
-    import pyopencl.array as cl_array
-    import loopy as lp
-
-    from pyHARM.loopy_tools import *
-    use_2018_2()
-except ModuleNotFoundError:
-    #print("Loading grid.py without OpenCL array support.")
-    pass
 
 from pyHARM.defs import Loci, Slices, Shapes
 from pyHARM.coordinates import *
 
 
-def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_out=50, params=None, caches=True, cache_conn=True):
+def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_out=1000, caches=True, cache_conn=False):
     """Convenience function for generating grids with default parameters used at Illinois.
-    Type should be one of 'minkowski', 'mks', 'fmks'
-    Size and coordinate parameters are optional with somewhat reasonable defaults.
+    Type can be any of 'eks', 'mks', 'fmks', 'minkowski', or exotic systems defined in coordinates.py.
+    Nearly all parameters are optional with Illinois-centric defaults.
     """
-    if params is None:
-        params = {}
 
+    params = {}
     params['coordinates'] = type
     params['n1tot'] = n1
     params['n2tot'] = n2
@@ -31,11 +21,7 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_o
     params['n1'] = n1
     params['n2'] = n2
     params['n3'] = n3
-
-    # Things which should ideally be optional in grid creation,
-    # but are not for one reason or another
     params['ng'] = 0
-    params['n_prim'] = 8
 
     if type == 'minkowski':
         params['x1min'] = 0
@@ -60,17 +46,24 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_o
 
 
 class Grid:
-    """Holds all information about the (potentially a) grid of zones:
+    """Holds all information about the a grid or mesh of zones:
     size, shape, zones' global locations, metric tensor
     """
+    # This will have a lot of lookups, so we make it static
+    # It's the list of valid arguments to __getitem__, used to delegate from fluid_dump's
+    # version of __getitem__, which is a superset
+    can_provide = ('NG', 'GN', 'NTOT', 'slices', 'shapes', 'gcon', 'gcov', 'gdet', 'conn',
+                    'n1', 'n2', 'n3', 'r', 'th', 'phi', 'x', 'y', 'z', 'X1', 'X2', 'X3')
 
-    def __init__(self, params, caches=True, cache_conn=True):
+    def __init__(self, params, caches=True, cache_conn=False):
         """
         Initialize a Grid object.  This object divides a domain in native coordinates into zones, and caches the
         local metric (and some other convenient information) at several locations in each zone.
-
         Primarily, this object should be used to consult the grid size/shape for global calculations, and raise and
         lower the indices of fluid 4-vectors.
+
+        :param caches: Whether to cache gcon/gcov/gdet at zone centers/faces. Usually desired.
+        :param cache_conn: Whether to cache connection coefficients (all 64/zone) at zone centers. Usually not desired.
 
         :param params: Dictionary containing the following parameters, depending on coordinate system:
         n{1,2,3}tot: total number of physical grid zones in each direction
@@ -273,6 +266,30 @@ class Grid:
                           np.arange(self.GN[2]+1),
                           np.arange(self.GN[3]+1), loc=Loci.CORN)
 
+    def coord_ij(self, at=0):
+        """Get just a 2D meshgrid of locations, usually for plotting"""
+        return self.coord(np.arange(self.GN[1]), np.arange(self.GN[2]), at, loc=Loci.CENT)
+
+    def coord_ik(self, at=0):
+        """Get just a 2D meshgrid of locations, usually for plotting"""
+        return self.coord(np.arange(self.GN[1]), at, np.arange(self.GN[3]), loc=Loci.CENT)
+
+    def coord_jk(self, at=0):
+        """Get just a 2D meshgrid of locations, usually for plotting"""
+        return self.coord(at, np.arange(self.GN[2]), np.arange(self.GN[3]), loc=Loci.CENT)
+
+    def coord_ij_mesh(self, at=0):
+        """Get just a 2D meshgrid of locations, usually for plotting"""
+        return self.coord(np.arange(self.GN[1]+1), np.arange(self.GN[2]+1), at, loc=Loci.CORN)
+
+    def coord_ik_mesh(self, at=0):
+        """Get just a 2D meshgrid of locations, usually for plotting"""
+        return self.coord(np.arange(self.GN[1]+1), at, np.arange(self.GN[3]+1), loc=Loci.CORN)
+
+    def coord_jk_mesh(self, at=0):
+        """Get just a 2D meshgrid of locations, usually for plotting"""
+        return self.coord(at, np.arange(self.GN[2]+1), np.arange(self.GN[3]+1), loc=Loci.CORN)
+
     def lower_grid(self, vcon, loc=Loci.CENT):
         """Lower a grid of contravariant rank-1 tensors to covariant ones."""
         return np.einsum("ij...,j...->i...", self.gcov[loc.value, :, :, :, :, None], vcon)
@@ -314,13 +331,39 @@ class Grid:
         dt_light_local = 1. / dt_light_local
 
         return np.min(dt_light_local)
-    
+
     def __getitem__(self, key):
-        if key in self.__dict__:
+        if type(key) in (list, tuple) and type(key[0]) in (int, slice):
+            out = copy.copy(self)
+            out.slice = self.slices.geom_slc(key)
+            # Slice the caches
+            for cache in ('gdet', 'lapse'):
+                if cache in self.__dict__:
+                    # No indices
+                    out.__dict__[cache] = self.__dict__[cache][out.slice]
+            for cache in ('gcon', 'gcov', 'conn'):
+                if cache in self.__dict__:
+                    # Loc+2 indices, 3 indices
+                    out.__dict__[cache] = self.__dict__[cache][(slice(None), slice(None), slice(None)) + out.slice]
+            # Revise size numbers for this grid
+            for i in range(len(out.slice)):
+                if isinstance(out.slice[i], int):
+                    out.global_start[i] = out.global_stop[i] = out.slice[i]
+                elif out.slice[i] is not None:
+                    if out.slice[i].start is not None:
+                        out.global_start[i] += self.slice[i].start
+                    if out.slice[i].stop is not None:
+                        # Count forward from global_start, or backward from global_stop
+                        out.global_stop[i] = self.global_start[i] + out.slice[i].stop if out.slice[i].stop > 0 else self.global_stop[i] + out.slice[i].stop
+                # Revise/reset size
+                out.N[i+1] = self.global_stop[i] - self.global_start[i]
+            # Reset GN
+            out.GN = out.N + (out.N > 1) * 2*out.NG
+            return out
+        elif key in self.__dict__:
             return self.__dict__[key]
         elif key in ['n1', 'n2', 'n3']:
             return self.NTOT[int(key[-1:])]
-            # TODO tot
         elif key in ['r', 'th', 'phi']:
             return getattr(self.coords, key)(self.coord_all())
         elif key in ['x', 'y', 'z']:
