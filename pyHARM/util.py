@@ -92,6 +92,24 @@ def calc_nthreads(hdr, n_mkl=8, pad=0.25):
 
     return nproc
 
+def slice_to_index(current_start, current_stop, slc):
+    """Take a slice out of a range represented by start and end points.
+    Resolves positive, negative, and integer slice values correctly.
+    """
+    new_start = list(current_start).copy()
+    new_stop = list(current_stop).copy()
+    for i in range(len(slc)):
+        if isinstance(slc[i], int):
+            new_start[i] = current_start[i] + slc[i]
+            new_stop[i] = current_start[i] + slc[i] + 1
+        elif slc[i] is not None:
+            if slc[i].start is not None:
+                new_start[i] = current_start + slc[i].start if slc[i].start > 0 else current_stop[i] + slc[i].stop
+            if slc[i].stop is not None:
+                # Count forward from global_start, or backward from global_stop
+                new_stop[i] = current_start + slc[i].stop if slc[i].stop > 0 else current_stop[i] + slc[i].stop
+
+    return new_start, new_stop
 
 # Convenience for finding zone containing a given value,
 # in coordinate/monotonic-increase variables

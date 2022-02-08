@@ -40,7 +40,7 @@ fns_dict = {# 4-vectors
             'jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']),
             'current': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,
             'b': lambda dump: np.sqrt(dump['bsq']),
-            'gamma': lambda dump: lorentz_calc(dump),
+            'Gamma': lambda dump: lorentz_calc(dump),
             'betagamma': lambda dump: np.sqrt((dump['FE'] / dump['FM'])**2 - 1),
             'Theta': lambda dump: (dump['gam'] - 1) * dump['UU'] / dump['RHO'],
             'Thetap': lambda dump: (dump['gam_p'] - 1) * dump['UU'] / dump['RHO'],
@@ -62,24 +62,25 @@ fns_dict = {# 4-vectors
 def lorentz_calc(dump, loc=Loci.CENT):
     """Find relativistic gamma-factor w.r.t. normal observer"""
     if 'ucon' in dump.cache:
-        # 
-        return dump['ucon'][0] * dump['lapse'][loc.value, :,:,None]
+        return dump['ucon'][0] * dump['lapse'][loc.value]
     else:
         G = dump.grid
-        return np.sqrt(1 + (G.gcov[(loc.value, 1, 1)] * dump['U1'] ** 2 +
-                            G.gcov[(loc.value, 2, 2)] * dump['U2'] ** 2 +
-                            G.gcov[(loc.value, 3, 3)] * dump['U3'] ** 2) + \
-                            2. * (G.gcov[(loc.value, 1, 2)] * dump['U1'] * dump['U2'] +
-                                  G.gcov[(loc.value, 1, 3)] * dump['U1'] * dump['U3'] +
-                                  G.gcov[(loc.value, 2, 3)] * dump['U2'] * dump['U3']))
+        print(G.gcov.shape)
+        return np.sqrt(1 + (G.gcov[loc.value, 1, 1] * dump['U1'] ** 2 +
+                            G.gcov[loc.value, 2, 2] * dump['U2'] ** 2 +
+                            G.gcov[loc.value, 3, 3] * dump['U3'] ** 2) + \
+                            2. * (G.gcov[loc.value, 1, 2] * dump['U1'] * dump['U2'] +
+                                  G.gcov[loc.value, 1, 3] * dump['U1'] * dump['U3'] +
+                                  G.gcov[loc.value, 2, 3] * dump['U2'] * dump['U3']))
 
 def ucon_calc(dump, loc=Loci.CENT):
     """Find contravariant fluid four-velocity"""
     G = dump.grid
     ucon = np.zeros((4, *dump['U1'].shape))
-    ucon[0] = dump['gamma'] / G.lapse[loc.value, :,:,None]
+    print(dump['U1'].shape, dump['U2'].shape, dump['U3'].shape, dump['Gamma'].shape, ucon[0].shape, G.lapse.shape)
+    ucon[0] = dump['Gamma'] / G.lapse[loc.value]
     for mu in range(1, 4):
-        ucon[mu] = dump['uvec'][mu-1] - dump['gamma'] * G.lapse[loc.value, :,:,None] * G.gcon[loc.value, 0, mu, :, :, None]
+        ucon[mu] = dump['uvec'][mu-1] - dump['Gamma'] * G.lapse[loc.value] * G.gcon[loc.value, 0, mu]
 
     return ucon
 
@@ -100,14 +101,14 @@ def bcon_calc(dump):
 def T_con(dump, i, j):
     gam = dump['gam']
     return ((dump['RHO'] + gam * dump['UU'] + dump['bsq']) * dump['ucon'][i] * dump['ucon'][j] +
-            ((gam - 1) * dump['UU'] + dump['bsq'] / 2) * dump['gcon'][i, j, :, :, None] - dump['bcon'][i] *
+            ((gam - 1) * dump['UU'] + dump['bsq'] / 2) * dump['gcon'][i, j] - dump['bcon'][i] *
             dump['bcon'][j])
 
 
 def T_cov(dump, i, j):
     gam = dump['gam']
     return ((dump['RHO'] + gam * dump['UU'] + dump['bsq']) * dump['ucov'][i] * dump['ucov'][j] +
-            ((gam - 1) * dump['UU'] + dump['bsq'] / 2) * dump['gcov'][i, j, :, :, None] - dump['bcov'][i] *
+            ((gam - 1) * dump['UU'] + dump['bsq'] / 2) * dump['gcov'][i, j] - dump['bcov'][i] *
             dump['bcov'][j])
 
 
@@ -158,7 +159,7 @@ def Fcon(dump, i, j):
     if i != j:
         for mu in range(4):
             for nu in range(4):
-                Fconij += (- _antisym(i, j, mu, nu) / dump['gdet'][:, :, None]) * dump['ucov'][mu] * dump['bcov'][nu]
+                Fconij += (- _antisym(i, j, mu, nu) / dump['gdet']) * dump['ucov'][mu] * dump['bcov'][nu]
 
     return Fconij
 
@@ -168,7 +169,7 @@ def Fcov(dump, i, j):
     Fcovij = np.zeros_like(dump['RHO'])
     for mu in range(4):
         for nu in range(4):
-            Fcovij += Fcon(dump, mu, nu) * dump['gcov'][mu, i, :, :, None] * dump['gcov'][nu, j, :, :, None]
+            Fcovij += Fcon(dump, mu, nu) * dump['gcov'][mu, i] * dump['gcov'][nu, j]
 
     return Fcovij
 

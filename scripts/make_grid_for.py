@@ -23,4 +23,4 @@ print("metric a, hslope:", G.coords.a, G.coords.hslope)
 # Won't match bit-for-bit due to gcon inversions,
 # which are manual in iharm3D and np.linalg calls in
 # pyHARM
-gridfile.write_grid(G, fname="grid.h5")
+gridfile.write(G, fname="grid.h5")

@@ -8,8 +8,6 @@
 
 # Generally good overview movies are 'simplest' & 'traditional', see the function body for details.
 
-
-from importlib.metadata import files
 import os
 import click
 import psutil
@@ -48,13 +46,15 @@ frame_dir = ""
 @click.option('-sz','--size', default=None, help="Window size, in M each side of central object.")
 @click.option('-sh','--shading', default='gouraud', help="Shading: flat, nearest, gouraud.")
 # Extras
+@click.option('-r', '--resume', is_flag=True, default=False, help="Continue a previous run, by skipping existing frames")
 @click.option('-d', '--debug', is_flag=True, default=False, help="Serial operation for debugging")
 @click.option('-m', '--memory_limit', is_flag=True, default=False,
                 help="Limit parallel operations to memory instead of processor count, for large files.")
 # TODO reimplement this
 @click.option('--diag_post', is_flag=True, default=False, help="End time.")
 
-def movie(movie_type, path, debug, memory_limit, diag_post, tstart, tend, fig_x, fig_y, size, shading, fig_dpi, plot_ghost):
+def movie(movie_type, path, debug, memory_limit, diag_post, tstart, tend,
+          fig_x, fig_y, size, shading, fig_dpi, plot_ghost, resume):
     """Movie of type MOVIE_TYPE from dumps at PATH.
     Generate the frames of a movie running over all dumps at the given path.
     """
@@ -128,9 +128,8 @@ def frame(ctx, n):
             nlines = 0
             rho_l, rho_h = -2, 0.0
 
-    size_option = float(ctx.params['size'])
-    if size_option is not None:
-        sz = size_option
+    if ctx.params['size'] is not None:
+        sz = float(ctx.params['size'])
 
     window = [-sz, sz, -sz, sz]
 

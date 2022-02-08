@@ -156,18 +156,12 @@ class Grid:
         self.dV = self.dx[1]*self.dx[2]*self.dx[3]
 
         if caches:
+            # Shapes
             self.gcov = np.zeros(self.shapes.locus_geom_tensor)
-            self.gcon = np.zeros_like(self.gcov)
-
             self.gdet = np.zeros(self.shapes.locus_geom_scalar)
+            # Replicate
+            self.gcon = np.zeros_like(self.gcov)
             self.lapse = np.zeros_like(self.gdet)
-            # For 1D problems
-            if self.gcov.shape[-1] == 1:
-                self.gcov = np.squeeze(self.gcov)
-                self.gcon = np.squeeze(self.gcon)
-                self.gdet = np.squeeze(self.gdet)
-                self.lapse = np.zeros_like(self.gdet)
-            #
 
             for loc in Loci:
                 ilist = np.arange(self.GN[1])
@@ -181,12 +175,13 @@ class Grid:
                 gcov_loc = self.coords.gcov(x)
                 gcon_loc = self.coords.gcon(gcov_loc)
                 gdet_loc = self.coords.gdet(gcov_loc)
-                self.gcov[loc.value] = gcov_loc
-                self.gcon[loc.value] = gcon_loc
-                self.gdet[loc.value] = gdet_loc
-                self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
+                self.gcov[loc.value] = gcov_loc[:, :, :, :, None]
+                self.gcon[loc.value] = gcon_loc[:, :, :, :, None]
+                self.gdet[loc.value] = gdet_loc[:, :, None]
+                self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0, :, :, None])
 
             if cache_conn:
+                # It will probably never be advantageous to store this in 3D
                 self.conn = self.coords.conn_func(x_cent)
 
     def coord(self, i, j, k, loc=Loci.CENT):
@@ -292,11 +287,11 @@ class Grid:
 
     def lower_grid(self, vcon, loc=Loci.CENT):
         """Lower a grid of contravariant rank-1 tensors to covariant ones."""
-        return np.einsum("ij...,j...->i...", self.gcov[loc.value, :, :, :, :, None], vcon)
+        return np.einsum("ij...,j...->i...", self.gcov[loc.value], vcon)
 
     def raise_grid(self, vcov, loc=Loci.CENT):
         """Raise a grid of covariant rank-1 tensors to contravariant ones."""
-        return np.einsum("ij...,j...->i...", self.gcon[loc.value, :, :, :, :, None], vcov)
+        return np.einsum("ij...,j...->i...", self.gcon[loc.value], vcov)
 
     def dot(self, ucon, ucov):
         """Inner product along first index. Exists to make other code OpenCL-agnostic"""
@@ -311,19 +306,19 @@ class Grid:
         gcon = self.gcon
         CENT = Loci.CENT.value
         for mu in range(1,4):
-            cplus = np.abs((-gcon[CENT, 0, mu, :, :] +
-                            np.sqrt(gcon[CENT, 0, mu, :, :]**2 -
-                                    gcon[CENT, mu, mu, :, :] * gcon[CENT, 0, 0, :, :])) /
-                           gcon[CENT, 0, 0, :, :])
+            cplus = np.abs((-gcon[CENT, 0, mu] +
+                            np.sqrt(gcon[CENT, 0, mu]**2 -
+                                    gcon[CENT, mu, mu] * gcon[CENT, 0, 0])) /
+                           gcon[CENT, 0, 0])
 
-            cminus = np.abs((-gcon[CENT, 0, mu, :, :] -
-                             np.sqrt(gcon[CENT, 0, mu, :, :]**2 -
-                                     gcon[CENT, mu, mu, :, :] * gcon[CENT, 0, 0, :, :])) /
-                            gcon[CENT, 0, 0, :, :])
+            cminus = np.abs((-gcon[CENT, 0, mu] -
+                             np.sqrt(gcon[CENT, 0, mu]**2 -
+                                     gcon[CENT, mu, mu] * gcon[CENT, 0, 0])) /
+                            gcon[CENT, 0, 0])
             light_phase_speed = np.maximum.reduce([cplus, cminus])
 
-            light_phase_speed = np.where(gcon[CENT, 0, mu, :, :] ** 2 -
-                                         gcon[CENT, mu, mu, :, :] * gcon[CENT, 0, 0, :, :] >= 0.,
+            light_phase_speed = np.where(gcon[CENT, 0, mu] ** 2 -
+                                         gcon[CENT, mu, mu] * gcon[CENT, 0, 0] >= 0.,
                                          light_phase_speed, 1e-20)
 
             dt_light_local += 1. / (self.dx[mu] / light_phase_speed)
@@ -334,9 +329,34 @@ class Grid:
 
     def __getitem__(self, key):
         if type(key) in (list, tuple) and type(key[0]) in (int, slice):
+            slc = self.slices.geom_slc(key) # cut 3rd index, geometry is 2D
+            relevant_0 = isinstance(slc[0], int) or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)
+            relevant_1 = len(slc) > 1 and isinstance(slc[1], int) or isinstance(slc[1].start, int) or isinstance(slc[1].stop, int)
+            relevant_2 = len(slc) > 2 and isinstance(slc[2], int) or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
+            if not (relevant_0 or relevant_1 or relevant_2):
+                return self
+            # Otherwise it's worth it to copy & return a part.
+            #print("Grid slice copy, ",key)
             out = copy.copy(self)
-            out.slice = self.slices.geom_slc(key)
-            # Slice the caches
+            out.slice = slc
+            # Revise size numbers for this grid
+            for i in range(len(out.slice)):
+                if isinstance(out.slice[i], int):
+                    out.global_start[i] = out.slice[i]
+                    out.global_stop[i] = out.slice[i] + 1
+                    # Make sure we preserve 2D
+                    #out.slice[i] = slice(out.slice[i], out.slice[i]+1)
+                elif out.slice[i] is not None:
+                    if out.slice[i].start is not None:
+                        out.global_start[i] = self.global_start[i] + out.slice[i].start
+                    if out.slice[i].stop is not None:
+                        # Count forward from global_start, or backward from global_stop
+                        out.global_stop[i] = self.global_start[i] + out.slice[i].stop if out.slice[i].stop > 0 else self.global_stop[i] + out.slice[i].stop
+                # Revise/reset size
+                out.N[i+1] = out.global_stop[i] - out.global_start[i]
+            # Reset GN
+            out.GN = out.N + (out.N > 1) * 2*out.NG
+            # Finally, slice the caches with the revised slice
             for cache in ('gdet', 'lapse'):
                 if cache in self.__dict__:
                     # No indices
@@ -345,20 +365,6 @@ class Grid:
                 if cache in self.__dict__:
                     # Loc+2 indices, 3 indices
                     out.__dict__[cache] = self.__dict__[cache][(slice(None), slice(None), slice(None)) + out.slice]
-            # Revise size numbers for this grid
-            for i in range(len(out.slice)):
-                if isinstance(out.slice[i], int):
-                    out.global_start[i] = out.global_stop[i] = out.slice[i]
-                elif out.slice[i] is not None:
-                    if out.slice[i].start is not None:
-                        out.global_start[i] += self.slice[i].start
-                    if out.slice[i].stop is not None:
-                        # Count forward from global_start, or backward from global_stop
-                        out.global_stop[i] = self.global_start[i] + out.slice[i].stop if out.slice[i].stop > 0 else self.global_stop[i] + out.slice[i].stop
-                # Revise/reset size
-                out.N[i+1] = self.global_stop[i] - self.global_start[i]
-            # Reset GN
-            out.GN = out.N + (out.N > 1) * 2*out.NG
             return out
         elif key in self.__dict__:
             return self.__dict__[key]

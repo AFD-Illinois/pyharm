@@ -217,7 +217,7 @@ def shell_sum(dump, var, at_r=None, at_zone=None, th_slice=None, j_slice=None, m
         var = var[at_zone:at_zone+1]
         gdet = gdet[at_zone:at_zone+1]
 
-    integrand = var * gdet[:, :, None] * dump.header['dx2'] * dump.header['dx3']
+    integrand = var * gdet * dump.header['dx2'] * dump.header['dx3']
     if mask is not None:
         integrand *= mask
 
@@ -258,7 +258,7 @@ def sphere_sum(dump, var, r_slice=None, i_slice=None, th_slice=None, j_slice=Non
         var = var[i_slice[0]:i_slice[1]]
         gdet = gdet[i_slice[0]:i_slice[1]]
 
-    return np.sum(var * gdet[:, :, None] * dump.header['dx1'] * dump.header['dx2'] * dump.header['dx3'])
+    return np.sum(var * gdet * dump.header['dx1'] * dump.header['dx2'] * dump.header['dx3'])
 
 
 def sphere_av(dump, var, **kwargs):

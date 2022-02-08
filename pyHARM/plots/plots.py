@@ -178,8 +178,8 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             ax.set_ylim(window[2:])
         else:
             # Just set to th
-            ax.set_xlim([x[0,0], x[-1,-1]])
-            ax.set_ylim([z[0,0], z[-1,-1]])
+            ax.set_xlim([np.min(x), np.max(x)])
+            ax.set_ylim([np.min(z), np.max(z)])
     else:
         if xlabel: ax.set_xlabel(r"x ($r_g$)")
         if ylabel: ax.set_ylabel(r"z ($r_g$)")
@@ -198,6 +198,8 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
 def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             xlabel=True, ylabel=True, native=False, log=False,
             cmap='jet', shading='gouraud', cbar=True, **kwargs):
+    if dump['n3'] == 1:
+        return None
 
     # TODO slice for better efficiency
     if isinstance(var, str):
@@ -207,9 +209,9 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
         var = dump[:, dump['n2']//2, :][var]
 
     if shading == 'flat':
-        m = dump.grid.coord_ik_mesh(at=dump['n2']//2)
+        m = dump.grid.coord_ik_mesh()
     else:
-        m = dump.grid.coord_ik(at=dump['n2']//2)
+        m = dump.grid.coord_ik()
 
     if native:
         x = m[1]

@@ -18,7 +18,7 @@ class FluidDump:
     various derived variables directly.
     """
 
-    def __init__(self, fname, tag="", ghost_zones=False, grid_cache=True, cache_conn=False, units=None):
+    def __init__(self, fname, tag="", ghost_zones=False, grid_cache=True, cache_conn=False, units=None, add_grid=True, params=None):
         """Attach the fluid dump file 'fname' and make its contents accessible like a dictionary.  For a list of some
         variables and properties accessible this way, see 
 
@@ -28,6 +28,9 @@ class FluidDump:
                            so keep this True unless plotting a very simple variable.
         :param cache_conn: Cache the connection coefficients at zone centers. Memory-intensive, rarely needed
         :param units: a 'Units' object representing a physical scale for the dump (density M_unit and BH mass MBH)
+        Advanced:
+        :param add_grid: Whether to add
+        :param params: dictionary of parameters guaranteed to have the usual file header information already
         """
         self.fname = fname
         if tag == "":
@@ -37,12 +40,17 @@ class FluidDump:
         self.units = units
 
         # Choose an importer based on what we know of filenames
-        self.reader = io.file_reader(fname, ghost_zones=ghost_zones)
-        self.params = self.reader.params
+        self.reader = io.file_reader(fname, params=params, ghost_zones=ghost_zones)
+        if params is None:
+            self.params = self.reader.params
+        else:
+            self.params = params
         self.cache = {}
-        # These will only be modified directly, by the slice "constructor"
         self.slice = ()
-        self.grid = Grid(self.params, caches=grid_cache, cache_conn=cache_conn)
+        if add_grid:
+            self.grid = Grid(self.params, caches=grid_cache, cache_conn=cache_conn)
+        else:
+            self.grid = None
 
     def set_units(self, MBH, M_unit):
         """Associate a scale & units with this dump, for calculating scale-dependent quantities in CGS"""
@@ -63,10 +71,17 @@ class FluidDump:
         # Just, don't.
         if type(key) in (list, tuple):
             slc = key
-            out = copy.copy(self)
-            for c in out.cache:
-                out.cache[c] = out.cache[c][slc]
-            out.grid = out.grid[slc]
+            # TODO handle further slicing after this is a 2D object?
+            relevant_0 = isinstance(slc[0], int) or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)
+            relevant_1 = isinstance(slc[1], int) or isinstance(slc[1].start, int) or isinstance(slc[1].stop, int)
+            relevant_2 = isinstance(slc[2], int) or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
+            if not (relevant_0 or relevant_1 or relevant_2):
+                return self
+            #print("FluidDump slice copy: ", self.cache, key)
+            out = FluidDump(self.fname, add_grid=False, params=self.params)
+            for c in self.cache:
+                out.cache[c] = self.cache[c][slc]
+            out.grid = self.grid[slc]
             out.slice = slc
             return out
 

@@ -100,7 +100,10 @@ class Slices:
 
     def geom_slc(self, slc):
         """Return the version of a 3D slice suitable for 2D geometry variables"""
-        return slc[:2] + (None,)
+        if isinstance(slc[2], int):
+            return slc[:2] + (0,)
+        else:
+            return slc[:2] + (slice(None),)
 
 
 class Shapes:
@@ -109,7 +112,7 @@ class Shapes:
     """
     def __init__(self, G, params):
         # Shapes for allocation
-        self.geom_scalar = (G.GN[1], G.GN[2])
+        self.geom_scalar = (G.GN[1], G.GN[2], 1)
         self.geom_vector = (4,) + self.geom_scalar
         # Admittedly this is not really the meaning of tensor.
         # tensor2d is needless specification though

@@ -4,8 +4,8 @@
 
 import sys
 import h5py
-import pyHARM.grid as grid
-import pyHARM.io.gridfile as h5io
+from pyHARM import grid
+from pyHARM.io import gridfile
 
 system=sys.argv[1]
 spin=float(sys.argv[2])
@@ -23,4 +23,4 @@ print("Building grid: {}, a = {}, {}x{}x{} to r_out of {}".format(
       system, spin, n1, n2, n3, r_out))
 
 G = grid.make_some_grid(system, n1, n2, n3, a=spin, r_out=r_out)
-h5io.write_grid(G, fname=sys.argv[-1])
+gridfile.write(G, fname=sys.argv[-1])
