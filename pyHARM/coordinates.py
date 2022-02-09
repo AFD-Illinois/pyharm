@@ -425,12 +425,12 @@ class MKS(KS):
         elif 'n1tot' in met_params and 'r_out' in met_params:
             # Else via a guess, which we propagate back to the originating parameter file
             met_params['r_in'] = np.exp((met_params['n1tot'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
-                                    (-1. + met_params['n1tot'] / 5.5))
+                                        (-1. + met_params['n1tot'] / 5.5))
             return np.array([0, np.log(met_params['r_in']), 0, 0])
         elif 'n1' in met_params and 'r_out' in met_params:
             # Or a more questionable guess
             met_params['r_in'] = np.exp((met_params['n1'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
-                                    (-1. + met_params['n1'] / 5.5))
+                                        (-1. + met_params['n1'] / 5.5))
             return np.array([0, np.log(met_params['r_in']), 0, 0])
         else:
             print("The only parameters provided to native_startx were: ", met_params)

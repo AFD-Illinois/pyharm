@@ -13,3 +13,5 @@ dependencies:
  - sphinx
  - ipykernel
  - ipympl
+ - click
+ - pathos

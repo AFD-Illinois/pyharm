@@ -50,7 +50,7 @@ augment = False
 # Whether to calculate each set of variables
 # Once performed once, calculations will be ported to each new output file
 calc_basic = True # Fluxes at horizon, often needed before movies, as basic check, etc.
-calc_ravgs = True # Radial averages in the disk for code comparisons
+calc_ravgs = False # Radial averages in the disk for code comparisons
 calc_efluxes = False # Fluxes in places other than the horizon, to judge infall equilibrium etc.
 
 # Stuff written specifically for the MAD code comparison
@@ -68,7 +68,7 @@ calc_thavgs = False
 calc_omega_bz = False
 calc_jet_profile = False
 calc_jet_cuts = False
-calc_lumproxy = False
+calc_lumproxy = True
 calc_gridtotals = False
 calc_outfluxes = False
 
@@ -177,7 +177,7 @@ def avg_dump(n):
 
     print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
     # TODO Add only what we need here...
-    dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=True, add_fails=True, add_floors=True)
+    dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=False, add_fails=False, add_floors=False)
 
     # Should we compute the time-averaged quantities?
     do_tavgs = (tavg_start <= t <= tavg_end)
@@ -292,14 +292,20 @@ def avg_dump(n):
                 #'mu1' : lambda dump : (dump['mu'] > 1),
                 'bg1': lambda dump: (dump['betagamma'] > 1.0),
                 'bg05': lambda dump: (dump['betagamma'] > 0.5),
+<<<<<<< Updated upstream
                 'allp': lambda dump: (dump['FE'] > 0,
                 'morep': lambda dump: (dump['FE'] - dump['rho']*dump['ucon'][:,:,:,1] > 0)}
+=======
+                'allp': lambda dump: (dump['FE'] > 0),
+                'morep': lambda dump: (np.logical_and(dump['FE_norho'] > 0,
+                                                    np.logical_or(dump['th'] < 1, dump['th'] > np.pi - 1)))}
+>>>>>>> Stashed changes
 
         # Terminology:
         # LBZ = E&M energy only, any cut
         # Lj = full E flux, any cut
         # Ltot = Lj_allp = full luminosity wherever it is positive
-        for lum, flux in [['LBZ', 'FE_EM'], ['Lj', 'FE']]:
+        for lum, flux in [['LBZ', 'FE_EM'], ['Lj', 'FE_norho']]:
             for cut in cuts.keys():
                 out['rt/' + lum + '_' + cut] = shell_sum(dump, flux, mask=cuts[cut](dump))
                 out['t/' + lum + '_' + cut] = out['rt/' + lum + '_' + cut][iBZ]
@@ -495,8 +501,8 @@ inf.close()
 # Fill the output dict with all per-dump or averaged stuff
 # Hopefully in a way that doesn't keep too much of it around in memory
 if parallel:
-    nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.2)
-    #nthreads = 5
+    #nthreads = util.calc_nthreads(hdr, n_mkl=16, pad=0.23)
+    nthreads = 5
     util.iter_parallel(avg_dump, merge_dict, outf, ND, nthreads)
 else:
     for n in range(ND):

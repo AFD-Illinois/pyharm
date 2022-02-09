@@ -25,6 +25,7 @@ fns_dict = {# 4-vectors
             'FE_Fl': lambda dump: -TFl_mixed(dump, 1, 0),
             'FE_PAKE': lambda dump: -TPAKE_mixed(dump, 1, 0),
             'FE_EN': lambda dump: -TEN_mixed(dump, 1, 0),
+            'FE_norho': lambda dump: -T_mixed(dump, 1, 0) - dump['rho']*dump['ucon'][1],
             'FL': lambda dump: T_mixed(dump, 1, 3),
             'FL_EM': lambda dump: TEM_mixed(dump, 1, 3),
             'FL_Fl': lambda dump: TFl_mixed(dump, 1, 3),

@@ -1,5 +1,6 @@
 
 import numpy as np
+import pandas
 import h5py
 
 from .. import parameters
@@ -9,6 +10,17 @@ from .interface import DumpFile
 
 # This is where we drop in the Parthenon reader
 from .phdf import phdf
+
+def read_log(fname):
+    with open(fname) as inf:
+        inf.readline()
+        header = [e.split('=')[1].rstrip() for e in inf.readline().split('[')[1:]]
+        print(header)
+    tab = pandas.read_table(fname, delim_whitespace=True, comment='#', names=header)
+    out = {}
+    for name in header:
+        out[name] = np.array(tab[name])
+    return out
 
 class KHARMAFile(DumpFile):
     """File filter for KHARMA files"""

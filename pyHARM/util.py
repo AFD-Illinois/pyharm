@@ -79,14 +79,11 @@ def calc_nthreads(hdr, n_mkl=8, pad=0.25):
     if using_psutil:
         # Roughly compute memory and leave some generous padding for multiple copies and Python games
         # (N1*N2*N3*8)*(NPRIM + 4*4 + 6) = size of "dump," (N1*N2*N3*8)*(2*4*4 + 6) = size of "geom"
-        # TODO get a better model for this, and save memory in general
+        # TODO get a better model for this!!
         ncopies = hdr['n_prim'] + 4 * 4 + 6
         nproc = int(pad * psutil.virtual_memory().total / (hdr['n1'] * hdr['n2'] * hdr['n3'] * 8 * ncopies))
         if nproc < 1:
             nproc = 1
-        if nproc > psutil.cpu_count():
-            nproc = psutil.cpu_count()
-        print("Using {} Python processes".format(nproc))
     else:
         print("psutil not available: Using 4 processes as a safe default")
 

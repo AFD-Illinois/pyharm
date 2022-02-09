@@ -50,7 +50,7 @@ write_git_revision("pyHARM")
 
 
 setup(name="pyHARM",
-      version="2021.6",
+      version="2022.2",
       description="Python tools for HARM analysis",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
@@ -61,7 +61,11 @@ setup(name="pyHARM",
           "scipy",
           "matplotlib",
           "h5py",
-          ],
+          "sphinx",
+          "click",
+          "pathos",
+          "ipykernel",
+          "ipympl"],
 
       author="AFD Group, UIUC",
       packages=find_packages(),

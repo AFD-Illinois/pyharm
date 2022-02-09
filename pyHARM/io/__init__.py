@@ -6,7 +6,10 @@ from glob import glob
 import numpy as np
 import h5py
 
+# TODO not sure this is how I want names
+from . import iharm3d
 from .iharm3d import Iharm3DFile
+from . import kharma
 from .kharma import KHARMAFile
 from .harm2d import HARM2DFile
 from .hamr import HAMRFile
@@ -60,6 +63,14 @@ def read_hdr(fname):
     """Get just the header/params embedded in a simulation file.
     """
     return _get_filter_class(fname)(fname).read_params()
+
+def read_log(fname):
+    """Get just the header/params embedded in a simulation file.
+    """
+    if ".hst" in fname:
+        return kharma.read_log(fname)
+    elif ".log" in fname:
+        return iharm3d.read_log(fname)
 
 def file_reader(fname, **kwargs):
     """Return an XFile object ("filter") which can read/write the given filename.
