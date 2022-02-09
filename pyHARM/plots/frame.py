@@ -18,8 +18,10 @@ def frame(fname, diag, kwargs):
     tstart, tend = kwargs['tstart'], kwargs['tend']
     movie_type = kwargs['movie_type']
     tdump = io.get_dump_time(fname)
+    frame_name = os.path.join("frames_"+movie_type, "frame_t%08d.png" % int(tdump))
     if (tstart is not None and tdump < tstart) or \
-        (tend is not None and tdump > tend):
+        (tend is not None and tdump > tend) or \
+        ('resume' in kwargs and kwargs['resume'] and os.path.exists(frame_name)):
         return
 
     print("Imaging t={}".format(int(tdump)), file=sys.stderr)
@@ -125,6 +127,6 @@ def frame(fname, diag, kwargs):
     # Title by time, otherwise number
     fig.suptitle("t = {}".format(int(tdump)))
     plt.subplots_adjust(left=0.03, right=0.97)
-    plt.savefig(os.path.join("frames_"+movie_type, "frame_t%08d.png" % int(tdump)), dpi=kwargs['fig_dpi'])
+    plt.savefig(frame_name, dpi=kwargs['fig_dpi'])
 
     return fname
