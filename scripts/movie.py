@@ -35,7 +35,7 @@ from pyHARM.util import calc_nthreads
 # Common options
 @click.option('-s', '--tstart', default=0, help="Start time.")
 @click.option('-e', '--tend', default=1e7, help="End time.")
-@click.option('-n', '--nthreads', default=None, help="Number of processes to use, across all nodes")
+@click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
 # If you're invoking manually
 @click.option('--fig_x', default=16, help="Figure width in inches.")
 @click.option('--fig_y', default=9, help="Figure height in inches.")
@@ -60,7 +60,7 @@ def movie(movie_type, paths, **kwargs):
         kwargs['movie_type'] = movie_type
         kwargs['path'] = path
         # Try to load known filenames
-        files = io.get_fnames(path)
+        files = io.get_fnames(".")
 
         frame_dir = "frames_" + movie_type
         os.makedirs(frame_dir, exist_ok=True)

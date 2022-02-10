@@ -3,6 +3,7 @@
 
 import os
 from glob import glob
+import itertools
 import numpy as np
 import h5py
 
@@ -22,8 +23,8 @@ def get_fnames(path):
     """Return what should be the list of fluid dump files in a directory 'path',
     while trying to avoid extraneous files caught in normal globs (e.g., grid.h5)
     """
-    for scheme in ("dump_*.h5", "*out0*.phdf", "*out*.phdf", "*.phdf", "dump*", "*.h5", "*.hdf5"):
-        files = np.sort(glob(os.path.join(path, scheme)))
+    for scheme in itertools.product((".","dumps","dumps_kharma"), ("dump_*.h5", "*out0*.phdf", "*out*.phdf", "*.phdf", "dump*", "*.h5", "*.hdf5")):
+        files = np.sort(glob(os.path.join(path, scheme[0], scheme[1])))
         if len(files) > 0:
             return files
     raise FileNotFoundError("No dump files found at {}".format(path))
