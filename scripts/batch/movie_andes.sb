@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#SBATCH -J pyHARM_movie
+#SBATCH -A ast171
+#SBATCH -N 10
+# Only 'batch' or 'gpu'
+#SBATCH -p batch
+#SBATCH -t 4:00:00
+#SBATCH -o out-%j.txt
+
+# -n320 -N10 -c1 --cpu-bind=cores --exclusive
+srun ~/Code/pyHARM/scripts/movie.py "${@}"

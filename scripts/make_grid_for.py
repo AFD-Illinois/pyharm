@@ -6,10 +6,10 @@ import sys
 import h5py
 from pyHARM.grid import Grid
 from pyHARM.io import gridfile
-from pyHARM.io import hdr
+from pyHARM.io import iharm3d_header
 
 # Read the header data of a given file to a dictionary
-header = hdr.read_hdr(sys.argv[1])
+header = iharm3d_header.read_hdr(sys.argv[1])
 
 # Generate a grid from the parameters in a standard
 # header dictionary
@@ -23,4 +23,4 @@ print("metric a, hslope:", G.coords.a, G.coords.hslope)
 # Won't match bit-for-bit due to gcon inversions,
 # which are manual in iharm3D and np.linalg calls in
 # pyHARM
-gridfile.write_grid(G, fname="grid.h5")
+gridfile.write(G, fname="grid.h5")

@@ -1,33 +1,30 @@
 
 import numpy as np
+from scipy.interpolate import RegularGridInterpolator
 
-from pyHARM.defs import Var, Loci
+from pyHARM.defs import Loci
+from pyHARM.grid import Grid
 
 def resize(params, G, P, n1, n2, n3, method='linear'):
     """Resize the primitives P onto a new grid.
     Note this doesn't yet support ghost zones
     """
+    nvar = P.shape[0]
+    X = G.coord_all()
 
-    P_out = np.zeros((n1, n2, n3))
+    Pnew = np.zeros((nvar, n1, n2, n3))
+    params_new = params.copy()
+    params_new['n1tot'] = params_new['n1'] = n1
+    params_new['n2tot'] = params_new['n2'] = n2
+    params_new['n3tot'] = params_new['n3'] = n3
+    Gnew = Grid(params_new)
+    Xnew = Gnew.coord_all()
 
-    # Particle number flux
-    flux[s.RHO + slc] = P[s.RHO + slc] * D['ucon'][dir][slc]
+    print(X[1][:,0,0], Xnew[1][:,0,0])
 
-    # MHD stress-energy tensor w/ first index up, second index down
-    T = Tmhd(params, G, P, D, dir, slc)
-    flux[s.UU + slc] = T[0][slc] + flux[s.RHO + slc]
-    flux[s.U3VEC + slc] = T[s.VEC3 + slc]
+    for var in range(nvar):
+        interp = RegularGridInterpolator((X[1][:,0,0], X[2][0,:,0], X[3][0,0,:]), P[var], method=method, bounds_error=False)
+        points = interp(Xnew[1:].T)
+        Pnew[var] = points.T
 
-    # Dual of Maxwell tensor
-    flux[s.B1 + slc] = (D['bcon'][1] * D['ucon'][dir] - D['bcon'][dir] * D['ucon'][1])[slc]
-    flux[s.B2 + slc] = (D['bcon'][2] * D['ucon'][dir] - D['bcon'][dir] * D['ucon'][2])[slc]
-    flux[s.B3 + slc] = (D['bcon'][3] * D['ucon'][dir] - D['bcon'][dir] * D['ucon'][3])[slc]
-
-    if 'electrons' in params and params['electrons']:
-        flux[s.KEL] = flux[s.RHO]*P[s.KEL]
-        flux[s.KTOT] = flux[s.RHO]*P[s.KTOT]
-
-    flux[s.allv + slc] *= G.gdet[loc.value][gslc]
-    return flux
-
-def interpolate(var, )
+    return params_new, Gnew, Pnew

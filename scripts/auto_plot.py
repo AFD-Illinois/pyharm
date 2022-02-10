@@ -7,20 +7,32 @@ import h5py
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
-from pyHARM.ana.plot import pcolormesh_symlog
-from pyHARM.ana.results import get_ivar
+from pyHARM.plots.plots import pcolormesh_symlog
+from pyHARM.ana_results import AnaResults
 
-infile = h5py.File(sys.argv[1], 'r')
+<<<<<<< Updated upstream
+infname = sys.argv[1]
 
-dirpath = os.path.join(os.path.dirname(infile.filename), "auto_plots")
+dirpath = os.path.join(os.path.dirname(infname), "auto_plots")
 if not os.path.exists(dirpath):
     os.mkdir(dirpath)
 
-for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag', 'header', 'pdf', 'pdft']]:
-    # Split independent and dependent variable retrieval for efficiency
-    ivar_d = get_ivar(infile, ivar, i_xy=True)
+results_file = AnaResults(infname)
 
-    for var in infile[ivar].keys():
+=======
+infile = sys.argv[1]
+
+dirpath = os.path.join(os.path.dirname(infile), "auto_plots")
+if not os.path.exists(dirpath):
+    os.mkdir(dirpath)
+
+inf_hdf5 = h5py.File(infile, "r")
+>>>>>>> Stashed changes
+for ivar in [key for key in inf_hdf5.keys() if key not in ['avg', 'coord', 'diag', 'header', 'pdf', 'pdft']]:
+    # Split independent and dependent variable retrieval for efficiency
+    ivar_d = results_file.get_ivar(ivar, i_xy=True)
+
+    for var in inf_hdf5[ivar].keys():
         try:
             fname = "{}_{}.png".format(ivar, var)
             print("Plotting {}".format(fname))
@@ -30,7 +42,7 @@ for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag',
                 fig, ax = plt.subplots(1, 1, figsize=(12,10))
                 plt.grid(True)
 
-                var_d = infile[ivar][var][()]
+                var_d = inf_hdf5[ivar][var][()]
                 if not isinstance(ivar_d, list):
                     if np.all(var_d >= 0):
                         if np.abs(np.max(var_d) - np.min(var_d)) < 100:
@@ -42,6 +54,8 @@ for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag',
                     # If it's a big radial plot, zoom in
                     if ivar == 'r' and ivar_d[-1] > 100:
                             plt.xlim(0, 100)
+                    if ivar == 't':
+                        print("Average {} over t: {}".format(var, np.mean(var_d)))
                     plt.xlabel(ivar)
                     plt.ylabel(var)
                 else:
@@ -58,11 +72,13 @@ for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag',
                             plt.colorbar(pcm)
                     else:
                         pcm = pcolormesh_symlog(ax, *ivar_d, var_d)
+
                     if ivar[-1:] == 't':
                         plt.xlabel('t')
                         if len(ivar) > 1:
                             plt.ylabel(ivar[:-1])
                             plt.title(var)
+                            #print(ivar_d.shape)
                             if 'r' in ivar and ivar_d[0][-1] > 100:
                                 plt.ylim(0, 100)
                         else:
@@ -72,10 +88,14 @@ for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag',
                         plt.xlabel('x')
                         if 'phi' in ivar:
                             plt.ylabel('y')
+                            ax.set_xlim([-100, 100])
+                            ax.set_ylim([-100, 100])
                         elif 'th' in ivar:
                             plt.ylabel('z')
                             if not 'hth' in ivar:
                                 fig.set_size_inches((10, 15))
+                                ax.set_xlim([0, 100])
+                                ax.set_ylim([-100, 100])
                         plt.title(var)
 
                     elif ivar == 'thphi':
@@ -94,6 +114,6 @@ for ivar in [key for key in infile.keys() if key not in ['avg', 'coord', 'diag',
             plt.savefig(fpath, dpi=100)
             plt.close()
         except:
-            print("Could not plot {}: {}".format(fname, sys.exc_info()[0]))
+           print("Could not plot {}: {}".format(fname, sys.exc_info()[0]))
 
-infile.close()
+inf_hdf5.close()

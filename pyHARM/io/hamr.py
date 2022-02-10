@@ -4,19 +4,39 @@ import os
 import h5py
 import numpy as np
 
-from pyHARM.defs import Loci
-from pyHARM.grid import Grid
-import pyHARM.parameters as parameters
+from .. import parameters
 
-def read_dump(fname, params=None, add_ghosts=False, **kwargs):
-    """Read the header and primitives from a write_dump.
-    No analysis or extra processing is performed
-    @return P, params
+from .interface import DumpFile
+
+class HAMRFile(DumpFile):
+    """File filter class for H-AMR dump files.
     """
 
-    with h5py.File(fname, "r") as infile:
-        if params is None:
-            params = {}
+    @classmethod
+    def get_dump_time(cls, fname):
+        """Quickly get just the simulation time represented in the dump file.
+        For cutting on time without loading everything
+        """
+        with h5py.File(fname, 'r') as dfile:
+            if 't' in dfile.keys():
+                return dfile.attrs['t']
+            else:
+                return None
+
+    def __init__(self, filename, ghost_zones=False):
+        """Create an HAMRFile object.  Note that ghost_zones does NOTHING for now,
+        as no available HAMR files include ghost zones.
+        """
+        self.fname = filename
+        self.file = h5py.File(filename, "r")
+        self.params = self.read_params()
+        self.params['ghost_zones'] = ghost_zones
+
+    # def __del__(self):
+    #     self.file.close()
+
+    def read_params(self, **kwargs):
+        params = {}
 
         # Per-write_dump single variables
         # dt? n_nstep? n _dump?
@@ -39,59 +59,24 @@ def read_dump(fname, params=None, add_ghosts=False, **kwargs):
         #params['stopx2'] = (stopx[2] + 1)/2.
         params['dx2'] /= 2
         
-        params = parameters._fix(params)
+        return parameters.fix(params)
 
-        n1, n2, n3 = params['n1'], params['n2'], params['n3']
-        P = np.zeros((8, n1, n2, n3))
-        P[0,:,:,:] = infile['RHO'][()].reshape((n1, n2, n3))
-        P[1,:,:,:] = infile['UU'][()].reshape((n1, n2, n3))
-        P[2,:,:,:] = infile['U1'][()].reshape((n1, n2, n3))
-        P[3,:,:,:] = infile['U2'][()].reshape((n1, n2, n3))
-        P[4,:,:,:] = infile['U3'][()].reshape((n1, n2, n3))
-        P[5,:,:,:] = infile['B1'][()].reshape((n1, n2, n3))
-        P[6,:,:,:] = infile['B2'][()].reshape((n1, n2, n3))
-        P[7,:,:,:] = infile['B3'][()].reshape((n1, n2, n3))
+    def read_var(self, var, **kwargs):
+        """Read the header and primitives from a write_dump.
+        No analysis or extra processing is performed
+        @return P, params
+        """
+        return self._prep_array(self.file[var][()], **kwargs)
 
-        P = _prep_array(P, **kwargs)
+    def _prep_array(self, arr, astype=None):
+        """Re-order and optionally up-convert an array from a file,
+        to put it in usual pyHARM order/format
+        """
+        # Ravel
+        n1, n2, n3 = self.params['n1'], self.params['n2'], self.params['n3']
+        arr = arr.reshape((n1, n2, n3))
+        # Retype
+        if astype is not None:
+            arr = arr.astype(astype)
 
-    return P, params
-
-# Other readers, let users use as desired
-# This is Ucon0 in file
-def read_gamma(fname, **kwargs):
-    return None
-
-# These will likely never be present
-def read_jcon(fname, **kwargs):
-    return None
-def read_divb(fname, **kwargs):
-    return None
-def read_fail_flags(fname, **kwargs):
-    return None
-def read_floor_flags(fname, **kwargs):
-    return None
-
-def _prep_array(arr, as_double=False, zones_first=False, add_ghosts=False):
-    """Re-order and optionally up-convert an array from a file,
-    to put it in usual pyHARM order/format
-    """
-    # Upconvert to doubles if necessary
-    # TODO could add other types?  Not really necessary yet
-    if as_double:
-        arr = arr.astype(np.float64)
-    
-    return arr
-
-
-# For cutting on time without loading everything
-def get_dump_time(fname):
-    # TODO use with?
-    dfile = h5py.File(fname, 'r')
-
-    if 't' in dfile.attrs.keys():
-        t = dfile.attrs['t']
-    else:
-        t = 0
-
-    dfile.close()
-    return t
+        return arr

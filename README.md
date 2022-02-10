@@ -1,30 +1,25 @@
 # pyHARM
 Python tools for HARM analysis
 
-pyHARM is a set of Python functions for analyzing and plotting the output of General-Relativistic Magnetohydrodynamic (GRMHD) simulations, including functions for derivation of a number of different quantities (pressure, stress-energy tensor, etc) from the simulation's output, reductions & integrations in Kerr spacetime using a range of different coordinate systems, and tools for plotting simulation results in standard x,y,z coordinates. 
+`pyHARM` is a set of Python functions for analyzing and plotting the output of General-Relativistic Magnetohydrodynamic (GRMHD) simulations.  It includes functions for obtaining a long list of different variables of interest (pressures, temperatures, stress-energy tensor, synchrotron emissivity) based on local fluid state.  It additionally includes reductions for performing surface and volume integrals of various types, and plotting tools, as well as MPI-accelerated scripts for producing movies and time-summed or -averaged reductions over large-scale simulations.
 
-The primary target is simulations based on the HARM scheme (Gammie et al. 2003) -- [iharm3d](https://github.com/AFD-Illinois/iharm3d), [ebhlight](https://github.com/AFD-Illinois/ebhlight), [KHARMA](https://github.com/AFD-Illinois/kharma), and others.  It includes Python re-implementations of most of the scheme, useful for deriving everything about the simulation not directly present in output files.  Output from certain other codes can be converted to a readable format with [EHT-babel](https://github.com/AFD-Illinois/EHT-babel/).
+`pyHARM` primarily supports simulations based on the HARM scheme (Gammie et al. 2003) -- [KHARMA](https://github.com/AFD-Illinois/kharma), [iharm3d](https://github.com/AFD-Illinois/iharm3d), and [ebhlight](https://github.com/AFD-Illinois/ebhlight).  It includes Python re-implementations of core parts of the scheme, useful for deriving everything about the simulation not directly present in output files.  It includes limited support for several other codes, either directly or after translation with [EHT-babel](https://github.com/AFD-Illinois/EHT-babel/).
 
-As a consequence of needing to read GRMHD output, pyHARM includes definitions of various coordinate systems in Kerr spacetime, as well as tools for dealing with a logically Cartesian grid in various coordinate systems.  These might be independently useful, see `coordinates.py` & `grid.py` if you're looking for just coordinate tools.
+The core of pyHARM is the `FluidDump` object, which behaves similar to a Python dictionary of `numpy` arrays, but calculates its members on the fly by reading the original file and performing operations only as necessary ("lazy" evaluation).  `FluidDump` objects can be sliced similarly to `numpy` arrays, and subsequent file reads and calculations will be done over only the sliced portion.
+
+Finally, as a consequence of needing to read GRMHD output, pyHARM includes definitions of various coordinate systems in Kerr spacetime, as well as tools for dealing with a logically Cartesian grid in various coordinate systems.  These might be independently useful, see `coordinates.py` & `grid.py` if you're looking for just coordinate tools.
 
 ## Installing:
 The preferred installation method, for flexibility in changing the source as needed, is to run simply:
 ```bash
-$ python3 setup.py develop
+$ pip3 install -e .
 ```
-Thereafter pyHARM should be importable from any Python prompt or script run in the same environment.  It can also be installed as a user or system package with `pip`.
-
-
-There is also an included Anaconda environment for users who would prefer Anaconda versions of the dependencies -- also note that any future (optional!) re-introduction of OpenCL integration will require the Anaconda environment.
-
-```bash
-$ conda env create -f environment.yml
-$ conda activate pyHARM
-$ python3 setup.py develop
-```
+Thereafter pyHARM should be importable from any Python prompt or script run in the same environment.  It can also be installed as a user or system package, but at the cost of less easily modifying the source.
 
 ## Examples:
-The `notebooks` directory has a sample Jupyter notebook playing around with some basic reductions & plots.
+Often, what you need to do is covered somewhere in the existing scripts bundled with pyHARM.  Check out the `scripts/` directory.  The two main scripts are `movie.py` for producing plots and movies, and `analysis.py` for performing a set of reductions over a full simulation's output.  If you need to produce a plot, try adapting something from `pyHARM.plots.figures`.  Adding plots to that directory makes them accessible to `movie.py` when you're ready to run at scale.
 
-The scripts in the `scripts/` directory are another good place to check -- they don't always reflect the easiest way to use the library as the interface changes, but they do generally work.
-They are also useful in themselves -- `quick_plot.py` and `movie.py` are good for exploring output, and `analysis.py` provides a pipeline for arbitrary reductions over full GRMHD runs, which is in turn assumed by the `pyHARM.ana.results` module.
+For more general usage, the `notebooks` directory has a sample Jupyter notebook playing around with some basic reductions & plots.
+
+## Keys:
+The full list of `FluidDump` "keys" is long and growing, and there are some ways to combine keys

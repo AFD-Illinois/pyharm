@@ -11,7 +11,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import pyHARM
-import pyHARM.ana.plot as pplt
+import pyHARM.plots.plots as pplt
 from pyHARM import pretty
 from pyHARM.units import get_units_M87
 
@@ -19,8 +19,8 @@ FIGX = 10
 FIGY = 10
 
 # TODO parse these instead of hard-coding
-USEARRSPACE = False
-SUM = True
+USEARRSPACE = True
+SUM = False
 
 if USEARRSPACE:
     window = (0, 1, 0, 1)
@@ -47,7 +47,7 @@ if len(sys.argv) > 4:
 else:
     unit = 1
 
-dump = pyHARM.load_dump(dumpfile, add_fails=True)
+dump = pyHARM.load_dump(dumpfile, calc_derived=True) #, add_fails=True)
 
 if "pdf_" in var:
     fig = plt.figure(figsize=(FIGX, FIGY))
@@ -74,11 +74,11 @@ if dump['n3'] > 1:
     if var in ['jcon', 'jcov', 'ucon', 'ucov', 'bcon', 'bcov']:
         axes = [plt.subplot(2, 2, i) for i in range(1, 5)]
         for n in range(4):
-            pplt.plot_xy(axes[n], dump, dump[var][n] * unit, arrayspace=USEARRSPACE, window=window)
+            pplt.plot_xy(axes[n], dump, dump[var][n] * unit, native=USEARRSPACE, window=window)
     else:
         # TODO allow specifying vmin/max, average from command line or above
         ax = plt.subplot(1, 1, 1)
-        pplt.plot_xy(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, integrate=SUM, window=window)
+        pplt.plot_xy(ax, dump, dump[var] * unit, log=False, native=USEARRSPACE, integrate=SUM, window=window)
 
     plt.tight_layout()
     plt.savefig(name + "_xy.png", dpi=100)
@@ -91,10 +91,10 @@ plt.title(pretty(var))
 if var in ['jcon', 'jcov', 'ucon', 'ucov', 'bcon', 'bcov']:
     axes = [plt.subplot(2, 2, i) for i in range(1, 5)]
     for n in range(4):
-        pplt.plot_xz(axes[n], dump, dump[var][n] * unit, arrayspace=USEARRSPACE, window=window)
+        pplt.plot_xz(axes[n], dump, dump[var][n] * unit, native=USEARRSPACE, window=window)
 else:
     ax = plt.subplot(1, 1, 1)
-    pplt.plot_xz(ax, dump, dump[var] * unit, log=False, arrayspace=USEARRSPACE, integrate=SUM, window=window)
+    pplt.plot_xz(ax, dump, dump[var] * unit, log=False, native=USEARRSPACE, integrate=SUM, window=window)
 
 plt.tight_layout()
 

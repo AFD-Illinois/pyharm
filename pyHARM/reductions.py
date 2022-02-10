@@ -190,11 +190,11 @@ def get_eht_disk_j_vals(dump, th_min=np.pi / 3., th_max=2*np.pi / 3.):
 
 def shell_sum(dump, var, at_r=None, at_zone=None, th_slice=None, j_slice=None, mask=None):
     """Sum a variable over spherical shells. Returns a radial profile (array length N1) or single-shell sum
-    @param at_r: Single radius at which to sum (nearest-neighbor smaller zone is used)
-    @param at_zone: Specific radial zone at which to sum, for compatibility
-    @param th_slice: Tuple of minimum and maximum theta value to sum
-    @param j_slice: Tuple of x2 indices instead of specifying theta
-    @param mask: array of 1/0 of remaining size which is multiplied with the result
+    :param at_r: Single radius at which to sum (nearest-neighbor smaller zone is used)
+    :param at_zone: Specific radial zone at which to sum, for compatibility
+    :param th_slice: Tuple of minimum and maximum theta value to sum
+    :param j_slice: Tuple of x2 indices instead of specifying theta
+    :param mask: array of 1/0 of remaining size which is multiplied with the result
     """
     if isinstance(var, str):
         var = dump[var]
@@ -217,7 +217,7 @@ def shell_sum(dump, var, at_r=None, at_zone=None, th_slice=None, j_slice=None, m
         var = var[at_zone:at_zone+1]
         gdet = gdet[at_zone:at_zone+1]
 
-    integrand = var * gdet[:, :, None] * dump.header['dx2'] * dump.header['dx3']
+    integrand = var * gdet * dump.header['dx2'] * dump.header['dx3']
     if mask is not None:
         integrand *= mask
 
@@ -258,7 +258,7 @@ def sphere_sum(dump, var, r_slice=None, i_slice=None, th_slice=None, j_slice=Non
         var = var[i_slice[0]:i_slice[1]]
         gdet = gdet[i_slice[0]:i_slice[1]]
 
-    return np.sum(var * gdet[:, :, None] * dump.header['dx1'] * dump.header['dx2'] * dump.header['dx3'])
+    return np.sum(var * gdet * dump.header['dx1'] * dump.header['dx2'] * dump.header['dx3'])
 
 
 def sphere_av(dump, var, **kwargs):

@@ -3,8 +3,8 @@
 import numpy as np
 import matplotlib
 
-from pyHARM.ana.results import get_diag, get_result, get_ivar
-from pyHARM.ana.variables import pretty
+from ..ana_results import AnaResults
+from .pretty import pretty
 
 def plot_diag(ax, infile, ivar, var, tline=None,
               ylabel=None, ylim=None, logy=False,
@@ -18,12 +18,10 @@ def plot_diag(ax, infile, ivar, var, tline=None,
         ivarname = ivar
         varname = var
         # TODO option here
-        #ivar, var = get_diag(infile, varname, only_nonzero=only_nonzero, qui=False)
-        #print(get_result(infile, ivar, var, only_nonzero=only_nonzero, qui=False))
-        ivar, var = get_result(infile, ivar, var, only_nonzero=only_nonzero, qui=False)
+        ivar, var = infile.get_result(ivar, var, only_nonzero=only_nonzero, qui=False)
     elif isinstance(ivar, str):
         ivarname = ivar
-        ivar = get_ivar(infile, ivar)
+        ivar = infile.get_ivar(ivar)
         varname = None
     else:
         ivarname = None

@@ -1,74 +1,86 @@
 
 # Wrap functions from individual io modules by detecting filenames
+
+import os
 from glob import glob
+import itertools
+import numpy as np
+import h5py
 
-from . import ilhdf
+# TODO not sure this is how I want names
+from . import iharm3d
+from .iharm3d import Iharm3DFile
 from . import kharma
-from . import harm2d
-from . import hamr
-from . import koral
+from .kharma import KHARMAFile
+from .harm2d import HARM2DFile
+from .hamr import HAMRFile
+from .koral import KORALFile
 
-# Also import i/o for other filetypes directly
-from .misc import *
-from .gridfile import *
+# i/o for other filetypes not tied to one code
+from . import gridfile
 
 def get_fnames(path):
-    files = np.sort(glob(os.path.join(path, "dump_*.h5")))
-    if len(files) == 0:
-        files = np.sort(glob(os.path.join(path, "*out*.h5")))
-    if len(files) == 0:
-        files = np.sort(glob(os.path.join(path, "*out*.phdf")))
-    if len(files) == 0:
-        files = np.sort(glob(os.path.join(path, "dump*")))
-    if len(files) == 0:
-        files = np.sort(glob(os.path.join(path, "*.h5")))
-    if len(files) == 0:
-        files = np.sort(glob(os.path.join(path, "*.hdf5")))
-    if len(files) == 0:
-        raise FileNotFoundError("No dump files found at {}".format(path))
-    return files
-
-def get_filter(fname):
-    """Choose an importer based on what we know of file contents, or failing that, names
-    Purposefully a bit dumb, just trusts the filename
+    """Return what should be the list of fluid dump files in a directory 'path',
+    while trying to avoid extraneous files caught in normal globs (e.g., grid.h5)
     """
-    if ".phdf" in fname:
-        return kharma
+    for scheme in itertools.product((".","dumps","dumps_kharma"), ("dump_*.h5", "*out0*.phdf", "*out*.phdf", "*.phdf", "dump*", "*.h5", "*.hdf5")):
+        files = np.sort(glob(os.path.join(path, scheme[0], scheme[1])))
+        if len(files) > 0:
+            return files
+    raise FileNotFoundError("No dump files found at {}".format(path))
+
+def _get_filter_class(fname):
+    """Internal pyHARM i/o function to choose which class to use when reading a new file.
+    Ideally should be kept very fast, as sometimes not much is actually *read* from the file
+    afterward.
+    """
+    if ".phdf" in fname or ".rhdf" in fname:
+        return KHARMAFile
     elif ".h5" in fname:
         with h5py.File(fname, 'r') as f:
             if 'header' in f.keys():
                 if 'KORAL' in f["/header/version"][()].decode('UTF-8'):
-                    return koral
+                    return KORALFile
                 else:
-                    return ilhdf
+                    return Iharm3DFile
             else:
-                return kharma
+                return KHARMAFile
     elif ".hdf5" in fname:
-            return hamr
+            return HAMRFile
     elif "dump" in fname:
         # HARM ASCII files are *usually* named "dump" with a number
-        return harm2d
+        return HARM2DFile
     else:
         print("Guessing filetype harm2d!")
-        return harm2d
-
-def read_dump(fname, params=None):
-    """Try to automatically read a dump file by guessing the filetype.
-    See individual implementations for more options
-    """
-    my_filter = get_filter(fname)
-    return my_filter.read_dump(fname, params=params)
-
-def read_hdr(fname, params=None):
-    """Try to automatically read a dump's header by guessing the filetype.
-    See individual implementations for more options
-    """
-    my_filter = get_filter(fname)
-    return my_filter.read_hdr(fname, params=params)
+        return HARM2DFile
 
 def get_dump_time(fname):
-    """Try to automatically read a dump's header by guessing the filetype.
-    See individual implementations for more options
+    """Quickly get just the simulation time represented in the dump file.
+    For cutting on time without loading everything
     """
-    my_filter = get_filter(fname)
-    return my_filter.get_dump_time(fname)
+    return _get_filter_class(fname).get_dump_time(fname)
+
+def read_hdr(fname):
+    """Get just the header/params embedded in a simulation file.
+    """
+    return _get_filter_class(fname)(fname).read_params()
+
+def read_log(fname):
+    """Get just the header/params embedded in a simulation file.
+    """
+    if ".hst" in fname:
+        return kharma.read_log(fname)
+    elif ".log" in fname:
+        return iharm3d.read_log(fname)
+
+def file_reader(fname, **kwargs):
+    """Return an XFile object ("filter") which can read/write the given filename.
+    This guesses based on filename, mostly, or very basic file contents.
+    You can override it by just constructing a filter of your desired type.
+    :param fname: A filename (or HDF5 file handle)
+
+    Note that you can use this more easily through the FluidDump object
+    """
+    # This gets the class with _get_filter(fname),
+    # and the subsequent call (fname) constructs one
+    return _get_filter_class(fname)(fname, **kwargs)

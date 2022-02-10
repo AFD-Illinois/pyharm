@@ -2,8 +2,8 @@
 import numpy as np
 import h5py
 
-from pyHARM.grid import Grid
-import pyHARM.parameters as parameters
+from ..grid import Grid
+from .. import parameters
 
 # FORMAT SPEC
 # Constants corresponding to the HARM format as written in HDF5.  Useful for checking compliance,
@@ -11,24 +11,30 @@ import pyHARM.parameters as parameters
 # Keys in the base directory
 base_keys = ['t', 'dt', 'dump_cadence', 'full_dump_cadence', 'is_full_dump', 'n_dump', 'n_step']
 # Keys that should be in the header:
-header_keys = ['cour', 'gam', 'tf', #'fel0', 'gam_e', 'gam_p', 'tptemax', 'tptemin', # when we do e- later
-               'gridfile', 'metric', 'reconstruction', 'version', 'prim_names',
+header_keys = ['cour', 'gam', 'tf', 'gridfile', 'metric', 'reconstruction', 'version', 'prim_names',
                'n1', 'n2', 'n3', 'n_prim', 'n_prims_passive']
-               #'has_electrons', 'has_radiation']
+header_keys_electrons = ['cour', 'gam', 'tf', 'fel0', 'gam_e', 'gam_p', 'tptemax', 'tptemin',
+                         'gridfile', 'metric', 'reconstruction', 'version', 'prim_names',
+                         'n1', 'n2', 'n3', 'n_prim', 'n_prims_passive',
+                         'has_electrons', 'has_radiation']
 # Keys in header/geom
 geom_keys = ['dx1', 'dx2', 'dx3', 'startx1', 'startx2', 'startx3', 'n_dim']
 # Keys in potential geom/mks
 mks_keys = ['r_eh', 'r_in', 'r_out', 'a', 'hslope']
 mmks_keys = ['poly_alpha', 'poly_xt']
 fmks_keys = ['mks_smooth', 'poly_alpha', 'poly_xt']
-# Names that other people might call parameters we care about.
-# Can be from anywhere in the header
-translations = {'n1': 'n1tot', 'n2': 'n2tot', 'n3': 'n3tot', 'metric': 'coordinates', 'metric_run': 'coordinates'}
-# TODO Translations of KORAL parameters too
 
+# Translations of things the rest of pyHARM tolerates/understands as elements of 'params', but which are not
+# conformant for headers and should be written with an alternate name.
+translations = {'n1': 'n1tot', 'n2': 'n2tot', 'n3': 'n3tot',
+                'metric': 'coordinates', 'metric_run': 'coordinates'}
 
 def write_hdr(params, outf):
-    _write_param_grp(params, header_keys, 'header', outf)
+    """Write a valid iharm3d/Illinois HDF header"""
+    if 'electrons' in params and params['electrons']:
+        _write_param_grp(params, header_keys_electrons, 'header', outf)
+    else:
+        _write_param_grp(params, header_keys, 'header', outf)
     
     G = Grid(params)
     geom_params = {'dx1': G.dx[1],
@@ -64,11 +70,12 @@ def write_hdr(params, outf):
     for key in [p for p in params if p not in ['ctx', 'queue']]:
         _write_value(outf, params[key], 'header/'+key)
 
-def read_hdr(grp, params=None):
+def read_hdr(grp):
+    """Read an iharm3d/Illinois HDF header.
+    :parameter params: Dictionary of parameters to update. Otherwise, read_hdr will create an empty one
+    """
     # Handle lots of different calling conventions
     if isinstance(grp, str):
-        if grp[-5:] == ".phdf":
-            return parameters.parse_parthenon_dat(grp.split("/")[-1].split(".")[0]+".par")
         fil = h5py.File(grp, "r")
         grp = fil['header']
         close_file = True
@@ -78,8 +85,7 @@ def read_hdr(grp, params=None):
     else:
         close_file = False
     
-    if params is None:
-        params = {}
+    params = {}
     try:
         # Scoop all the keys that are data, leave the sub-groups
         for key in [key for key in list(grp) if isinstance(grp[key], h5py.Dataset)]:
@@ -131,23 +137,16 @@ def read_hdr(grp, params=None):
         if ('r_in' not in params) and ('Rin' in params):
             params['r_in'], params['r_out'] = params['Rin'], params['Rout']
 
-        # Grab the git revision if that's something we output
-        #if 'extras' in grp.parent and 'git_version' in grp.parent['extras']:
-        #    params['git_version'] = grp.parent['/extras/git_version'][()].decode('UTF-8')
-
     # Renames we've done for pyHARM  or are useful
     # params_key -> likely name in existing header
-    # param_key -> desired name in conformant/pyHARM header
+    # header_key -> desired name in conformant/pyHARM header
     for params_key in translations:
-        param_key = translations[params_key]
+        header_key = translations[params_key]
         if params_key in params:
             if isinstance(params[params_key], str):
-                params[param_key] = params[params_key].lower()
-                # iharm3d called FMKS (radial dependence) by the name MMKS (which we use for cylindrification only)
-                if params[param_key] == "mmks":
-                    params[param_key] = "fmks"
+                params[header_key] = params[params_key].lower()
             else:
-                params[param_key] = params[params_key]
+                params[header_key] = params[params_key]
 
     if close_file:
         fil.close()
@@ -157,7 +156,7 @@ def read_hdr(grp, params=None):
 
 def hdf5_to_dict(h5grp):
     """Recursively load group contents into nested dictionaries.
-    Used to load analysis output while keeping shapes straight
+    Used to load analysis output while keeping shapes straight.
     """
     do_close = False
     if isinstance(h5grp, str):
@@ -187,7 +186,7 @@ def dict_to_hdf5(wdict, h5grp):
     """
     do_close = False
     if isinstance(h5grp, str):
-        h5grp = h5py.File(h5grp, "r+")
+        h5grp = h5py.File(h5grp, "r")
         do_close = True
 
     for key, item in wdict.items():

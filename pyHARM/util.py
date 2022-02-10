@@ -76,34 +76,37 @@ def iter_parallel(function, merge_function, out_dict, nmax, nthreads, debug=Fals
 # Lower pad values are safer
 def calc_nthreads(hdr, n_mkl=8, pad=0.25):
     # Limit threads for 192^3+ problem due to memory
-    # Try to add some parallelism w/MKL.  Don't freak if it doesn't work
-    try:
-        import ctypes
-
-        mkl_rt = ctypes.CDLL('libmkl_rt.so')
-        mkl_set_num_threads = mkl_rt.MKL_Set_Num_Threads
-        mkl_get_max_threads = mkl_rt.MKL_Get_Max_Threads
-        mkl_set_num_threads(n_mkl)
-        print("Using {} MKL threads".format(mkl_get_max_threads()))
-    except Exception as e:
-        print(e)
-
     if using_psutil:
         # Roughly compute memory and leave some generous padding for multiple copies and Python games
         # (N1*N2*N3*8)*(NPRIM + 4*4 + 6) = size of "dump," (N1*N2*N3*8)*(2*4*4 + 6) = size of "geom"
-        # TODO get a better model for this, and save memory in general
+        # TODO get a better model for this!!
         ncopies = hdr['n_prim'] + 4 * 4 + 6
         nproc = int(pad * psutil.virtual_memory().total / (hdr['n1'] * hdr['n2'] * hdr['n3'] * 8 * ncopies))
         if nproc < 1:
             nproc = 1
-        if nproc > psutil.cpu_count():
-            nproc = psutil.cpu_count()
-        print("Using {} Python processes".format(nproc))
     else:
         print("psutil not available: Using 4 processes as a safe default")
 
     return nproc
 
+def slice_to_index(current_start, current_stop, slc):
+    """Take a slice out of a range represented by start and end points.
+    Resolves positive, negative, and integer slice values correctly.
+    """
+    new_start = list(current_start).copy()
+    new_stop = list(current_stop).copy()
+    for i in range(len(slc)):
+        if isinstance(slc[i], int):
+            new_start[i] = current_start[i] + slc[i]
+            new_stop[i] = current_start[i] + slc[i] + 1
+        elif slc[i] is not None:
+            if slc[i].start is not None:
+                new_start[i] = current_start + slc[i].start if slc[i].start > 0 else current_stop[i] + slc[i].stop
+            if slc[i].stop is not None:
+                # Count forward from global_start, or backward from global_stop
+                new_stop[i] = current_start + slc[i].stop if slc[i].stop > 0 else current_stop[i] + slc[i].stop
+
+    return new_start, new_stop
 
 # Convenience for finding zone containing a given value,
 # in coordinate/monotonic-increase variables
@@ -127,8 +130,3 @@ def i_of(var, val, behind=True, fail=False):
         i -= 1
 
     return i
-
-def make_dir(path):
-    """Make a directory if it does not exist"""
-    if not os.path.exists(path):
-        os.makedirs(path)
