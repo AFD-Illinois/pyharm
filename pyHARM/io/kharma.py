@@ -168,6 +168,7 @@ class KHARMAFile(DumpFile):
             out = np.zeros((3, *out_shape), dtype=astype)
         else:
             out = np.zeros(out_shape, dtype=astype)
+        #print("Reading block of total size ", out.shape)
 
         # The slice we need of each block is just ng to -ng, with 0->None for the whole slice
         o = [None if i == 0 else i for i in [ng_fx, -ng_fx, ng_fy, -ng_fy, ng_fz, -ng_fz]]
@@ -182,26 +183,30 @@ class KHARMAFile(DumpFile):
             b = (slice(int((bb[0]+dx/2 - startx[1])/dx), int((bb[1]+dx/2 - startx[1])/dx)+2*ng_ix),
                  slice(int((bb[2]+dy/2 - startx[2])/dy), int((bb[3]+dy/2 - startx[2])/dy)+2*ng_iy),
                  slice(int((bb[4]+dz/2 - startx[3])/dz), int((bb[5]+dz/2 - startx[3])/dz)+2*ng_iz))
-            # Intersect block's global bounds with our desired slice: this is where we're outputting to
-            out_slc = tuple([slice(max(b[i].start, file_start[i]), min(b[i].stop, file_stop[i])) for i in range(3)])
-            # Subtract off the block's global starting point: this is what we're taking from
+            # Intersect block's global bounds with our desired slice: this is where we're outputting to,
+            # on a fictional global grid
+            loc_slc = tuple([slice(max(b[i].start, file_start[i]), min(b[i].stop, file_stop[i])) for i in range(3)])
+            # Subtract off the starting location: this is where we're outputting to in our real array
+            out_slc = tuple([slice(loc_slc[i].start - file_start[i], loc_slc[i].stop - file_start[i]) for i in range(3)])
+            # Subtract off the block's global starting point: this is what we're taking from in the block
             # If the ghost zones are included (ng_f > 0) but we don't want them (all) (ng_i = 0),
             # then take a portion of the file.  Otherwise take it all.
             # Also include the block number out front
-            fil_slc = (ib, slice(out_slc[2].start - b[2].start + ng_fz - ng_iz, out_slc[2].stop - b[2].start - ng_fz + ng_iz),
-                           slice(out_slc[1].start - b[1].start + ng_fy - ng_iy, out_slc[1].stop - b[1].start - ng_fy + ng_iy),
-                           slice(out_slc[0].start - b[0].start + ng_fx - ng_ix, out_slc[0].stop - b[0].start - ng_fx + ng_ix))
-            for i in range(1,4):
-                if fil_slc[i].start > fil_slc[i].stop:
-                    # Don't read blocks outside our domain
-                    continue
+            fil_slc = (ib, slice(loc_slc[2].start - b[2].start + ng_fz - ng_iz, loc_slc[2].stop - b[2].start - ng_fz + ng_iz),
+                           slice(loc_slc[1].start - b[1].start + ng_fy - ng_iy, loc_slc[1].stop - b[1].start - ng_fy + ng_iy),
+                           slice(loc_slc[0].start - b[0].start + ng_fx - ng_ix, loc_slc[0].stop - b[0].start - ng_fx + ng_ix))
+            if (fil_slc[1].start > fil_slc[1].stop) or (fil_slc[2].start > fil_slc[2].stop) or (fil_slc[3].start > fil_slc[3].stop):
+                # Don't read blocks outside our domain
+                continue
             #print("Reading block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
 
             if 'prims.rho' in fil.Variables:
                 # New file format. Read whatever
                 if len(out.shape) == 4: # Always read the whole vector, even if we're returning an index
+                    #print("Reading vector size ", fil.Get(var, False)[fil_slc + [slice(None),]].T.shape, " to loc size ", out[[slice(None),] + out_slc].shape)
                     out[[slice(None),] + out_slc] = fil.Get(var, False)[fil_slc + [slice(None),]].T
                 else: # Read a scalar
+                    #print("Reading scalar size ", fil.Get(var, False)[fil_slc].T.shape," to loc size ", out[out_slc].shape)
                     out[out_slc] = fil.Get(var, False)[fil_slc].T
 
             else:

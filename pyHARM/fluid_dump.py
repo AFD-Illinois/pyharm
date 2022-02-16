@@ -65,10 +65,6 @@ class FluidDump:
         Also note this means no requesting lists of variables at once. I have no idea why you'd want that.
         Just, don't.
         """
-        # Allow slicing FluidDump objects to get just a section, and read/operate on that section thereafter
-        # We'll only want multi-dimensional slices, not elements
-        # Also note this means no requesting lists of variables at once. I have no idea why you'd want that.
-        # Just, don't.
         if type(key) in (list, tuple):
             slc = key
             # TODO handle further slicing after this is a 2D object?
