@@ -43,6 +43,9 @@ from pyHARM.util import calc_nthreads
 @click.option('-g','--plot_ghost', is_flag=True, default=False, help="Plot ghost zones.")
 @click.option('-sz','--size', default=None, help="Window size, in M each side of central object.")
 @click.option('-sh','--shading', default='gouraud', help="Shading: flat, nearest, gouraud.")
+@click.option('--vmin', default=None, help="Colorscale minimum.")
+@click.option('--vmax', default=None, help="Colorscale maximum.")
+@click.option('--cmap', default='jet', help="Colormap.")
 # Extras
 @click.option('-r', '--resume', is_flag=True, default=False, help="Continue a previous run, by skipping existing frames")
 @click.option('-d', '--debug', is_flag=True, default=False, help="Serial operation for debugging")

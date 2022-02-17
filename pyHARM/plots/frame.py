@@ -56,7 +56,6 @@ def frame(fname, diag, kwargs):
 
     window = [-sz, sz, -sz, sz]
 
-    # If we're in arrspace we (almost) definitely want a 0,1 window
     if "_array" in movie_type:
         native_coords = True
         window = None # Let plotter choose based on grid
@@ -87,7 +86,7 @@ def frame(fname, diag, kwargs):
         shading = kwargs['shading']
 
         # Try to make a simple movie of just the stated variable
-        if "_poloidal" in l_movie_type:
+        if "_poloidal" in l_movie_type or "_2d" in l_movie_type:
             ax = plt.subplot(1, 1, 1)
             var = l_movie_type.replace("_poloidal","")
             plots.plot_xz(ax, dump, var, at=at, label=pretty(var),
