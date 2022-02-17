@@ -20,7 +20,16 @@ class FluidDump:
 
     def __init__(self, fname, tag="", ghost_zones=False, grid_cache=True, cache_conn=False, units=None, add_grid=True, params=None):
         """Attach the fluid dump file 'fname' and make its contents accessible like a dictionary.  For a list of some
-        variables and properties accessible this way, see 
+        variables and properties accessible this way, see the README.
+
+        Fluid dumps can be sliced like arrays!  That is, dump[i,j,k]['var_name'] will read or compute 'var_name' only for the
+        particular index in question, and similarly for slices of any size (e.g., 2D slices for plots).  This is
+        *tremendously useful*, so remember to slice first to save time if efficiency is important.
+
+        However, note that slicing does not support strides, and that slices may be *views* rather than *copies* --
+        if you're going to modify array contents yourself within a slice, it may affect the global array.  Generally
+        this is what you want (think assignment to a slice), but it can be confusing if you're really digging around.
+        Try using copy.copy or copy.deepcopy if unsure.
 
         :param fname: file name or path to dump.
         :param ghost_zones: Load ghost zones when reading from a dump file
@@ -65,10 +74,6 @@ class FluidDump:
         Also note this means no requesting lists of variables at once. I have no idea why you'd want that.
         Just, don't.
         """
-        # Allow slicing FluidDump objects to get just a section, and read/operate on that section thereafter
-        # We'll only want multi-dimensional slices, not elements
-        # Also note this means no requesting lists of variables at once. I have no idea why you'd want that.
-        # Just, don't.
         if type(key) in (list, tuple):
             slc = key
             # TODO handle further slicing after this is a 2D object?

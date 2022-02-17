@@ -337,7 +337,7 @@ class Grid:
                 return self
             # Otherwise it's worth it to copy & return a part.
             #print("Grid slice copy, ",key)
-            out = copy.copy(self)
+            out = copy.copy(self) #TODO does this work with a new-made grid, can we add a default constructor?
             out.slice = slc
             # Revise size numbers for this grid
             for i in range(len(out.slice)):
@@ -359,11 +359,11 @@ class Grid:
             # Finally, slice the caches with the revised slice
             for cache in ('gdet', 'lapse'):
                 if cache in self.__dict__:
-                    # No indices
-                    out.__dict__[cache] = self.__dict__[cache][out.slice]
+                    # Slice over all locations in 1st index
+                    out.__dict__[cache] = self.__dict__[cache][(slice(None),) + out.slice]
             for cache in ('gcon', 'gcov', 'conn'):
                 if cache in self.__dict__:
-                    # Loc+2 indices, 3 indices
+                    # Slice over all loc + 2 indices in gcon/gcov, 3 indices in conn
                     out.__dict__[cache] = self.__dict__[cache][(slice(None), slice(None), slice(None)) + out.slice]
             return out
         elif key in self.__dict__:
