@@ -22,4 +22,30 @@ Often, what you need to do is covered somewhere in the existing scripts bundled 
 For more general usage, the `notebooks` directory has a sample Jupyter notebook playing around with some basic reductions & plots.
 
 ## Keys:
-The full list of `FluidDump` "keys" is long and growing, and there are some ways to combine keys
+The full list of `FluidDump` "keys" is long and growing, and there are some ways to combine keys, so any list is incomplete.
+
+### Base keys (variables):
+
+All the fluid primitives in HARM-like schemes are supported: rho, `u`, `u1`, `u2`, `u3`, `uvec`, `B1`, `B2`, `B3`, `bvec`. `*vec` versions return all 3 components of the primitives.
+
+The contravariant and covariant 4-vectors `ucon`, `ucov`, `bcon`, `bcov` and dot product `bsq`, as well as any individual component in native 1,2,3 coordinates `u^{1,2,3}`, or in KS coordinates `u^{r,th,phi}`, or (soon) Cartesian `u^{x,y,z}`.
+
+Fluid variables `Pg` for ideal gas pressure, `Pb` for magnetic pressure, `Ptot` for both summed.  
+
+For dumps including output of the 4-current (& soon for others via a full step calculation): `jcon`, `jcov`, `jsq`, `Jsq`
+
+There are a number of specialized or particular definitions which will be easier to define than describe.  See `variables.py` for definitions.  The patterns in that file should be straightforward if/when you want to add your own variables, which will then be accessible from FluidDump objects, and consequently from the command line or notebooks when plotting.
+
+### Combining elements:
+
+Common mathematical unary operations can just be combined into a variable name to get the result.  This is most common/useful when specifying what to plot, most commonly `log_` for the log base 10.  Similarly, `abs_`, `sqrt_`, and `ln_` for natural log are available.  So for example, asking for `sqrt_bsq` is equivalent to asking for the field magnitude `b`.  You can, of course, perform these operations for yourself in code -- however, many scripts take a variable name as argument, e.g. on the command line.  For these, it's very nice to have a few common operations available without writing any code whatsoever.
+
+As mentioned, components of certain vectors (anything suffixed `*cov` or `*con`) can be requested specifically by separating the name and index with `^` or `_`, and their transforms (e.g. to KS coordinates) can be requested similarly by coordinate name.
+
+Anything in the dump parameters or "header," `dump.params.keys()`.  These can be listed for a full view, but include e.g. the adiabatic index `'gam'` and full domain size `'n1','n2','n3'` among a bunch of other things.
+
+Finally, members of the `Grid` object are also accessible through `FluidDump` objects, e.g. `dump['gcon']` for the full contravariant metric or `dump['gdet']` for the sqare root of the negative metric determinant.
+
+## Reductions
+
+See `analysis.py` in scripts and `reductions.py` in pyHARM.

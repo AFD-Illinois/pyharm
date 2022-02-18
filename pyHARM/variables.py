@@ -39,7 +39,7 @@ fns_dict = {# 4-vectors
             'betainv': lambda dump: dump['Pb'] / dump['Pg'],
             'jcov': lambda dump: dump.grid.lower_grid(dump['jcon']),
             'jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']),
-            'current': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,
+            'Jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,
             'b': lambda dump: np.sqrt(dump['bsq']),
             'Gamma': lambda dump: lorentz_calc(dump),
             'betagamma': lambda dump: np.sqrt((dump['FE'] / dump['FM'])**2 - 1),

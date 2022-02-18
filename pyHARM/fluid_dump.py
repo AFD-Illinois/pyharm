@@ -4,14 +4,13 @@
 import copy
 import numpy as np
 
-from pyHARM.grid import Grid
+from .defs import Loci
+from .grid import Grid
 
-import pyHARM.io as io
-from pyHARM.io.interface import DumpFile
-
-import pyHARM.variables as vars
-from pyHARM.grmhd.b_field import divB
-from pyHARM.units import get_units
+from . import io
+from . import variables
+from .grmhd.b_field import divB
+from .units import get_units
 
 class FluidDump:
     """Read and cache data from a fluid dump file in HARM HDF5 format, and allow accessing
@@ -98,13 +97,17 @@ class FluidDump:
 
         # Otherwise run functions and cache the result
         # Putting this before reading lets us translate & standardize reads/caches
-        elif key in vars.fns_dict:
-            self.cache[key] = vars.fns_dict[key](self)
+        elif key in variables.fns_dict:
+            self.cache[key] = variables.fns_dict[key](self)
             return self.cache[key]
 
         # Return coordinates and things from the grid
+        # Default to centers when returning from FluidDump, to avoid location madness
         elif key in self.grid.can_provide:
-            return self.grid[key]
+            if key == 'conn':
+                return self.grid[key]
+            else:
+                return self.grid[key][Loci.CENT.value]
 
         # Prefixes for a few common 1:1 math operations.
         # Most math should be done by reductions.py
@@ -149,6 +152,6 @@ class FluidDump:
             else:
                 return out
 
-        raise RuntimeError("Reached the end of FluidDump __getitem__, returning None")
+        raise RuntimeError("Reached the end of FluidDump.__getitem__, should have returned a value!")
 
 

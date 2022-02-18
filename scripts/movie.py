@@ -51,8 +51,20 @@ from pyHARM.util import calc_nthreads
 @click.option('-d', '--debug', is_flag=True, default=False, help="Serial operation for debugging")
 @click.option('-m', '--memory_limit', default=1, help="Memory limit in GB for each process, enforced by starting total/m processes.")
 def movie(movie_type, paths, **kwargs):
-    """Movie of type MOVIE_TYPE from dumps at PATH.
-    Generate the frames of a movie running over all dumps at the given path.
+    """Movie of type MOVIE_TYPE from dumps at each of PATHS.
+
+    Each PATH can contain dump files in any format readable by pyHARM, either in the given directory or a subdirectory
+    named "dumps", "dumps_kharma" or similar.
+
+    "Movies" are generated as collections of frames in .png format, named frame_tXXXXXXXX.png by simulation time in M,
+    and placed in a subdirectory "frames_MOVIE_TYPE" of the given PATH.  One can easily generate a single .mp4 movie
+    from these using ffmpeg or similar.
+
+    MOVIE_TYPE can be any variable known to pyHARM (see README, variables.py) or any "figure" function in figures.py.  A common
+    first movie is 'log_rho' which will plot a phi=0 toroidal and midplane poloidal slice of the log_10 of the density. 
+
+    If run within an MPI job/allocation with mpi4py installed, movie.py will attempt to use all allocated nodes to generate
+    frames.  YMMV wildly with MPI installations, with mpi4py installed via pip generally a better choice than through conda.
     """
     base_path = os.getcwd()
     for path in paths:

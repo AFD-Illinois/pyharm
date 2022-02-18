@@ -1,9 +1,3 @@
-################################################################################
-#                                                                              #
-#  UTILITIES FOR PLOTTING                                                      #
-#                                                                              #
-################################################################################
-
 import matplotlib.pyplot as plt
 from matplotlib import colors, ticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -13,7 +7,7 @@ from scipy.integrate import trapz
 
 from pyHARM.plots.pretty import pretty
 
-"""
+"""Plo
 """
 
 def pcolormesh_symlog(ax, X, Y, Z, vmax=None, vmin=None, linthresh=None, decades=4, linscale=0.01, cmap='RdBu_r', cbar=True, **kwargs):
@@ -104,49 +98,28 @@ def decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
     elif isinstance(var, str):
         ax.set_title(pretty(var))
 
-# Plotting fns: pass dump file and var as either string (key) or ndarray
-# Note integrate option overrides average
-# Also note label convention:
-# * "known labels" are assigned true or false,
-# * "unknown labels" are assigned None or a string
-def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
-            xlabel=True, ylabel=True, native=False, log=False,
-            average=False, integrate=False, half_cut=False,
-            cmap='jet', shading='flat', cbar=True, use_imshow=False,
-            at=0, **kwargs):
-    """Plot a slice of a dump file.
-    NOTE: also accepts all keyword arguments to decorate_plot()
-    :param ax: Axes object to paint on
-    :param dump: fluid state object
-    :param vmin, vmax: colorbar minimum and maximum
-    :param window: view window in X,Z coordinates, measured in r_g/c^2, 0 in BH center.
-    :param xlabel, ylabel: whether to mark X/Y labels with reasonable titles
-    :param native: Plot in native coordinates X1/X2 as plot X/Y axes respectively
-    :param log: plot a signed quantity in logspace with symlog() above
-    :param average: phi-average of variable, rather than two slices
 
+def get_xz_locations(dump, mesh=False, wrap=True, native=False, half_cut=False):
+    """Get the mesh locations x_ij and z_ij needed for plotting a poloidal slice.
+    By default, gets locations for phi=0,180 but can optionally just fetch half
     """
-
-    if isinstance(var, str):
-        if 'symlog_' in var:
-            log = True
-            var = var.replace("symlog_","")
-        var = np.append(dump[:, :, at][var], np.flip(dump[:, :, at + dump['n3']//2][var], 1), 1)
-
-    if shading == 'flat':
+    if native:
+        # We always want one "pane" when plotting in native coords
+        half_cut = True
+    if mesh:
         # We need a continouous set of corners representing phi=0/pi
         m = dump.grid.coord_ij_mesh(at=(0, dump['n3']//2))
         if half_cut:
-            m = m[0]
+            m = m[Ellipsis, 0]
         else:
             # Append reversed in th.  We're now contiguous over th=180, so we remove the last
-            # (or after reversal, first) zone of the flipped side
+            # (or after reversal, first) zone of the flipped (left) side
             m = np.append(m[:, :, :, 0], np.flip(m[:, :, :-1, 1], 2), 2)
     else:
         # Version for zone centers doesn't need the extra 
         m = dump.grid.coord_ij(at=(0, dump['n3']//2))
         if half_cut:
-            m = m[0]
+            m = m[Ellipsis, 0]
         else:
             m = np.append(m[Ellipsis, 0], np.flip(m[Ellipsis, 1], 2), 2)
     if native:
@@ -156,12 +129,98 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         x = dump.grid.coords.cart_x(m)
         z = dump.grid.coords.cart_z(m)
 
-    if shading != 'flat':
+    if wrap and not mesh:
         # Wrap with first element in th, located at the first element in x/z
-        var = np.append(var[Ellipsis], var[:, 0:1], 1)
         x = np.append(x[Ellipsis], x[:, 0:1], 1)
         z = np.append(z[Ellipsis], z[:, 0:1], 1)
 
+    return x, z
+
+def get_xy_locations(dump, mesh=False, wrap=True, native=False):
+    """Get the mesh locations x_ij and y_ij needed for plotting a toroidal slice."""
+    if mesh:
+        m = dump.grid.coord_ik_mesh()
+    else:
+        m = dump.grid.coord_ik()
+
+    if native:
+        x = m[1]
+        y = m[3]
+    else:
+        x = dump.grid.coords.cart_x(m)
+        y = dump.grid.coords.cart_y(m)
+
+    if wrap and not mesh:
+        # Wrap with first element in phi
+        x = np.append(x[Ellipsis], x[:, 0:1], 1)
+        y = np.append(y[Ellipsis], y[:, 0:1], 1)
+    
+    return x, y
+
+def get_xz_var(dump, var, at=0, wrap=True, average=False, sum=False, half_cut=False):
+    """Return something of the right shape to plot"""
+    if average or sum:
+        if isinstance(var, str):
+            var = dump[var]
+        var = var.mean(-1) if average else var.sum(-1)
+        if not half_cut:
+            var = np.append(var, np.flip(var, 1), 1)
+    else:
+        if isinstance(var, str):
+            if half_cut:
+                var = dump[:, :, at][var]
+            else:
+                var = np.append(dump[:, :, at][var], np.flip(dump[:, :, at + dump['n3']//2][var], 1), 1)
+        else:
+            if half_cut:
+                var = var[:, :, at]
+            else:
+                var = np.append(var[:, :, at], np.flip(var[:, :, at + dump['n3']//2], 1), 1)
+    if wrap:
+        return np.append(var[Ellipsis], var[:, 0:1], 1)
+    else:
+        return var
+
+def get_xy_var(dump, var, at=None, wrap=True, average=False, sum=False):
+    if average or sum:
+        if isinstance(var, str):
+            var = dump[var]
+        var = var.mean(1) if average else var.sum(1)
+    else:
+        if at is None:
+            at = dump['n2']//2
+        if isinstance(var, str):
+            var = dump[:, at, :][var]
+        else:
+            var = var[:, at, :]
+    if wrap:
+        return np.append(var[Ellipsis], var[:, 0:1], 1)
+    else:
+        return var
+
+def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
+            xlabel=True, ylabel=True, native=False, log=False,
+            half_cut=False, cmap='jet', shading='gouraud',
+            at=0, average=False, sum=False, **kwargs):
+    """Plot a poloidal or X1/X2 slice of a dump file.
+    NOTE: also accepts all keyword arguments to decorate_plot()
+    :param ax: Axes object to paint on
+    :param dump: fluid state object
+    :param vmin, vmax: colorbar minimum and maximum
+    :param window: view window in X,Z coordinates, measured in r_g/c^2, 0 in BH center.
+    :param xlabel, ylabel: whether to mark X/Y labels with reasonable titles
+    :param native: Plot in native coordinates X1/X2 as plot X/Y axes respectively
+    :param log: plot a signed quantity in logspace with symlog() above
+    """
+
+    if isinstance(var, str):
+        if 'symlog_' in var:
+            log = True
+            var = var.replace("symlog_","")
+
+    loc_mesh = shading == 'flat'
+    x, z = get_xz_locations(dump, loc_mesh, True, native, half_cut)
+    var = get_xz_var(dump, var, at, average, sum)
 
     if log:
         mesh = pcolormesh_symlog(ax, x, z, var, cmap=cmap, vmin=vmin, vmax=vmax,
@@ -186,45 +245,45 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         if window:
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
+        # TODO alt option of size -r_out to r_out?
 
         if not half_cut:
             ax.set_aspect('equal')
     
     if not 'bh' in kwargs:
         kwargs['bh'] = not native
+    decorate_plot(ax, dump, var, **kwargs)
 
-    decorate_plot(ax, dump, var, cbar=cbar, **kwargs)
+    # In case user wants to tweak this
+    return mesh
 
 def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             xlabel=True, ylabel=True, native=False, log=False,
-            cmap='jet', shading='gouraud', cbar=True, **kwargs):
+            cmap='jet', shading='gouraud',
+            at=None, average=False, sum=False, **kwargs):
+    """Plot a toroidal or X1/X3 slice of a dump file.
+    NOTE: also accepts all keyword arguments to decorate_plot()
+    :param ax: Axes object to paint on
+    :param dump: fluid state object
+    :param vmin, vmax: colorbar minimum and maximum, 'None' auto-detects
+    :param window: view window in X,Z coordinates, measured in r_g/c^2, 0 in BH center.
+    :param xlabel, ylabel: whether to mark X/Y labels with reasonable titles
+    :param native: Plot in native coordinates X1/X2 as plot X/Y axes respectively
+    :param log: plot a signed quantity in logspace with symlog() above
+    """
+
+    # This plot makes no sense for 2D dumps yet gets called a bunch in movies
     if dump['n3'] == 1:
         return None
 
-    # TODO slice for better efficiency
     if isinstance(var, str):
         if 'symlog_' in var:
             log = True
             var = var.replace("symlog_","")
-        var = dump[:, dump['n2']//2, :][var]
 
-    if shading == 'flat':
-        m = dump.grid.coord_ik_mesh()
-    else:
-        m = dump.grid.coord_ik()
-
-    if native:
-        x = m[1]
-        y = m[3]
-    else:
-        x = dump.grid.coords.cart_x(m)
-        y = dump.grid.coords.cart_y(m)
-
-    if shading != 'flat':
-        # Wrap with first element in phi
-        var = np.append(var[Ellipsis], var[:, 0:1], 1)
-        x = np.append(x[Ellipsis], x[:, 0:1], 1)
-        y = np.append(y[Ellipsis], y[:, 0:1], 1)
+    loc_mesh = shading == 'flat'
+    x, y = get_xy_locations(dump, native, loc_mesh)
+    var = get_xy_var(dump, var, at, loc_mesh, average, sum)
 
     if log:
         mesh = pcolormesh_symlog(ax, x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
@@ -255,13 +314,16 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
 
     if not 'bh' in kwargs:
         kwargs['bh'] = not native
-    decorate_plot(ax, dump, var, cbar=cbar, **kwargs)
+    decorate_plot(ax, dump, var, **kwargs)
+
+    # In case user wants to tweak this
+    return mesh
 
 
 # TODO this is currently just for profiles already in 2D
 def plot_thphi(ax, dump, var, r_i, cmap='jet', vmin=None, vmax=None, window=None,
-               label=None, xlabel=True, ylabel=True, native=False,
-               project=False, shading='gouraud'):
+               xlabel=True, ylabel=True, native=False, log=False,
+               project=False, shading='gouraud', **kwargs):
     """Plot a theta-phi slice at index r_i
     :param project 
     """
@@ -292,7 +354,6 @@ def plot_thphi(ax, dump, var, r_i, cmap='jet', vmin=None, vmax=None, window=None
         ax.set_xlim(window[:2])
         ax.set_ylim(window[2:])
 
-    # print 'xshape is ', x.shape, ', yshape is ', y.shape, ', varshape is ', var.shape
     mesh = ax.pcolormesh(x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
                          shading=shading)
 
@@ -306,86 +367,77 @@ def plot_thphi(ax, dump, var, r_i, cmap='jet', vmin=None, vmax=None, window=None
     ax.set_aspect('equal')
     decorate_plot(ax, dump, var, bh=False, **kwargs)
 
-# Plot two slices together without duplicating everything in the caller
-def plot_slices(ax1, ax2, dump, var, field_overlay=True, nlines=10, **kwargs):
-    """Make adjacent plots with plot_xy and plot_xz, on the given pair of axes.
-    Basically syntactic sugar for plot_xy and plot_xz.
-    """
-    if 'arrspace' in list(kwargs.keys()):
-        arrspace = kwargs['arrspace']
-    else:
-        arrspace = False
+    return mesh
 
+def plot_slices(ax1, ax2, dump, var, field_overlay=True, nlines=10, **kwargs):
+    """Make adjacent plots with plot_xy and plot_xz, using the given pair of axes
+    """
     plot_xz(ax1, dump, var, **kwargs)
-    if field_overlay:
-        overlay_field(ax1, dump, nlines=nlines, native=arrspace)
+    # If we're not plotting in native coordinates, plot contours.
+    # They are very unintuitive in native coords
+    if field_overlay and not ('native' in kwargs.keys() and kwargs['native']):
+        overlay_field(ax1, dump, nlines=nlines)
 
     plot_xy(ax2, dump, var, **kwargs)
 
-def overlay_contours(ax, dump, var, levels, color='k', **kwargs):
-    # TODO optional line cut by setting NaN according to second condition
+def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=False, at=0, average=True, **kwargs):
+    # TODO optional line cutoff by setting NaN according to a second condition
     if isinstance(var, str):
         var = dump[var]
 
-    x = _flatten_xz(dump['x'])
-    z = _flatten_xz(dump['z'])
-    var = _flatten_xz(var, average=True)
+    x, z = get_xz_locations(dump, native=native, mesh=False, wrap=False, half_cut=half_cut)
+    var = get_xz_var(dump, var, at, False, average)
     return ax.contour(x, z, var, levels=levels, colors=color, **kwargs)
 
-def overlay_contourf(ax, dump, var, levels, color='k', **kwargs):
+def overlay_contourf(ax, dump, var, levels, color='k', native=False, half_cut=False, at=0, average=True, **kwargs):
     if isinstance(var, str):
         var = dump[var]
 
-    x = _flatten_xz(dump['x'])
-    z = _flatten_xz(dump['z'])
-    var = _flatten_xz(var, average=True)
+    x, z = get_xz_locations(dump, native=native, mesh=False, half_cut=half_cut)
+    var = get_xz_var(dump, var, at, False, average)
     return ax.contourf(x, z, var, levels=levels, colors=color, **kwargs)
 
-def overlay_field(ax, dump, native=False, nlines=20, **kwargs):
-    if not native:
-        overlay_flowlines(ax, dump, dump['B1'], dump['B2'], nlines=nlines, **kwargs)
+def overlay_field(ax, dump, **kwargs):
+        overlay_flowlines(ax, dump, 'B1', 'B2', **kwargs)
 
-def overlay_flowlines(ax, dump, varx1, varx2, nlines=50, reverse=False):
+def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False, half_cut=False, reverse=False):
     N1 = dump['n1']
     N2 = dump['n2']
 
-    x = _flatten_xz(dump['x'])
-    z = _flatten_xz(dump['z'])
+    x, z = get_xz_locations(dump, native=native, half_cut=half_cut)
+    varx1 = get_xz_var(dump, varx1, average=True, mesh=True, half_cut=True) * np.squeeze(dump['gdet'])
+    varx2 = get_xz_var(dump, varx2, average=True, mesh=True, half_cut=True) * np.squeeze(dump['gdet'])
 
-    varx1 = varx1.mean(axis=-1)
-    varx2 = varx2.mean(axis=-1)
-    AJ_phi = np.zeros([2 * N1, N2])
-    gdet = dump['gdet']
+    AJ_phi = np.zeros([N1, 2*N2])
     for j in range(N2):
         for i in range(N1):
             if not reverse:
-                AJ_phi[N1 - 1 - i, j] = AJ_phi[i + N1, j] = (
-                        trapz(gdet[:i, j] * varx2[:i, j], dx=dump['dx1']) -
-                        trapz(gdet[i, :j] * varx1[i, :j], dx=dump['dx2']))
+                AJ_phi[i, N2 - 1 - j] = AJ_phi[i, N2 + j] = \
+                    (trapz(varx2[:i, j], dx=dump['dx1']) -
+                     trapz(varx1[i, :j], dx=dump['dx2']))
             else:
-                AJ_phi[N1 - 1 - i, j] = AJ_phi[i + N1, j] = (
-                        trapz(gdet[:i, j] * varx2[:i, j], dx=dump['dx1']) +
-                        trapz(gdet[i, j:] * varx1[i, j:], dx=dump['dx2']))
+                AJ_phi[i, N2 - 1 - j] = AJ_phi[i, N2 + j] = \
+                    (trapz(varx2[:i, j], dx=dump['dx1']) +
+                     trapz(varx1[i, j:], dx=dump['dx2']))
     AJ_phi -= AJ_phi.min()
     levels = np.linspace(0, AJ_phi.max(), nlines * 2)
 
-    ax.contour(x, z, AJ_phi, levels=levels, colors='k')
+    ax.contour(x, z, AJ_phi, levels=levels, colors=color)
 
 
 def overlay_quiver(ax, dump, varx1, varx2, cadence=64, norm=1):
-    varx1 *= dump['gdet']
-    varx2 *= dump['gdet']
+    """Overlay a quiver plot of 2 vector components onto a plot in native coordinates."""
+    varx1 = get_xz_var(dump, varx1, average=True) * dump['gdet']
+    varx2 = get_xz_var(dump, varx2, average=True) * dump['gdet']
     max_J = np.max(np.sqrt(varx1 ** 2 + varx2 ** 2))
-    x1_norm = (dump['X1'] - dump['startx1']) / (dump['n1'] * dump['dx1'])
-    x2_norm = (dump['X2'] - dump['startx2']) / (dump['n2'] * dump['dx2'])
-    x = _flatten_xz(x1_norm)[dump['n1']:, :]
-    z = _flatten_xz(x2_norm)[dump['n1']:, :]
+
+    x, z = get_xz_locations(dump, native=True)
 
     s1 = dump['n1'] // cadence
     s2 = dump['n2'] // cadence
 
     ax.quiver(x[::s1, ::s2], z[::s1, ::s2], varx1[::s1, ::s2], varx2[::s1, ::s2],
-              units='xy', angles='xy', scale_units='xy', scale=cadence * max_J / norm)
+              units='xy', angles='xy', scale_units='xy', scale=(cadence * max_J / norm))
 
 # TODO Consistent idea of plane/average in x2,x3
 def radial_plot(ax, dump, var, n2=0, n3=0, average=False,
@@ -443,93 +495,3 @@ def hist_2d(ax, var_x, var_y, xlbl, ylbl, title=None, logcolor=False, bins=40,
         ax.set_title(title)
     ax.set_xlabel(xlbl)
     ax.set_ylabel(ylbl)
-
-
-def _flatten_xz(array, at=0, average=False, patch_pole=False):
-    """Get an XZ (vertical) slice or average of 3D polar data array[nr,nth,nphi]
-    Returns an array of size (2*N1, N2) containing the phi={0,pi} slice,
-    i.e. both "wings" of data around the BH at center
-    :param patch_pole: set the first & last rows to 0 -- used when flattening arrays
-    of x-coordinates to avoid a visual artifact
-    :param average: whether to average instead of slicing
-    """
-    # TODO get phi != 0 slices too
-    if array.ndim == 3:
-        N1 = array.shape[0]
-        N2 = array.shape[1]
-        N3 = array.shape[2]
-        flat = np.zeros([2 * N1, N2])
-        if average:
-            for i in range(N1):
-                # Produce identical hemispheres to get the right size output
-                # TODO option to average halves?
-                flat[i, :] = np.mean(array[N1 - 1 - i, :, :], axis=-1)
-                flat[i + N1, :] = np.mean(array[i, :, :], axis=-1)
-        else:
-            for i in range(N1):
-                flat[i, :] = array[N1 - 1 - i, :, at + N3 // 2]
-                flat[i + N1, :] = array[i, :, at]
-
-    elif array.ndim == 2:
-        N1 = array.shape[0]
-        N2 = array.shape[1]
-        flat = np.zeros([2 * N1, N2])
-        for i in range(N1):
-            flat[i, :] = array[N1 - 1 - i, :]
-            flat[i + N1, :] = array[i, :]
-
-    # Theta is technically [small,pi/2-small]
-    # This patches the X coord so the plot looks nice
-    if patch_pole:
-        flat[:, 0] = 0
-        flat[:, -1] = 0
-
-    return flat
-
-def _flatten_12(array, average=False):
-    """Get a single 2D slice or average of 3D data
-    Currently limited to x3=0 slice
-    :param average: whether to average instead of slicing
-    """
-    # TODO get phi != 0 slices too
-    if array.ndim == 3:
-        if average:
-            slice = np.mean(array, axis=-1)
-        else:
-            slice = array[:, :, 0]
-    elif array.ndim == 2:
-        slice = array
-
-    return slice
-
-# Get xy slice of 3D data
-def _flatten_xy(array, average=False, loop=True):
-    if array.ndim == 3:
-        if average:
-            slice = np.mean(array, axis=1)
-        else:
-            slice = array[:, array.shape[1] // 2, :]
-    elif array.ndim == 2:
-        slice = array
-
-    if loop:
-        return _loop_phi(slice)
-    else:
-        return slice
-
-def _flatten_yz(array, at_i, average=False, loop=True):
-    if array.ndim == 3:
-        if average:
-            slice = np.mean(array, axis=0)
-        else:
-            slice = array[at_i, :, :]
-    elif array.ndim == 2:
-        slice = array
-
-    if loop:
-        return _loop_phi(slice)
-    else:
-        return slice
-
-def _loop_phi(array):
-    return np.vstack((array.transpose(), array.transpose()[0])).transpose()

@@ -12,12 +12,13 @@ from .variables import fns_dict
 from .io.iharm3d_header import read_hdr
 
 """
-Results are organized by remaining independent
-variable -- so, a phi- and time-average will be under 'rth' since these are its remaining independent variables.
+Results are organized by remaining independent variable -- so, a phi- and time-average
+will be under 'rth' since these are its remaining independent variables.
 
-This is more logical than it sounds: this way, most quantity names contain all the info needed to plot them.
-Also, multiple reductions of the same quantity can be stored with logical names, e.g. a phi,t average of rho in
-'rth/rho' and a further average over th in 'r/rho'.
+This is more logical than it sounds: this way, most quantity names contain all the info
+needed to plot them.  Also, multiple reductions of the same quantity can be stored with
+logical names, e.g. a phi,t average of rho in 'rth/rho' and a further average over th
+in 'r/rho'.
 
 For variables in th/phi in FMKS, one can specify a radius r to use.
 """

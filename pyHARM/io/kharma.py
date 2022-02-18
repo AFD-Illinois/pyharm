@@ -203,8 +203,8 @@ class KHARMAFile(DumpFile):
             if 'prims.rho' in fil.Variables:
                 # New file format. Read whatever
                 if len(out.shape) == 4: # Always read the whole vector, even if we're returning an index
-                    #print("Reading vector size ", fil.Get(var, False)[fil_slc + [slice(None),]].T.shape, " to loc size ", out[[slice(None),] + out_slc].shape)
-                    out[[slice(None),] + out_slc] = fil.Get(var, False)[fil_slc + [slice(None),]].T
+                    #print("Reading vector size ", fil.Get(var, False)[fil_slc + (slice(None),)].T.shape, " to loc size ", out[(slice(None),) + out_slc].shape)
+                    out[(slice(None),) + out_slc] = fil.Get(var, False)[fil_slc + (slice(None),)].T
                 else: # Read a scalar
                     #print("Reading scalar size ", fil.Get(var, False)[fil_slc].T.shape," to loc size ", out[out_slc].shape)
                     out[out_slc] = fil.Get(var, False)[fil_slc].T
@@ -212,7 +212,7 @@ class KHARMAFile(DumpFile):
             else:
                 # Old file formats.  If we'd split prims/B_prim:
                 if "B" in var and 'c.c.bulk.B_prim' in fil.Variables:
-                        out[[slice(None),] + out_slc] = fil.Get('c.c.bulk.B_prim', False)[fil_slc + [slice(None),]].T
+                        out[(slice(None),) + out_slc] = fil.Get('c.c.bulk.B_prim', False)[fil_slc + (slice(None),)].T
                 else:
                     i = self.index_of(var)
                     if i is None:

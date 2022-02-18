@@ -1,4 +1,3 @@
-
 import os, sys
 import click
 
@@ -13,6 +12,8 @@ from pyHARM import io
 from pyHARM.plots import figures, plots
 from pyHARM.plots.pretty import pretty
 
+"""Generate one frame of a movie.
+"""
 
 def frame(fname, diag, kwargs):
     tstart, tend = kwargs['tstart'], kwargs['tend']
@@ -26,100 +27,107 @@ def frame(fname, diag, kwargs):
 
     print("Imaging t={}".format(int(tdump)), file=sys.stderr)
 
-    dump = pyHARM.load_dump(fname)
+    # Load ghosts?  Then strip the option out of the movie name
+    ghost_zones = False
+    if "_ghost" in movie_type:
+        ghost_zones = True
+        movie_type = movie_type.replace("_ghost","")
 
-    # Zoom in for small problems
-    if len(dump['r'].shape) == 1:
-        sz = 50
-        nlines = 20
-        rho_l, rho_h = None, None
-    elif len(dump['r'].shape) == 2:
-        sz = 200
-        nlines = 10
-        rho_l, rho_h = -6, 1
-    else:
-        if dump['r'][-1, 0, 0] > 100:
-            sz = 200
-            nlines = 10
-            rho_l, rho_h = -6, 1
-        elif dump['r'][-1, 0, 0] > 10:
-            sz = 50
-            nlines = 5
-            rho_l, rho_h = -6, 1
-        else: # Then this is a Minkowski simulation or something weird. Guess.
-            sz = (dump['x'][-1,0,0] - dump['x'][0,0,0]) / 2
-            nlines = 0
-            rho_l, rho_h = -2, 0.0
+    # This attaches the file and creates a grid
+    dump = pyHARM.load_dump(fname, ghost_zones=ghost_zones)
 
+    # Set some plot options
+    plotrc = {}
+    # Copy in the equivalent options
+    for key in ('vmin', 'vmax', 'shading', 'native', 'cmap', 'at', 'bh'):
+        if key in kwargs:
+            plotrc[key] = kwargs[key]
+
+    # Choose a domain size 
     if kwargs['size'] is not None:
         sz = float(kwargs['size'])
-
-    window = [-sz, sz, -sz, sz]
-
-    if "_array" in movie_type:
-        native_coords = True
-        window = None # Let plotter choose based on grid
     else:
-        native_coords = False
+        if 'r_out' not in dump.params:
+            # Exotic. Try plotting the whole domain
+            sz = None
+        else:
+            # Mediocre heuristic for "enough" of domain.
+            # Users should specify
+            if dump['r_out'] > 500:
+                sz = dump['r_out']/10
+            elif dump['r_out'] >= 100:
+                sz = dump['r_out']/3
+            else:
+                sz = dump['r_out']
 
-    figx, figy = kwargs['fig_x'], kwargs['fig_y']
+    # Choose a centered window
+    # TODO 'half' and similar args for non-centered windows
+    if sz is not None:
+        plotrc['window'] = (-sz, sz, -sz, sz)
+    else:
+        plotrc['window'] = None
+
+    #  _array plots override a bunch of things
+    # Handle and strip
+    if "_array" in movie_type:
+        plotrc['native'] = True
+        plotrc['window'] = None # Let plotter choose based on grid
+        plotrc['shading'] = 'flat'
+        movie_type = movie_type.replace("_array","")
+
+    # Options to place 
+    plotrc['at'] = 0
+    if "_cross" in movie_type:
+        movie_type = movie_type.replace("_cross","")
+        plotrc['at'] = dump['n3']//2
+    if "_quarter" in movie_type:
+        movie_type = movie_type.replace("_quarter","")
+        at = dump['n3']//4
+
+    fig = plt.figure(figsize=(kwargs['fig_x'], kwargs['fig_y']))
 
     if movie_type in figures.__dict__:
-        fig = figures.__dict__[movie_type]()
+        # Named movie frame figures in figures.py
+        fig = figures.__dict__[movie_type](fig, dump, diag, plotrc)
 
     else:
-        fig = plt.figure(figsize=(figx, figy))
-        # Strip global flags from the movie string
-        l_movie_type = movie_type
-        if "_ghost" in movie_type:
-            l_movie_type = l_movie_type.replace("_ghost","")
-        if "_array" in l_movie_type:
-            l_movie_type = l_movie_type.replace("_array","")
-        at = 0
-        if "_cross" in l_movie_type:
-            l_movie_type = l_movie_type.replace("_cross","")
-            at = dump['n3']//2
-        if "_quarter" in l_movie_type:
-            l_movie_type = l_movie_type.replace("_quarter","")
-            at = dump['n3']//4
-        
-        shading = kwargs['shading']
-
         # Try to make a simple movie of just the stated variable
-        if "_poloidal" in l_movie_type or "_2d" in l_movie_type:
+        if "_simple" in movie_type:
+            no_margin = True
+            plotrc.update({'xlabel': False, 'ylabel': False,
+                           'xticks': [], 'yticks': [],
+                           'cbar': False})
+            movie_type = movie_type.replace("_simple","")
+        if "_poloidal" in movie_type or "_2d" in movie_type:
             ax = plt.subplot(1, 1, 1)
-            var = l_movie_type.replace("_poloidal","")
-            plots.plot_xz(ax, dump, var, at=at, label=pretty(var),
-                        vmin=None, vmax=None, window=window, native=native_coords,
-                        xlabel=False, ylabel=False, xticks=[], yticks=[],
-                        cbar=True, cmap='jet', field_overlay=False, shading=shading)
-        elif "_toroidal" in l_movie_type:
+            var = movie_type.replace("_poloidal","")
+            plots.plot_xz(ax, dump, var, **plotrc)
+        elif "_toroidal" in movie_type:
             ax = plt.subplot(1, 1, 1)
-            var = l_movie_type.replace("_toroidal","")
-            plots.plot_xy(ax, dump, var, at=at, label=pretty(var),
-                        vmin=rho_l, vmax=rho_h, window=window, native=native_coords,
-                        cbar=True, cmap='jet', shading=shading)
-        elif "_1d" in l_movie_type:
+            var = movie_type.replace("_toroidal","")
+            plots.plot_xy(ax, dump, var, **plotrc)
+        elif "_1d" in movie_type:
             ax = plt.subplot(1, 1, 1)
-            var = l_movie_type.replace("_1d","")
-            ax.plot(dump['x'], dump[var][:,0,0], label=pretty(var))
-            ax.set_ylim((rho_l, rho_h))
+            var = movie_type.replace("_1d","")
+            sec = dump[:, 0, 0]
+            ax.plot(sec['r'], sec[var])
+            ax.set_ylim((plotrc['vmin'], plotrc['vmax']))
+            # TODO multiple variables w/user title?
             ax.set_title(pretty(var))
         else:
             ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]
             ax = ax_slc[0]
-            var = l_movie_type
-            plots.plot_slices(ax_slc[0], ax_slc[1], dump, var, at=at, label=pretty(l_movie_type),
-                        vmin=rho_l, vmax=rho_h, window=window, native=native_coords,
-                        cbar=True, cmap='jet', field_overlay=False, shading=shading)
+            var = movie_type
+            plots.plot_slices(ax_slc[0], ax_slc[1], dump, var, **plotrc)
 
         # Labels
         if "divB" in movie_type:
             fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(np.max(np.abs(dump['divB']))))
 
-        if "jsq" in movie_type:
+        if no_margin or "jsq" in movie_type:
             fig.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
 
+        # TODO option
         # if not native_coords:
         #    plots.overlay_field(ax, dump, nlines=nlines)
 
