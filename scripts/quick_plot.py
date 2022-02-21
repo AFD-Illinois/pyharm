@@ -11,7 +11,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import pyHARM
-import pyHARM.plots.plots as pplt
+import pyHARM.plots.plot_dumps as pplt
 from pyHARM import pretty
 from pyHARM.units import get_units_M87
 

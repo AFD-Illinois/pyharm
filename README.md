@@ -1,3 +1,8 @@
+# 'dev' branch NOTE:
+This branch is significantly changed from previous versions of pyHARM.  Therefore, some scripts and even outer portions of the library are temporarily broken until imports and interface changes are updated.  The core features described in the new README sections below should work, as should anything around `movie.py`, i.e. plotting of KHARMA dumps and everything to do with coordinates.  I've tried to update the documentation as I go, but pieces, especially in the open documentation pages, are several versions behind still.
+
+Once everything is in fairly complete working order, the plan is to upload pyHARM to pyPI to have a single working base that's easy to install into different environments.  If you'd like to write your own scripts around KHARMA dumps, the file `pyHARM/io/kharma.py`, specifically `read_var`, is a good place to start.  For a basic reader, you can safely ignore index operations related to ghost zones and slicing, but note the matrix transformations required to read KHARMA "meshblocks" into a single whole "mesh."
+
 # pyHARM
 Python tools for HARM analysis
 
@@ -39,6 +44,13 @@ There are a number of specialized or particular definitions which will be easier
 ### Combining elements:
 
 Common mathematical unary operations can just be combined into a variable name to get the result.  This is most common/useful when specifying what to plot, most commonly `log_` for the log base 10.  Similarly, `abs_`, `sqrt_`, and `ln_` for natural log are available.  So for example, asking for `sqrt_bsq` is equivalent to asking for the field magnitude `b`.  You can, of course, perform these operations for yourself in code -- however, many scripts take a variable name as argument, e.g. on the command line.  For these, it's very nice to have a few common operations available without writing any code whatsoever.
+
+There are a few modifiers specific to requesting plots which build on this "unary operator" scheme but are mostly *after* any relevant variable. The exception is `symlog_`, which plots a signed value on a symmetric log scale.  The list of postfix options can be gleaned from `plots/frame.py` but includes at least:
+* `_array` for plots in native coordinates on the Cartesian logical grid
+* `_poloidal` or `_2d`, `_toroidal` for restricting plotting to just one slice or plotting 2D simulation output
+* `_1d` likewise for radial/1D simulation output
+* `_ghost` for plotting ghost zones (works best with `_array`)
+* `_simple` to turn off axis labels, ticks, and colorbars for a presentation or outreach movie, or if you just need the screen real-estate
 
 As mentioned, components of certain vectors (anything suffixed `*cov` or `*con`) can be requested specifically by separating the name and index with `^` or `_`, and their transforms (e.g. to KS coordinates) can be requested similarly by coordinate name.
 

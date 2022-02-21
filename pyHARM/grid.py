@@ -1,6 +1,7 @@
 # Module defining coordinate grids
 
 import copy
+from operator import truediv
 import numpy as np
 
 from pyHARM.defs import Loci, Slices, Shapes
@@ -49,11 +50,6 @@ class Grid:
     """Holds all information about the a grid or mesh of zones:
     size, shape, zones' global locations, metric tensor
     """
-    # This will have a lot of lookups, so we make it static
-    # It's the list of valid arguments to __getitem__, used to delegate from fluid_dump's
-    # version of __getitem__, which is a superset
-    can_provide = ('NG', 'GN', 'NTOT', 'slices', 'shapes', 'gcon', 'gcov', 'gdet', 'conn',
-                    'n1', 'n2', 'n3', 'r', 'th', 'phi', 'x', 'y', 'z', 'X1', 'X2', 'X3')
 
     def __init__(self, params, caches=True, cache_conn=False):
         """
@@ -86,6 +82,8 @@ class Grid:
         """
         # Set the basic grid parameters
         # Total grid size (all MPI processes)
+        self.params = params
+        self.cache = {}
         if 'n1tot' in params:
             self.NTOT = np.array([1, params['n1tot'], params['n2tot'], params['n3tot']])
         else:
@@ -184,6 +182,13 @@ class Grid:
                 # It will probably never be advantageous to store this in 3D
                 self.conn = self.coords.conn_func(x_cent)
 
+    def __del__(self):
+        # Try to clean up what we can. Anything that may possibly not be a simple ref
+        for cache in ('gcon', 'gcov', 'gdet', 'lapse', 'conn', 'slices', 'shapes', 'coords', 'params', 'cache'):
+            if cache in self.__dict__:
+                del self.__dict__[cache]
+
+    ### COORDINATES
     def coord(self, i, j, k, loc=Loci.CENT):
         """Get the position x of zone(s) i,j,k, in _native_ coordinates
 
@@ -285,6 +290,7 @@ class Grid:
         """Get just a 2D meshgrid of locations, usually for plotting"""
         return self.coord(at, np.arange(self.GN[2]+1), np.arange(self.GN[3]+1), loc=Loci.CORN)
 
+    ### OPERATIONS
     def lower_grid(self, vcon, loc=Loci.CENT):
         """Lower a grid of contravariant rank-1 tensors to covariant ones."""
         return np.einsum("ij...,j...->i...", self.gcov[loc.value], vcon)
@@ -296,7 +302,6 @@ class Grid:
     def dot(self, ucon, ucov):
         """Inner product along first index. Exists to make other code OpenCL-agnostic"""
         return np.einsum("i...,i...", ucon, ucov)
-
 
     def dt_light(self):
         """Returns the light crossing time of the smallest zone in the grid"""
@@ -327,25 +332,106 @@ class Grid:
 
         return np.min(dt_light_local)
 
+    ### PLOTTING/CONVENIENCE
+    def get_xz_locations(self, mesh=False, native=False, half_cut=False):
+        """Get the mesh locations x_ij and z_ij needed for plotting a poloidal slice.
+        By default, gets locations at zone centers in slices phi=0,180.
+        Note there is no need for an 'at' parameter, at least for plotting: 2D plots should be face-on.
+
+        :param mesh: get mesh corners rather than centers, for flat shading
+        :param native: get native X1/X2 coordinates rather than Cartesian x,z locations
+        :param half_cut: get only the slice at phi=0
+        """
+        # TODO if cache...
+        if native:
+            # We always want one "pane" when plotting in native coords
+            half_cut = True
+        if mesh:
+            # We need a continouous set of corners representing phi=0/pi
+            m = self.coord_ij_mesh(at=(0, self.NTOT[3]//2))
+            if half_cut:
+                m = m[Ellipsis, 0]
+            else:
+                # Append reversed in th.  We're now contiguous over th=180, so we remove the last
+                # (or after reversal, first) zone of the flipped (left) side
+                m = np.append(m[:, :, :, 0], np.flip(m[:, :, :-1, 1], 2), 2)
+        else:
+            # Version for zone centers doesn't need the extra 
+            m = self.coord_ij(at=(0, self.NTOT[3]//2))
+            if half_cut:
+                m = m[Ellipsis, 0]
+            else:
+                m = np.append(m[Ellipsis, 0], np.flip(m[Ellipsis, 1], 2), 2)
+        if native:
+            x = m[1]
+            z = m[2]
+        else:
+            x = self.coords.cart_x(m)
+            z = self.coords.cart_z(m)
+        # TODO save to cache...
+
+        return x, z
+
+    def get_xy_locations(self, mesh=False, native=False):
+        """Get the mesh locations x_ij and y_ij needed for plotting a toroidal slice.
+        Note there is no need for an 'at' parameter, at least for plotting: 2D plots should be face-on.
+
+        :param mesh: get mesh corners rather than centers, for flat shading
+        :param native: get native X1/X3 coordinates rather than Cartesian x,z locations
+        """
+        if mesh:
+            m = self.coord_ik_mesh(at=self.NTOT[2]//2)
+        else:
+            m = self.coord_ik(at=self.NTOT[2]//2)
+
+        if native:
+            x = m[1]
+            y = m[3]
+        else:
+            x = self.coords.cart_x(m)
+            y = self.coords.cart_y(m)
+        
+        return x, y
+
+    def can_provide(self, key):
+        """Whether the given key would return something from this object.
+        Generally for dictionaries the syntax is "if x in dict.keys()" or "if x in dict" but we can't enumerate possibilities.
+        So instead, check strings on the fly.
+        """
+        if key in self.__dict__:
+            return True
+        elif key in self.cache:
+            return True
+        elif key[:7] == 'pcoord_':
+            return True
+        elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'x', 'y', 'z', 'X1', 'X2', 'X3'):
+            return True
+        else:
+            return False
+
     def __getitem__(self, key):
+        """This function works something like its companion in FluidDump.  It parses a dictionary member "request" and returns
+        various members based on it.  The idea is to be able to 
+        """
         if type(key) in (list, tuple) and type(key[0]) in (int, slice):
+            # Grids also support slicing
             slc = self.slices.geom_slc(key) # cut 3rd index, geometry is 2D
             relevant_0 = isinstance(slc[0], int) or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)
             relevant_1 = len(slc) > 1 and isinstance(slc[1], int) or isinstance(slc[1].start, int) or isinstance(slc[1].stop, int)
             relevant_2 = len(slc) > 2 and isinstance(slc[2], int) or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
             if not (relevant_0 or relevant_1 or relevant_2):
                 return self
-            # Otherwise it's worth it to copy & return a part.
+            # Otherwise it's worth it to make a new grid & return a part.
+            # TODO this can be a proper copy constructor right?
             #print("Grid slice copy, ",key)
-            out = copy.copy(self) #TODO does this work with a new-made grid, can we add a default constructor?
+            out = Grid(self.params, caches=False)
+            #out = copy.deepcopy(self) # In case this proves faster
             out.slice = slc
             # Revise size numbers for this grid
             for i in range(len(out.slice)):
                 if isinstance(out.slice[i], int):
                     out.global_start[i] = out.slice[i]
                     out.global_stop[i] = out.slice[i] + 1
-                    # Make sure we preserve 2D
-                    #out.slice[i] = slice(out.slice[i], out.slice[i]+1)
                 elif out.slice[i] is not None:
                     if out.slice[i].start is not None:
                         out.global_start[i] = self.global_start[i] + out.slice[i].start
@@ -357,6 +443,7 @@ class Grid:
             # Reset GN
             out.GN = out.N + (out.N > 1) * 2*out.NG
             # Finally, slice the caches with the revised slice
+            # Except make sure they get their own memory, grids don't like to be re-used otherwise
             for cache in ('gdet', 'lapse'):
                 if cache in self.__dict__:
                     # Slice over all locations in 1st index
@@ -366,8 +453,33 @@ class Grid:
                     # Slice over all loc + 2 indices in gcon/gcov, 3 indices in conn
                     out.__dict__[cache] = self.__dict__[cache][(slice(None), slice(None), slice(None)) + out.slice]
             return out
+
         elif key in self.__dict__:
+            # Return anything we have a member for
             return self.__dict__[key]
+        elif key in self.cache:
+            # Return anything we've cached
+            return self.cache[key]
+        elif key[:7] == 'pcoord_':
+            # Return various plotting coordinates, with caching. Doesn't seem to be faster.
+            mesh = False
+            native = False
+            half = False
+            if '_mesh' in key:
+                mesh = True
+            if '_native' in key:
+                native = True
+            if '_half' in key:
+                half = True
+            if 'xy' in key:
+                self.cache[key] = self.get_xy_locations(mesh, native)
+                return self.cache[key]
+            elif 'xz' in key:
+                self.cache[key] = self.get_xz_locations(mesh, native, half)
+                return self.cache[key]
+            else:
+                raise NotImplementedError("Grid cannot return plotting values for {}".format(key))
+
         elif key in ['n1', 'n2', 'n3']:
             return self.NTOT[int(key[-1:])]
         elif key in ['r', 'th', 'phi']:
@@ -378,3 +490,4 @@ class Grid:
             return self.coord_all()[int(key[-1:])]
         else:
             raise ValueError("Grid cannot find or compute {}".format(key))
+        raise ValueError("Reached end of Grid retrieval, retrieving key {}".format(key))

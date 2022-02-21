@@ -24,8 +24,7 @@ try:
 except ImportError:
     use_mpi = False
 
-import numpy as np
-import pyHARM.io as io
+import pyHARM
 from pyHARM.plots.frame import frame
 from pyHARM.util import calc_nthreads
 
@@ -75,26 +74,39 @@ def movie(movie_type, paths, **kwargs):
         kwargs['movie_type'] = movie_type
         kwargs['path'] = path
         # Try to load known filenames
-        files = io.get_fnames(".")
+        files = pyHARM.io.get_fnames(".")
 
         frame_dir = "frames_" + movie_type
         os.makedirs(frame_dir, exist_ok=True)
 
         try:
             # Load diagnostics from HARM itself
-            diag = io.read_log(glob.glob(os.path.join(path, "*.hst")))
+            diag = pyHARM.io.read_log(glob.glob(os.path.join(path, "*.hst")))
         except IOError:
             diag = None
 
         if 'debug' in kwargs and kwargs['debug']:
-            # Run sequentially to make backtraces work
+            # Import profiling only if used, start it
+            import cProfile, pstats, io
+            from pstats import SortKey
+            pr = cProfile.Profile()
+            pr.enable()
+            # Run sequentially to make profiling & backtraces work
             for fname in files:
                 frame(fname, diag, kwargs)
+
+            pr.disable()
+            s = io.StringIO()
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print(s.getvalue())
+
         else:
             # Try to guess how many processes before we MemoryError out
             if 'nthreads' not in kwargs or kwargs['nthreads'] is None:
                 if 'memory_limit' in kwargs and kwargs['memory_limit'] is not None:
-                    hdr = io.read_hdr(files[0])
+                    hdr = pyHARM.io.read_hdr(files[0])
                     nthreads = min(calc_nthreads(hdr, pad=0.6),
                                 psutil.cpu_count())
                 else:

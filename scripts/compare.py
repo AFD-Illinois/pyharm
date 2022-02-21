@@ -7,11 +7,9 @@
 ################################################################################
 
 import pyHARM
-from pyHARM import parameters
-import pyHARM.plots.plots as pplt
-import pyHARM.util as util
+import pyHARM.plots.plot_dumps as pplt
 
-import os,sys
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 

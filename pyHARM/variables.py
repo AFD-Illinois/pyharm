@@ -66,7 +66,6 @@ def lorentz_calc(dump, loc=Loci.CENT):
         return dump['ucon'][0] * dump['lapse'][loc.value]
     else:
         G = dump.grid
-        print(G.gcov.shape)
         return np.sqrt(1 + (G.gcov[loc.value, 1, 1] * dump['U1'] ** 2 +
                             G.gcov[loc.value, 2, 2] * dump['U2'] ** 2 +
                             G.gcov[loc.value, 3, 3] * dump['U3'] ** 2) + \
@@ -78,7 +77,6 @@ def ucon_calc(dump, loc=Loci.CENT):
     """Find contravariant fluid four-velocity"""
     G = dump.grid
     ucon = np.zeros((4, *dump['U1'].shape))
-    print(dump['U1'].shape, dump['U2'].shape, dump['U3'].shape, dump['Gamma'].shape, ucon[0].shape, G.lapse.shape)
     ucon[0] = dump['Gamma'] / G.lapse[loc.value]
     for mu in range(1, 4):
         ucon[mu] = dump['uvec'][mu-1] - dump['Gamma'] * G.lapse[loc.value] * G.gcon[loc.value, 0, mu]

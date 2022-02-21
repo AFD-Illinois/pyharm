@@ -1,19 +1,80 @@
-# Data reductions (integrals, averages, statistics) for fluid simulation output data
-
 import numpy as np
 import scipy.fftpack as fft
 
 # This is too darn useful
 from pyHARM.util import i_of
 
-# General interface for reductions:
-# (dump, var, options)
-# dump: IharmDump object (or anything which provides dump['gdet'] and dump.header['nx'] members).  Sometimes omitted.
-# var: ndarray of 3 dimensions, or a vector with vector index //first// (mu,i,j,k)
-# other options as described below.  Certain zone arguments are necessary when a reduction is otherwise ambiguous
+"""
+General interface for reductions:
+(dump, var, options)
+dump: FluidDump object, generally pre-slice.
+var: either the name of a variable to compute over the necessary slice,
+or a pre-sliced & computed variable of the right shape.
 
-# TODO PDFs
 
+Other options as described below.
+Certain zone arguments with defaults are still necessary when a reduction is otherwise ambiguous!
+
+TODO PDFs, revisions generally as analysis ramps back up
+"""
+
+## Plotting reductions ##
+
+def flatten_xz(dump, var, at=None, sum=False, half_cut=False):
+    """Return an X-Z slice or sum of var, generally for use in making a plot.
+    By default takes both the 0-degree (right side) and 180-degree (left side) slices,
+    to make a full slice across the pole.
+
+    :param at: which rank in X3 to take data from
+    :param sum: whether to sum all ranks. Overrides 'at'
+    :param half_cut: just take the rank 'at', not its 180-degree opposite
+    """
+    if sum:
+        if isinstance(var, str):
+            var = dump[var]
+        var = var.sum(-1)
+        if half_cut:
+            return var
+        else:
+            return np.append(var, np.flip(var, 1), 1)
+    else:
+        if at is None:
+            at = 0
+        if isinstance(var, str):
+            if half_cut:
+                return dump[:, :, at][var]
+            else:
+                return np.append(dump[:, :, at][var], np.flip(dump[:, :, at + dump['n3']//2][var], 1), 1)
+        else:
+            if half_cut:
+                return var[:, :, at]
+            else:
+                return np.append(var[:, :, at], np.flip(var[:, :, at + dump['n3']//2], 1), 1)
+
+def flatten_xy(dump, var, at=None, sum=False):
+    """Return an X-Y slice or sum of var.
+
+    :param at: which rank in X2 to take data from, default N2//2
+    :param sum: whether to sum all ranks. Overrides 'at'
+    """
+    if sum:
+        if isinstance(var, str):
+            var = dump[var]
+        return var.sum(1)
+    else:
+        if at is None:
+            at = dump['n2']//2
+        if isinstance(var, str):
+            return dump[:, at, :][var]
+        else:
+            return var[:, at, :]
+
+def wrap(x):
+    """Append the first rank in axis 1 again after the last rank in axis 1
+    Useful when plotting zone-centered th or phi variables, as it allows shading
+    of the region between ends of the array eliminating an ugly gap.
+    """
+    return np.append(x[Ellipsis], x[:, 0:1], 1)
 
 ## Correlation functions/lengths ##
 

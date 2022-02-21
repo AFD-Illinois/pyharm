@@ -78,12 +78,19 @@ class KHARMAFile(DumpFile):
         self.cache = {}
         if params is None:
             self.params = self.read_params()
+            # Adjust some params based on args to __init__
             self.params['ghost_zones'] = ghost_zones
             self.params['ng'] = ghost_zones * self.params['ng_file']
             if ghost_zones and self.params['ng_file'] == 0:
                 raise ValueError("Ghost zones aren't available in file {}".format(self.fname))
         else:
             self.params = params
+
+    def __del__(self):
+        # Try to clean up what we can. Anything that may possibly not be a simple ref
+        for cache in ('cache', 'params', 'phdf_gen'):
+            if cache in self.__dict__:
+                del self.__dict__[cache]
 
     def read_params(self):
         # TODO if reading very old output, fall back to text .par file in dumps folder
@@ -110,6 +117,14 @@ class KHARMAFile(DumpFile):
             except ValueError:
                 # dumps named 'final'.  Drop them?
                 params['n_dump'] = fname_parts[2]
+        
+        # Regenerating this takes *forever*
+        # Cache it in 'params' so it follows the file around *everywhere*
+        params['phdf_aux'] = {}
+        params['phdf_aux']['offset'] = fil.offset
+        params['phdf_aux']['isGhost'] = fil.isGhost
+        params['phdf_aux']['BlockIdx'] = fil.BlockIdx
+        params['phdf_aux']['BlockBounds'] = fil.BlockBounds
 
         fil.fid.close()
         del fil
@@ -124,7 +139,7 @@ class KHARMAFile(DumpFile):
                 return self.cache[var]
 
         # Open file
-        fil = phdf(self.fname)
+        fil = phdf(self.fname, **self.params['phdf_aux'])
 
         # All primitives/conserved. We added this to iharm3d, special case it here
         if var == "prims":

@@ -70,7 +70,7 @@ class phdf:
 
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, offset=None, isGhost=None, BlockIdx=None, BlockBounds=None):
         """
         Initializes a python structure with the information from
         the provided file.
@@ -172,7 +172,14 @@ class phdf:
         self.Info = dict(f["/Info"].attrs)
 
         # generate self.offset, isGhost and BlockIdx arrays
-        self.GenAuxData()
+        # or, take caches from the initializer
+        if offset is None or isGhost is None or BlockIdx is None or BlockBounds is None:
+            self.GenAuxData()
+        else:
+            self.offset = offset
+            self.isGhost = isGhost
+            self.BlockIdx = BlockIdx
+            self.BlockBounds = BlockBounds
 
         self.TotalCellsReal = self.NumBlocks * np.prod(
             self.MeshBlockSize - 2 * self.offset

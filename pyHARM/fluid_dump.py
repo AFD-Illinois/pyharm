@@ -60,6 +60,12 @@ class FluidDump:
         else:
             self.grid = None
 
+    def __del__(self):
+        # Try to clean up what we can. Anything that may possibly not be a simple ref
+        for cache in ('cache', 'units', 'params', 'grid'):
+            if cache in self.__dict__:
+                del self.__dict__[cache]
+
     def set_units(self, MBH, M_unit):
         """Associate a scale & units with this dump, for calculating scale-dependent quantities in CGS"""
         self.units = get_units(MBH, M_unit, gam=self.params['gam'])
@@ -81,8 +87,10 @@ class FluidDump:
             relevant_2 = isinstance(slc[2], int) or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
             if not (relevant_0 or relevant_1 or relevant_2):
                 return self
+            # TODO somehow proper copy constructor
             #print("FluidDump slice copy: ", self.cache, key)
             out = FluidDump(self.fname, add_grid=False, params=self.params)
+            #out = copy.deepcopy(self) # In case this proves faster
             for c in self.cache:
                 out.cache[c] = self.cache[c][slc]
             out.grid = self.grid[slc]
@@ -102,12 +110,13 @@ class FluidDump:
             return self.cache[key]
 
         # Return coordinates and things from the grid
-        # Default to centers when returning from FluidDump, to avoid location madness
-        elif key in self.grid.can_provide:
-            if key == 'conn':
-                return self.grid[key]
-            else:
+        # Default to centers when returning multi-location vars, to avoid location madness
+        # TODO allow _mesh generally?
+        elif self.grid.can_provide(key):
+            if key in ('gcon', 'gcov', 'gdet', 'lapse'):
                 return self.grid[key][Loci.CENT.value]
+            else:
+                return self.grid[key]
 
         # Prefixes for a few common 1:1 math operations.
         # Most math should be done by reductions.py
