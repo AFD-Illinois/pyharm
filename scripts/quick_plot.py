@@ -47,24 +47,7 @@ if len(sys.argv) > 4:
 else:
     unit = 1
 
-dump = pyHARM.load_dump(dumpfile, calc_derived=True) #, add_fails=True)
-
-if "pdf_" in var:
-    fig = plt.figure(figsize=(FIGX, FIGY))
-    plt.title(pretty(var))
-    d_var, d_var_bins = dump[var]
-    plt.plot(d_var_bins[:-1], d_var)
-    if "_log_" in var:
-        plt.xlabel("Log10 value")
-    elif "_ln_" in var:
-        plt.xlabel("Ln value")
-    else:
-        plt.xlabel("Value")
-    plt.ylabel("Frequency")
-
-    plt.savefig(name+".png", dpi=100)
-    plt.close(fig)
-    exit() # We already saved the figure, we don't need another
+dump = pyHARM.load_dump(dumpfile)
 
 if dump['n3'] > 1:
     fig = plt.figure(figsize=(FIGX, FIGY))

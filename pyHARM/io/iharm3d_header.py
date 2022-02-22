@@ -67,8 +67,11 @@ def write_hdr(params, outf):
         outf.create_group("extras")
     if "extras/pyharm_params" not in outf:
         outf['extras'].create_group("pyharm_params")
-    for key in [p for p in params if p not in ['ctx', 'queue']]:
-        _write_value(outf, params[key], 'header/'+key)
+    for key in params:
+        try:
+            _write_value(outf, params[key], 'header/'+key)
+        except TypeError:
+            print("Not writing parameter {}".format(key))
 
 def read_hdr(grp):
     """Read an iharm3d/Illinois HDF header.
@@ -151,7 +154,7 @@ def read_hdr(grp):
     if close_file:
         fil.close()
 
-    return parameters._fix(params)
+    return parameters.fix(params)
 
 
 def hdf5_to_dict(h5grp):

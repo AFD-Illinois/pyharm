@@ -35,6 +35,7 @@ class KHARMAFile(DumpFile):
                        "KEL_ROWAN":    "Kel_Rowan",
                        "KEL_SHARMA":   "Kel_Sharma",
                        "KEL_CONSTANT": "Kel_Constant"}
+    prim_names_ordered = ['rho', 'u', 'uvec', 'B', 'Ktot', 'Kel_Werner', 'Kel_Rowan', 'Kel_Sharma', 'Kel_Constant']
 
     @classmethod
     def get_dump_time(cls, fname):
@@ -142,9 +143,28 @@ class KHARMAFile(DumpFile):
 
         # All primitives/conserved. We added this to iharm3d, special case it here
         if var == "prims":
-            return np.array([self.read_var(v2) for v2 in fil.Variables if "prims" in v2])
+            prims = self.read_var('rho')[None, :, :, :]
+            for v2 in self.prim_names_ordered[1:]:
+                try:
+                    new_prim = self.read_var(v2)
+                    if len(new_prim.shape) == 3:
+                        # Reshape to 4D if needed to append
+                        new_prim = new_prim[None, :, :, :]
+                    prims = np.append(prims, new_prim, axis=0)
+                except IOError:
+                    pass
+            self.cache["prims"] = prims
+            return self.cache["prims"]
         elif var == "cons":
-            return np.array([self.read_var(v2) for v2 in fil.Variables if "cons" in v2])
+            cons = self.read_var('cons.rho')[None, :, :, :]
+            for v2 in fil.Variables:
+                if "cons" in v2 and v2 != "cons.rho":
+                    new_con = self.read_var(v2)
+                    if len(new_con.shape) == 3:
+                        new_con = new_con[None, :, :, :]
+                    cons = np.append(cons, new_con, axis=0)
+            self.cache["cons"] = cons
+            return self.cache["cons"]
 
         if var not in fil.Variables and self.index_of(var) is None:
             raise IOError("Cannot find variable "+var+" in dump "+self.fname+". Should it have been calculated?")

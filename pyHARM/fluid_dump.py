@@ -82,9 +82,12 @@ class FluidDump:
         if type(key) in (list, tuple):
             slc = key
             # TODO handle further slicing after this is a 2D object?
-            relevant_0 = isinstance(slc[0], int) or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)
-            relevant_1 = isinstance(slc[1], int) or isinstance(slc[1].start, int) or isinstance(slc[1].stop, int)
-            relevant_2 = isinstance(slc[2], int) or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
+            relevant_0 = isinstance(slc[0], int) or isinstance(slc[0], np.int32) or isinstance(slc[0], np.int64) \
+                         or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)
+            relevant_1 = isinstance(slc[1], int) or isinstance(slc[1], np.int32) or isinstance(slc[1], np.int64) \
+                         or isinstance(slc[1].start, int) or isinstance(slc[1].stop, int)
+            relevant_2 = isinstance(slc[2], int) or isinstance(slc[2], np.int32) or isinstance(slc[2], np.int64) \
+                         or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
             if not (relevant_0 or relevant_1 or relevant_2):
                 return self
             # TODO somehow proper copy constructor

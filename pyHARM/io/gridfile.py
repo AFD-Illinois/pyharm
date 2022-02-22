@@ -34,10 +34,10 @@ def write(G, fname="grid.h5", astype=np.float32):
             b = slice(G.NG, -G.NG)
         else:
             b = slice(None, None)
-        gcon3 = G.gcon[Loci.CENT.value, :, :, b, b, None].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
-        gcov3 = G.gcov[Loci.CENT.value, :, :, b, b, None].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
-        gdet3 = G.gdet[Loci.CENT.value, b, b, None].repeat(G.NTOT[3], axis=-1)
-        lapse3 = G.lapse[Loci.CENT.value, b, b, None].repeat(G.NTOT[3], axis=-1)
+        gcon3 = G.gcon[Loci.CENT.value, :, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
+        gcov3 = G.gcov[Loci.CENT.value, :, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
+        gdet3 = G.gdet[Loci.CENT.value, b, b, :].repeat(G.NTOT[3], axis=-1)
+        lapse3 = G.lapse[Loci.CENT.value, b, b, :].repeat(G.NTOT[3], axis=-1)
 
         outf['gcon'] = gcon3.astype(astype)
         outf['gcov'] = gcov3.astype(astype)

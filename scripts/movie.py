@@ -69,18 +69,25 @@ def movie(movie_type, paths, **kwargs):
     If run within an MPI job/allocation with mpi4py installed, movie.py will attempt to use all allocated nodes to generate
     frames.  YMMV wildly with MPI installations, with mpi4py installed via pip generally a better choice than through conda.
     """
-    paths = [p for p in paths if os.path.isdir(p)]
+    path_dirs = [p for p in paths if os.path.isdir(p)]
+    if len(path_dirs) == 0:
+        # Single file argument, pass this
+        path_dirs = paths
     if do_out(): print("Generating ",len(paths)," movies sequentially", file=sys.stderr)
     base_path = os.getcwd()
-    for path in paths:
-        # change dir to path we want to image
-        os.chdir(path)
+    for path in path_dirs:
+        # If a path...
+        if os.path.isdir(path):
+            # change dir to path we want to image
+            os.chdir(path)
+            # Try to load known filenames
+            files = pyHARM.io.get_fnames(".")
+        else:
+            files = [path]
 
         # Add these so we can pass on just the args
         kwargs['movie_type'] = movie_type
         kwargs['path'] = path
-        # Try to load known filenames
-        files = pyHARM.io.get_fnames(".")
 
         frame_dir = "frames_" + movie_type
         os.makedirs(frame_dir, exist_ok=True)
@@ -93,7 +100,7 @@ def movie(movie_type, paths, **kwargs):
         except IOError:
             diag = None
 
-        if do_out(): print("Imaging model {} with movie {}".format(path, movie_type))
+        if do_out(): print("Imaging model {} with movie {}".format(path, movie_type), file=sys.stderr)
         if 'debug' in kwargs and kwargs['debug']:
             # Import profiling only if used, start it
             import cProfile, pstats, io
@@ -124,7 +131,7 @@ def movie(movie_type, paths, **kwargs):
                     nthreads = psutil.cpu_count()
             # This application is entirely side-effects (frame creation)
             # So we map & ignore result
-            # TODO pass single figure & blit/etc?
+            # TODO pass single figure & blit/encode within Python?
             if not use_mpi:
                 print("Using {} processes".format(nthreads))
                 with multiprocessing.Pool(nthreads) as pool:

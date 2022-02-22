@@ -1,4 +1,3 @@
-from argparse import ArgumentError
 import h5py
 import numpy as np
 
@@ -55,9 +54,9 @@ def write_dump(fluid_dump, fname, astype=np.float32, ghost_zones=False):
         # This will fetch and write all primitive variables
         G = fluid_dump.grid
         if G.NG > 0 and not ghost_zones:
-            outf["prims"] = np.einsum("p...->...p", fluid_dump.prims[G.slices.allv + G.slices.bulk]).astype(astype)
+            outf["prims"] = np.einsum("p...->...p", fluid_dump['prims'][G.slices.allv + G.slices.bulk]).astype(astype)
         else:
-            outf["prims"] = np.einsum("p...->...p", fluid_dump.prims).astype(astype)
+            outf["prims"] = np.einsum("p...->...p", np.array(fluid_dump['prims'])).astype(astype)
 
         # Extra in-situ calculations or custom debugging additions
         if "extras" not in outf:
@@ -78,55 +77,62 @@ class Iharm3DFile(DumpFile):
             else:
                 return None
 
-    def __init__(self, filename, ghost_zones=False):
+    def __init__(self, filename, ghost_zones=False, params=None):
         """Create an Iharm3DFile object -- note that the file handle will stay
         open as long as the object
         """
         self.fname = filename
-        self.file = h5py.File(filename, "r")
-        self.params = self.read_params()
-        self.params['ghost_zones'] = ghost_zones
-        self.params['ng_file'] = self.params['ng']
-        self.params['ng'] = ghost_zones * self.params['ng']
+        self.cache = {}
+        if params is None:
+            self.params = self.read_params()
+            self.params['ghost_zones'] = ghost_zones
+            self.params['ng_file'] = self.params['ng']
+            self.params['ng'] = ghost_zones * self.params['ng']
+        else:
+            self.params = params
 
     # def __del__(self):
-    #     self.file.close()
+    #     fil.close()
 
     def read_params(self, **kwargs):
         """Read the file header and per-dump parameters (t, dt, etc)"""
-        params = read_hdr(self.file['/header'])
+        with h5py.File(self.fname, "r") as fil:
+            params = read_hdr(fil['/header'])
 
-        # Add variables which change per-dump, recorded outside header
-        for key in ['t', 'dt', 'n_step', 'n_dump', 'is_full_dump', 'dump_cadence', 'full_dump_cadence']:
-            if key in self.file:
-                params[key] = self.file[key][()]
+            # Add variables which change per-dump, recorded outside header
+            for key in ['t', 'dt', 'n_step', 'n_dump', 'is_full_dump', 'dump_cadence', 'full_dump_cadence']:
+                if key in fil:
+                    params[key] = fil[key][()]
 
-        # Grab the git revision if it's available, as this isn't recorded to/read from the header either
-        if 'extras' in self.file and 'git_version' in self.file['extras']:
-            params['git_version'] = self.file['/extras/git_version'][()].decode('UTF-8')
+            # Grab the git revision if it's available, as this isn't recorded to/read from the header either
+            if 'extras' in fil and 'git_version' in fil['extras']:
+                params['git_version'] = fil['/extras/git_version'][()].decode('UTF-8')
 
-        return params
+            return params
 
     def read_var(self, var, slc=(), **kwargs):
-        # TODO GHOST ZONES
-        i = self.index_of(var)
-        if i is not None:
-            # This is one of the main vars in the 'prims' array
-            return self._prep_array(self.file['/prims'][slc][i], **kwargs)
-        else:
-            # This is something else we should grab by name
-            # Default to int type for flags
-            if "flag" in var and 'astype' not in kwargs:
-                kwargs['astype'] = np.int32
-            # Read desired slice
-            if var in self.file:
-                return self._prep_array(self.file[var][slc], **kwargs)
-            elif var in self.file['/extras']:
-                return self._prep_array(self.file['/extras/'+var][slc], **kwargs)
+        with h5py.File(self.fname, "r") as fil:
+            # TODO Translate slices to file ordering to read only necessary pieces
+            i = self.index_of(var)
+            if i is not None:
+                # This is one of the main vars in the 'prims' array
+                return self._prep_array(fil['/prims'], **kwargs)[i][slc]
             else:
-                raise IOError("Cannot find variable "+var+" in file "+self.file+"!")
+                # This is something else we should grab by name
+                # Default to int type for flags
+                if "flag" in var and 'astype' not in kwargs:
+                    kwargs['astype'] = np.int32
+                # Read desired slice
+                if var in fil:
+                    return self._prep_array(fil[var], **kwargs)[slc]
+                elif var in fil['/extras']:
+                    return self._prep_array(fil['/extras/'+var], **kwargs)[slc]
+                else:
+                    raise IOError("Cannot find variable "+var+" in file "+fil+"!")
 
-    def _prep_array(arr, astype=None):
+
+
+    def _prep_array(self, arr, astype=None):
         """Re-order and optionally up-convert an array from a file,
         to put it in usual pyHARM order/format
         """

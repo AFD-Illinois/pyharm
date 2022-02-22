@@ -180,7 +180,7 @@ class Grid:
 
             if cache_conn:
                 # It will probably never be advantageous to store this in 3D
-                self.conn = self.coords.conn_func(x_cent)
+                self.conn = self.coords.conn_func(x_cent)[:, :, :, :, :, None]
 
     def __del__(self):
         # Try to clean up what we can. Anything that may possibly not be a simple ref
@@ -413,12 +413,15 @@ class Grid:
         """This function works something like its companion in FluidDump.  It parses a dictionary member "request" and returns
         various members based on it.  The idea is to be able to 
         """
-        if type(key) in (list, tuple) and type(key[0]) in (int, slice):
+        if type(key) in (list, tuple) and type(key[0]) in (int, np.int32, np.int64, slice):
             # Grids also support slicing
             slc = self.slices.geom_slc(key) # cut 3rd index, geometry is 2D
-            relevant_0 = isinstance(slc[0], int) or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)
-            relevant_1 = len(slc) > 1 and isinstance(slc[1], int) or isinstance(slc[1].start, int) or isinstance(slc[1].stop, int)
-            relevant_2 = len(slc) > 2 and isinstance(slc[2], int) or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
+            relevant_0 = isinstance(slc[0], int) or isinstance(slc[0], np.int32) or isinstance(slc[0], np.int64) \
+                         or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)
+            relevant_1 = len(slc) > 1 and isinstance(slc[1], int) or isinstance(slc[1], np.int32) or isinstance(slc[1], np.int64) \
+                         or isinstance(slc[1].start, int) or isinstance(slc[1].stop, int)
+            relevant_2 = len(slc) > 2 and isinstance(slc[2], int) or isinstance(slc[2], np.int32) or isinstance(slc[2], np.int64) \
+                         or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
             if not (relevant_0 or relevant_1 or relevant_2):
                 return self
             # Otherwise it's worth it to make a new grid & return a part.
@@ -429,7 +432,7 @@ class Grid:
             out.slice = slc
             # Revise size numbers for this grid
             for i in range(len(out.slice)):
-                if isinstance(out.slice[i], int):
+                if isinstance(out.slice[i], int) or isinstance(slc[i], np.int32) or isinstance(slc[i], np.int64):
                     out.global_start[i] = out.slice[i]
                     out.global_stop[i] = out.slice[i] + 1
                 elif out.slice[i] is not None:
