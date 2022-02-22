@@ -21,8 +21,12 @@ try:
     if MPI.COMM_WORLD.Get_rank() == 0:
         print("Using MPI", file=sys.stderr)
     use_mpi = True
+    def do_out():
+        return MPI.COMM_WORLD.Get_rank() == 0
 except ImportError:
     use_mpi = False
+    def do_out():
+        return True
 
 import pyHARM
 from pyHARM.plots.frame import frame
@@ -65,6 +69,8 @@ def movie(movie_type, paths, **kwargs):
     If run within an MPI job/allocation with mpi4py installed, movie.py will attempt to use all allocated nodes to generate
     frames.  YMMV wildly with MPI installations, with mpi4py installed via pip generally a better choice than through conda.
     """
+    paths = [p for p in paths if os.path.isdir(p)]
+    if do_out(): print("Generating ",len(paths)," movies sequentially", file=sys.stderr)
     base_path = os.getcwd()
     for path in paths:
         # change dir to path we want to image
@@ -81,12 +87,13 @@ def movie(movie_type, paths, **kwargs):
 
         try:
             # Load diagnostics from HARM itself
-            fname = glob.glob(os.path.join(path, "*.hst"))[0]
-            print("Loading diag file ",fname, file=sys.stderr)
+            fname = glob.glob("*.hst")[0]
+            if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
             diag = pyHARM.io.read_log(fname)
         except IOError:
             diag = None
 
+        if do_out(): print("Imaging model {} with movie {}".format(path, movie_type))
         if 'debug' in kwargs and kwargs['debug']:
             # Import profiling only if used, start it
             import cProfile, pstats, io
@@ -127,11 +134,13 @@ def movie(movie_type, paths, **kwargs):
                 # Everything is set by MPI.  We inherit a situation and use it
                 with MPICommExecutor() as executor:
                     if executor is not None:
-                        print("Imaging {} files in pool size {}".format(len(files), MPI.COMM_WORLD.Get_size()), file=sys.stderr)
+                        print("Imaging {} files across pool size {}".format(len(files), MPI.COMM_WORLD.Get_size()), file=sys.stderr)
                         executor.map(frame, files, (diag,)*len(files), (kwargs,)*len(files))
+        if do_out(): print("Imaged model {} with movie {}".format(path, movie_type), file=sys.stderr)
 
         # Change back to wherever our root was, argument paths can be relative
         os.chdir(base_path)
+        # TODO final print?
 
 if __name__ == "__main__":
     movie()

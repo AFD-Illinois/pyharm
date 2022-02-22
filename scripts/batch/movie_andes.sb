@@ -1,12 +1,35 @@
-#!/bin/bash
+#!/bin/bash -i
 
 #SBATCH -J pyHARM_movie
 #SBATCH -A ast171
-#SBATCH -N 10
+#SBATCH -N 1
+#SBATCH --ntasks-per-node 32
 # Only 'batch' or 'gpu'
 #SBATCH -p batch
 #SBATCH -t 4:00:00
 #SBATCH -o out-%j.txt
 
-# -n320 -N10 -c1 --cpu-bind=cores --exclusive
+# Run a movie(s) as an MPI job on Andes.
+# See movie.py docs/help for options, test frames on a few dumps
+# before committing to big jobs.
+
+# '-i' argument is for interactive shell to allow running 'conda' 
+# Remove if you have a jacked .bashrc and get worse errors than job warnings
+
+# Reloading the 'python' module messes with anaconda environment,
+# just have it loaded before submitting/as a default module.
+#module load python
+# Sourcing the conda script doesn't seem to fully work anymore,
+# so we run as interactive with '-i' above, which is not ideal
+#source /sw/andes/python/3.7/anaconda-base/etc/profile.d/conda.sh
+conda activate pyHARM
+
+# Better to oversubscribe CPU than serialize as there are
+# relatively few numpy ops
+export MKL_NUM_THREADS=8
+export OMP_NUM_THREADS=8
+
+# The intent of the directives is to start 32 tasks per node (or more?),
+# but not *bind* them to particular cores --
+# we want to allow MKL_NTHREADS and OMP_NTHREADS to work
 srun ~/Code/pyHARM/scripts/movie.py "${@}"
