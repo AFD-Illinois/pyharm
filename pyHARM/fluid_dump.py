@@ -133,9 +133,9 @@ class FluidDump:
         # TODO transformed full vectors, with e.g. 'ucon_ks'
         # Return vector components
         elif key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3":
-            return self[key[0]+"cov"][int(key[-1])]
+            return self[key[:-2]+"cov"][int(key[-1])]
         elif key[-2:] == "^0" or key[-2:] == "^1" or key[-2:] == "^2" or key[-2:] == "^3":
-            return self[key[0]+"con"][int(key[-1])]
+            return self[key[:-2]+"con"][int(key[-1])]
         # Return transformed vector components
         # TODO Cartesian forms, move the complexity here to grid
         elif key[-2:] == "_t" or key[-2:] == "_r" or key[-3:] == "_th" or key[-4:] == "_phi":

@@ -170,29 +170,24 @@ def e_ratio(fig, dump, diag, plotrc):
     return fig
 
 def e_ratio_funnel(fig, dump, diag, plotrc):
-    ax_slc = lambda i: plt.subplot(2, 4, i)
+    ax_slc = lambda i: plt.subplot(1, 4, i)
     # Energy ratios: difficult places to integrate, with failures
-    r_i = i_of(r1d, float(movie_type.split("_")[-1]))
+
+    r1d = dump['r'][:,0,0]
+    r_i = i_of(r1d, plotrc['radius'])
     plotrc['vmin'] = -3
     plotrc['vmax'] = 3
-    plot_thphi(ax_slc(1), dump, np.log10(dump['UU'] / dump['RHO']), r_i,
+    plotrc['half_cut'] = True
+    plot_thphi(ax_slc(1), dump, 'log_Theta', r_i,
                         label=r"$\{10}(U / \rho)$", average=True, **plotrc)
-    plot_thphi(ax_slc(2), dump, np.log10(dump['UU'] / dump['RHO']), r_i,
-                        label=r"$\{10}(U / \rho)$", average=True, **plotrc)
-    plot_thphi(ax_slc(3), dump, np.log10(dump['bsq'] / dump['RHO']), r_i,
+    plot_thphi(ax_slc(2), dump, 'log_sigma', r_i,
                         label=r"$\{10}(b^2 / \rho)$", average=True, **plotrc)
-    plot_thphi(ax_slc(4), dump, np.log10(dump['bsq'] / dump['RHO']), r_i,
-                        label=r"$\{10}(b^2 / \rho)$", average=True, **plotrc)
-    plot_thphi(ax_slc(5), dump, np.log10(1 / dump['beta']), r_i,
-                        label=r"$\beta^{-1}$", average=True, **plotrc)
-    plot_thphi(ax_slc(6), dump, np.log10(1 / dump['beta']), r_i,
+    plot_thphi(ax_slc(3), dump, 'log_betainv', r_i,
                         label=r"$\beta^{-1}$", average=True, **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
-    plot_thphi(ax_slc(7), dump, (dump['fails'] != 0).astype(np.int32), r_i,
-                        label="Failures", integrate=True, **plotrc)
-    plot_thphi(ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32), r_i,
+    plot_thphi(ax_slc(4), dump, (dump['fails'] != 0).astype(np.int32), r_i,
                         label="Failures", integrate=True, **plotrc)
     return fig
 
@@ -201,12 +196,14 @@ def conservation(fig, dump, diag, plotrc):
     ax_flux = lambda i: plt.subplot(4, 2, i)
     # Continuity plots to verify local conservation of energy, angular + linear momentum
     # Integrated T01: continuity for momentum conservation
+    plotrc['native'] = True
+    plotrc['vmin'] = 0
+    plotrc['vmax'] = 2000
+    plot_slices(ax_slc(1), ax_slc(2), dump, 'JE1', label=r"$T^1_0$ Integrated", sum=True)
 
-    plot_slices(ax_slc(1), ax_slc(2), dump, T_mixed(dump, 1, 0),
-                        label=r"$T^1_0$ Integrated", vmin=0, vmax=2000, arrspace=True, integrate=True)
     # integrated T00: continuity plot for energy conservation
-    plot_slices(ax_slc(5), ax_slc(6), dump, np.abs(T_mixed(dump, 0, 0)),
-                        label=r"$T^0_0$ Integrated", vmin=0, vmax=3000, arrspace=True, integrate=True)
+    plotrc['vmax'] = 3000
+    plot_slices(ax_slc(5), ax_slc(6), dump, 'JE0', label=r"$T^0_0$ Integrated", sum=True)
 
     # Usual fluxes for reference
     #ppltr.plot_diag(ax_flux[1], diag, 't', 'mdot', tline=dump['t'], logy=MDOT)
@@ -214,24 +211,24 @@ def conservation(fig, dump, diag, plotrc):
     r_out = 100
 
     # Radial conservation plots
-    E_r = shell_sum(dump, T_mixed(dump, 0, 0)) # TODO variables
+    E_r = shell_sum(dump, T_mixed(dump, 0, 0))
     Ang_r = shell_sum(dump, T_mixed(dump, 0, 3))
     mass_r = shell_sum(dump, dump['ucon'][0] * dump['RHO'])
-    r = dump['r'][:,0,0]
+    r1d = dump['r'][:,0,0]
 
     max_e = 50000
     # TODO these will need some work to fully go to just ax.plot calls
-    ax_flux(2).plot(r, np.abs(E_r), title='Conserved vars at R', ylim=(0, max_e), rlim=(0, r_out), label="E_r")
-    ax_flux(2).plot(r, np.abs(Ang_r) / 10, ylim=(0, max_e), rlim=(0, r_out), color='r', label="L_r")
-    ax_flux(2).plot(r, np.abs(mass_r), ylim=(0, max_e), rlim=(0, r_out), color='b', label="M_r")
+    ax_flux(2).plot(r1d, np.abs(E_r), title='Conserved vars at R', ylim=(0, max_e), rlim=(0, r_out), label="E_r")
+    ax_flux(2).plot(r1d, np.abs(Ang_r) / 10, ylim=(0, max_e), rlim=(0, r_out), color='r', label="L_r")
+    ax_flux(2).plot(r1d, np.abs(mass_r), ylim=(0, max_e), rlim=(0, r_out), color='b', label="M_r")
     ax_flux(2).legend()
 
     # Radial energy accretion rate
     Edot_r = shell_sum(dump, T_mixed(dump, 1, 0))
-    ax_flux(4).plot(r, Edot_r, label='Edot at R', ylim=(-200, 200), rlim=(0, r_out), native=True)
+    ax_flux(4).plot(r1d, Edot_r, label='Edot at R', ylim=(-200, 200), rlim=(0, r_out), native=True)
 
     # Radial integrated failures
-    ax_flux(6).plot(r, (dump['fails'] != 0).sum(axis=(1, 2)), label='Fails at R', native=True, rlim=(0, r_out), ylim=(0, 1000))
+    ax_flux(6).plot(r1d, (dump['fails'] != 0).sum(axis=(1, 2)), label='Fails at R', native=True, rlim=(0, r_out), ylim=(0, 1000))
 
     return fig
 
@@ -242,29 +239,46 @@ def energies(fig, dump, diag, plotrc):
     plotrc['vmax'] = 3
     # Energy ratios: difficult places to integrate, with failures
     plot_slices(ax_slc(1), ax_slc(2), dump, 'rho',
-                        label=r"$\{10}(U / \rho)$", average=True,
-                        field_overlay=False, **plotrc)
+                label=r"$\{10}(U / \rho)$",  **plotrc)
     plot_slices(ax_slc(3), ax_slc(4), dump, 'bsq',
-                        label=r"$\{10}(b^2 / \rho)$", average=True,
-                        field_overlay=False, **plotrc)
+                label=r"$\{10}(b^2 / \rho)$", average=True, **plotrc)
     plot_slices(ax_slc(5), ax_slc(6), dump, 'UU',
-                        label=r"$\beta^{-1}$", average=True,
-                        field_overlay=False, **plotrc)
+                label=r"$\beta^{-1}$", average=True, **plotrc)
+    plotrc['vmin'] = 0
+    plotrc['vmax'] = 20
+    plotrc['cmap'] = 'Reds'
     plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32),
-                        label="Failures", vmin=0, vmax=20, cmap='Reds', integrate=True,
-                        field_overlay=False, **plotrc)
+                        label="Failures", integrate=True, **plotrc)
 
     return fig
 
 def floors(fig, dump, diag, plotrc):
-    ax_slc = lambda i: plt.subplot(2, 4, i)
+    ax_slc = lambda i: plt.subplot(2, 5, i)
+    plotrc['xlabel'] = False
+    plotrc['xticks'] = []
     plot_xz(ax_slc(1), dump, 'rho', log=True, **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
     for i,ff in enumerate(FloorFlag_KHARMA):
-        plot_xz(ax_slc(2+i), dump, dump['floors'] & ff.value, label=ff.name, integrate=True, **plotrc)
+        p = 2+i
+        plotrc['cbar'] = (p % 5 == 0)
+        if p <= 5:
+            plotrc['xlabel'] = False
+            plotrc['xticks'] = []
+        else:
+            plotrc['xlabel'] = True
+            plotrc['xticks'] = None
 
+        if p % 5 != 1:
+            plotrc['ylabel'] = False
+            plotrc['yticks'] = []
+        else:
+            plotrc['ylabel'] = True
+            plotrc['yticks'] = None
+
+        plot_xz(ax_slc(p), dump, dump['fflag'] & ff.value, label=ff.name, integrate=True, **plotrc)
+    fig.subplots_adjust(hspace=0.01, wspace=0.12, left=0.05, right=0.95, bottom=0.05, top=0.95)
     return fig
 
 def old_floors(fig, dump, diag, plotrc):

@@ -185,9 +185,6 @@ class KHARMAFile(DumpFile):
             out = np.zeros(out_shape, dtype=astype)
         #print("Reading block of total size ", out.shape)
 
-        # The slice we need of each block is just ng to -ng, with 0->None for the whole slice
-        o = [None if i == 0 else i for i in [ng_fx, -ng_fx, ng_fy, -ng_fy, ng_fz, -ng_fz]]
-
         # Arrange and read each block
         for ib in range(fil.NumBlocks):
             bb = fil.BlockBounds[ib]
@@ -207,11 +204,12 @@ class KHARMAFile(DumpFile):
             # If the ghost zones are included (ng_f > 0) but we don't want them (all) (ng_i = 0),
             # then take a portion of the file.  Otherwise take it all.
             # Also include the block number out front
-            fil_slc = (ib, slice(loc_slc[2].start - b[2].start + ng_fz - ng_iz, loc_slc[2].stop - b[2].start - ng_fz + ng_iz),
-                           slice(loc_slc[1].start - b[1].start + ng_fy - ng_iy, loc_slc[1].stop - b[1].start - ng_fy + ng_iy),
-                           slice(loc_slc[0].start - b[0].start + ng_fx - ng_ix, loc_slc[0].stop - b[0].start - ng_fx + ng_ix))
+            fil_slc = (ib, slice(loc_slc[2].start - b[2].start + ng_fz - ng_iz, loc_slc[2].stop - b[2].start + ng_fz + ng_iz),
+                           slice(loc_slc[1].start - b[1].start + ng_fy - ng_iy, loc_slc[1].stop - b[1].start + ng_fy + ng_iy),
+                           slice(loc_slc[0].start - b[0].start + ng_fx - ng_ix, loc_slc[0].stop - b[0].start + ng_fx + ng_ix))
             if (fil_slc[1].start > fil_slc[1].stop) or (fil_slc[2].start > fil_slc[2].stop) or (fil_slc[3].start > fil_slc[3].stop):
                 # Don't read blocks outside our domain
+                #print("Skipping block: ", b, " would be to location ", out_slc, " from portion ", fil_slc)
                 continue
             #print("Reading block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
 

@@ -89,17 +89,19 @@ def movie(movie_type, paths, **kwargs):
             # Import profiling only if used, start it
             import cProfile, pstats, io
             from pstats import SortKey
+            from pympler import tracker
             pr = cProfile.Profile()
             pr.enable()
             # Run sequentially to make profiling & backtraces work
             for fname in files:
+                tr = tracker.SummaryTracker()
                 frame(fname, diag, kwargs)
-
+                tr.print_diff()
+            
             pr.disable()
             s = io.StringIO()
-            sortby = SortKey.CUMULATIVE
-            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-            ps.print_stats()
+            ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.TIME)
+            ps.print_stats(10)
             print(s.getvalue())
 
         else:
