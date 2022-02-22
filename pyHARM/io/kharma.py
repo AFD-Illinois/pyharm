@@ -15,7 +15,6 @@ def read_log(fname):
     with open(fname) as inf:
         inf.readline()
         header = [e.split('=')[1].rstrip() for e in inf.readline().split('[')[1:]]
-        print(header)
     tab = pandas.read_table(fname, delim_whitespace=True, comment='#', names=header)
     out = {}
     for name in header:

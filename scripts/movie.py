@@ -81,7 +81,9 @@ def movie(movie_type, paths, **kwargs):
 
         try:
             # Load diagnostics from HARM itself
-            diag = pyHARM.io.read_log(glob.glob(os.path.join(path, "*.hst")))
+            fname = glob.glob(os.path.join(path, "*.hst"))[0]
+            print("Loading diag file ",fname, file=sys.stderr)
+            diag = pyHARM.io.read_log(fname)
         except IOError:
             diag = None
 

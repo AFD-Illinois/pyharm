@@ -66,7 +66,7 @@ def read_hdr(fname):
     return _get_filter_class(fname)(fname).read_params()
 
 def read_log(fname):
-    """Get just the header/params embedded in a simulation file.
+    """Read a file containing a history or log of fluxes & other scalars over time.
     """
     if ".hst" in fname:
         return kharma.read_log(fname)

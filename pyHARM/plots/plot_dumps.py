@@ -13,7 +13,7 @@ from .pretty import pretty
 Can overlay "magnetic field lines" computed as contours of phi-symmetrized field's vector potential
 """
 
-def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
+def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None, frame=True,
                   cbar=True, cbar_ticks=None, cbar_label=None,
                   label=None, **kwargs):
     """Add any extras to plots which are not dependent on data or slicing.
@@ -23,6 +23,7 @@ def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
     
     :param xticks: If not None, set *all* xticks to specified list
     :param yticks: If not None, set *all* yticks to specified list
+    :param frame: whether to show the plot axes/border at all
     
     :param cbar: Add a colorbar
     :param cbar_ticks: If not None, set colorbar ticks to specified list
@@ -46,17 +47,14 @@ def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None,
             cbar.set_label(cbar_label)
 
     if xticks is not None:
-        plt.gca().set_xticks(xticks)
-        plt.xticks(xticks)
         ax.set_xticks(xticks)
     if yticks is not None:
-        plt.gca().set_yticks(yticks)
-        plt.yticks(yticks)
         ax.set_yticks(yticks)
-    if xticks == [] and yticks == []:
+    if not frame:
         # Remove the whole frame for good measure
-        # fig.patch.set_visible(False)
         ax.axis('off')
+        # What does this do? It looks scary
+        # fig.patch.set_visible(False)
 
     if label is not None:
         ax.set_title(label)
@@ -274,9 +272,11 @@ def plot_thphi(ax, dump, var, r_i, cmap='jet', vmin=None, vmax=None, window=None
     return mesh
 
 def plot_slices(ax1, ax2, dump, var, field_overlay=False, nlines=10, **kwargs):
-    """Make adjacent plots with plot_xy and plot_xz, using the given pair of axes
+    """Make adjacent plots with plot_xy and plot_xz, using the given pair of axes.
+    Assumes axes are arranged left-to-right ax1, ax2
     """
-    plot_xz(ax1, dump, var, **kwargs)
+    kwargs_left = {**kwargs, **{'cbar': False}}
+    plot_xz(ax1, dump, var, **kwargs_left)
     # If we're not plotting in native coordinates, plot contours.
     # They are very unintuitive in native coords
     if field_overlay and not ('native' in kwargs.keys() and kwargs['native']):
@@ -284,9 +284,8 @@ def plot_slices(ax1, ax2, dump, var, field_overlay=False, nlines=10, **kwargs):
 
     # If we specified 'at', it was *certainly* for the xz slice, not this one.
     # TODO separate option when calling this/plot_xy that will disambiguate?
-    if 'at' in kwargs:
-        kwargs['at'] = None
-    plot_xy(ax2, dump, var, **kwargs)
+    kwargs_right = {**kwargs, **{'at': None}}
+    plot_xy(ax2, dump, var, **kwargs_right)
 
 def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=False, at=0, average=False, use_contourf=False, **kwargs):
     """Overlay countour lines on an XZ plot, of 'var' at each of the list 'levels' in color 'color'.

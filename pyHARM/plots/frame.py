@@ -88,6 +88,7 @@ def frame(fname, diag, kwargs):
         plotrc['native'] = True
         plotrc['window'] = None # Let plotter choose based on grid
         plotrc['shading'] = 'flat'
+        plotrc['half_cut'] = True
         movie_type = movie_type.replace("_array","")
 
     # Options to place
@@ -113,7 +114,7 @@ def frame(fname, diag, kwargs):
             no_margin = True
             plotrc.update({'xlabel': False, 'ylabel': False,
                            'xticks': [], 'yticks': [],
-                           'cbar': False})
+                           'cbar': False, 'frame': False})
             movie_type = movie_type.replace("_simple","")
 
         # Various options 
@@ -150,12 +151,15 @@ def frame(fname, diag, kwargs):
             overlay_field(ax, dump, nlines=nlines)
         # TODO contours
 
-    # Special title for diagnostic divB
-    if "divB" in movie_type:
-        fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(np.max(np.abs(dump['divB']))))
-    else:
-        # Title by time, otherwise number
-        fig.suptitle("t = {}".format(int(tdump)))
+    # If the figure code didn't set the title
+    # I cannot be bothered to flag this for myself
+    if fig._suptitle is None or fig._suptitle.get_text() == "":
+        if "divB" in movie_type:
+            # Special title for diagnostic divB
+            fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(np.max(np.abs(dump['divB']))))
+        else:
+            # Title by time, otherwise number
+            fig.suptitle("t = {}".format(int(tdump)))
 
     # Save by name, clean up
     plt.savefig(frame_name, dpi=kwargs['fig_dpi'])

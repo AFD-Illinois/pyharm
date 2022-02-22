@@ -14,7 +14,7 @@ from ..reductions import *
 from ..variables import *
 from .plot_dumps import *
 from .plot_results import *
-from ..defs import FloorFlag_KHARMA, FloorFlag_iharm3d
+from ..defs import FloorFlag_KHARMA, FloorFlag_iharm3d, InversionStatus
 
 """Various full figures, combining plots & settings frequently used together
 Similar to reports.py in imtools
@@ -32,21 +32,21 @@ def simplest(fig, dump, diag, plotrc, type="both", var='log_rho'):
         xz_slc = plt.subplot(1, 1, 1)
         xy_slc = plt.subplot(1, 1, 1)
     
-    if 'vmin' not in plotrc:
+    if 'vmin' not in plotrc or plotrc['vmin'] is None:
         plotrc['vmin'] = -6
-    if 'vmax' not in plotrc:
+    if 'vmax' not in plotrc or plotrc['vmax'] is None:
         plotrc['vmax'] = 1
 
     if type in ("poloidal", "both"):
         plot_xz(xz_slc, dump, var, label="",
                 xlabel=False, ylabel=False, xticks=[], yticks=[],
-                cbar=False, **plotrc)
+                cbar=False, frame=False, **plotrc)
     if type in ("toroidal", "both"):
         plotrc['vmin'] = plotrc['vmin'] + 0.15
         plotrc['vmax'] = plotrc['vmax'] + 0.15
         plot_xy(xy_slc, dump, var, label="",
                 xlabel=False, ylabel=False, xticks=[], yticks=[],
-                cbar=False, **plotrc)
+                cbar=False, frame=False, **plotrc)
     xz_slc.axis('off')
     xy_slc.axis('off')
     fig.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
@@ -58,8 +58,8 @@ def simpler(fig, dump, diag, plotrc):
     gs = gridspec.GridSpec(2, 2, height_ratios=[6, 1], width_ratios=[16, 17])
     ax_slc = [plt.subplot(gs[0, 0]), plt.subplot(gs[0, 1])]
     ax_flux = [plt.subplot(gs[1, :])]
-    plot_slices(ax_slc[0], ax_slc[1], dump, 'rho', log=True, overlay_field=False, **plotrc)
-    plot_diag(ax_flux[0], diag, 'phi_b', tline=dump['t'], xlabel=False)
+    plot_slices(ax_slc[0], ax_slc[1], dump, 'rho', log=True, **plotrc)
+    plot_hst(ax_flux[0], diag, 'phi_b', tline=dump['t'])
     return fig
 
 def simple(fig, dump, diag, plotrc):
@@ -68,8 +68,9 @@ def simple(fig, dump, diag, plotrc):
     ax_slc = [plt.subplot(gs[0, 0]), plt.subplot(gs[0, 1])]
     ax_flux = [plt.subplot(gs[1, :]), plt.subplot(gs[2, :])]
     plot_slices(ax_slc[0], ax_slc[1], dump, 'rho', log=True, **plotrc)
-    plot_diag(ax_flux[0], diag, 'Mdot', tline=dump['t'])
-    plot_diag(ax_flux[1], diag, 'phi_b', tline=dump['t'])
+    plot_hst(ax_flux[0], diag, 'Mdot', tline=dump['t'], xlabel="", xticklabels=[])
+    plot_hst(ax_flux[1], diag, 'phi_b', tline=dump['t'])
+    fig.subplots_adjust(hspace=0.25, bottom=0.05, top=0.95)
     return fig
 
 def traditional(fig, dump, diag, plotrc):
@@ -77,19 +78,20 @@ def traditional(fig, dump, diag, plotrc):
     Alternatively, mix in zoomed-in versions or fluxed from the dignostic output
     """
     ax_slc = lambda i: plt.subplot(2, 4, i)
+    ax_flux = lambda i: plt.subplot(4, 2, i)
     # Usual movie: RHO beta fluxes
     # CUTS
     plot_slices(ax_slc(1), ax_slc(2), dump, 'rho', log=True, **plotrc)
-    plot_slices(ax_slc(3), ax_slc(4), dump, 'UU', log=True, **plotrc)
-    plot_slices(ax_slc(5), ax_slc(6), dump, 'bsq', log=True, **plotrc)
-    plot_slices(ax_slc(7), ax_slc(8), dump, 'beta', log=True, **plotrc)
+    plot_slices(ax_slc(3), ax_slc(4), dump, 'UU', log=True, **{**plotrc, **{'ylabel': False}})
+    plot_slices(ax_slc(5), ax_slc(6), dump, 'beta', log=True, **plotrc)
     # FLUXES
-#            plot_diag(ax_flux[2], diag, 't', 'Mdot', tline=dump['t'])
-#            plot_diag(ax_flux[4], diag, 't', 'phi_b', tline=dump['t'])
-    # Mixins:
-    # Zoomed in RHO
-#            plot_slices(ax_slc[7], ax_slc[8], dump, 'rho', vmin=-3, vmax=2,
-#                             window=[-10, 10, -10, 10], field_overlay=False)
+    plot_hst(ax_flux(6), diag, 'Mdot', tline=dump['t'], xticklabels=[])
+    plot_hst(ax_flux(8), diag, 'phi_b', tline=dump['t'])
+    # bsq
+    #plot_slices(ax_slc(7), ax_slc(8), dump, 'bsq', log=True, **plotrc)
+    # Zoomed in rho
+    #plot_slices(ax_slc(7), ax_slc(8), dump, 'rho', log=True, window=[-10, 10, -10, 10])
+    fig.subplots_adjust(hspace=0.1, wspace=0.23, left=0.05, right=0.95, bottom=0.05, top=0.95)
     return fig
 
 def prims(fig, dump, diag, plotrc, log=True, simple=True, type="poloidal"):
@@ -101,7 +103,7 @@ def prims(fig, dump, diag, plotrc, log=True, simple=True, type="poloidal"):
     if simple:
         plotrc.update({'xlabel': False, 'ylabel': False,
                        'xticks': [], 'yticks': [],
-                       'cbar': False})
+                       'cbar': False, 'frame': False})
     for i,var in enumerate(['RHO', 'UU', 'U1', 'U2', 'U3', 'B1', 'B2', 'B3']):
         fn(ax_slc(i+1), dump, var, log=log, **plotrc)
     if simple:
@@ -157,16 +159,16 @@ def e_ratio(fig, dump, diag, plotrc):
     plotrc['vmax'] = 3
     # Energy ratios: difficult places to integrate, with failures
     plot_slices(ax_slc(1), ax_slc(2), dump, np.log10(dump['UU'] / dump['RHO']),
-                        label=r"$\{10}(U / \rho)$", average=True, **plotrc)
+                        label=r"$\log_{10}(U / \rho)$", average=True, **plotrc)
     plot_slices(ax_slc(3), ax_slc(4), dump, np.log10(dump['bsq'] / dump['RHO']),
-                        label=r"$\{10}(b^2 / \rho)$", average=True, **plotrc)
+                        label=r"$\log_{10}(b^2 / \rho)$", average=True, **plotrc)
     plot_slices(ax_slc(5), ax_slc(6), dump, np.log10(1 / dump['beta']),
                         label=r"$\beta^{-1}$", average=True, **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
-    plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32),
-                        label="Failures", integrate=True, **plotrc)
+    plot_slices(ax_slc(7), ax_slc(8), dump, (dump['pflag'] > 0).astype(np.int32),
+                        label="Failures", sum=True, **plotrc)
     return fig
 
 def e_ratio_funnel(fig, dump, diag, plotrc):
@@ -179,19 +181,20 @@ def e_ratio_funnel(fig, dump, diag, plotrc):
     plotrc['vmax'] = 3
     plotrc['half_cut'] = True
     plot_thphi(ax_slc(1), dump, 'log_Theta', r_i,
-                        label=r"$\{10}(U / \rho)$", average=True, **plotrc)
+                        label=r"$\log_{10}(U / \rho)$", average=True, **plotrc)
     plot_thphi(ax_slc(2), dump, 'log_sigma', r_i,
-                        label=r"$\{10}(b^2 / \rho)$", average=True, **plotrc)
+                        label=r"$\log_{10}(b^2 / \rho)$", average=True, **plotrc)
     plot_thphi(ax_slc(3), dump, 'log_betainv', r_i,
                         label=r"$\beta^{-1}$", average=True, **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
-    plot_thphi(ax_slc(4), dump, (dump['fails'] != 0).astype(np.int32), r_i,
-                        label="Failures", integrate=True, **plotrc)
+    plot_thphi(ax_slc(4), dump, (dump['pflag'] > 0).astype(np.int32), r_i,
+                        label="Failures", sum=True, **plotrc)
     return fig
 
 def conservation(fig, dump, diag, plotrc):
+    """TODO this is still WIP to restore. Later."""
     ax_slc = lambda i: plt.subplot(2, 4, i)
     ax_flux = lambda i: plt.subplot(4, 2, i)
     # Continuity plots to verify local conservation of energy, angular + linear momentum
@@ -206,7 +209,7 @@ def conservation(fig, dump, diag, plotrc):
     plot_slices(ax_slc(5), ax_slc(6), dump, 'JE0', label=r"$T^0_0$ Integrated", sum=True)
 
     # Usual fluxes for reference
-    #ppltr.plot_diag(ax_flux[1], diag, 't', 'mdot', tline=dump['t'], logy=MDOT)
+    #ppltr.plot_hst(ax_flux[1], diag, 'Mdot', tline=dump['t'], logy=MDOT)
 
     r_out = 100
 
@@ -228,27 +231,28 @@ def conservation(fig, dump, diag, plotrc):
     ax_flux(4).plot(r1d, Edot_r, label='Edot at R', ylim=(-200, 200), rlim=(0, r_out), native=True)
 
     # Radial integrated failures
-    ax_flux(6).plot(r1d, (dump['fails'] != 0).sum(axis=(1, 2)), label='Fails at R', native=True, rlim=(0, r_out), ylim=(0, 1000))
+    ax_flux(6).plot(r1d, (dump['pflag'] > 0).sum(axis=(1, 2)), label='Fails at R', native=True, rlim=(0, r_out), ylim=(0, 1000))
 
     return fig
 
 def energies(fig, dump, diag, plotrc):
     ax_slc = lambda i: plt.subplot(2, 4, i)
     # Set particular vmin/max
+    plotrc['half_cut'] = True
     plotrc['vmin'] = -3
     plotrc['vmax'] = 3
     # Energy ratios: difficult places to integrate, with failures
     plot_slices(ax_slc(1), ax_slc(2), dump, 'rho',
-                label=r"$\{10}(U / \rho)$",  **plotrc)
+                label=r"$\log_{10}(\rho)$", average=True, **plotrc)
     plot_slices(ax_slc(3), ax_slc(4), dump, 'bsq',
-                label=r"$\{10}(b^2 / \rho)$", average=True, **plotrc)
+                label=r"$\log_{10}(b^2)$", average=True, **plotrc)
     plot_slices(ax_slc(5), ax_slc(6), dump, 'UU',
-                label=r"$\beta^{-1}$", average=True, **plotrc)
+                label=r"$\log_{10}(UU)$", average=True, **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
-    plot_slices(ax_slc(7), ax_slc(8), dump, (dump['fails'] != 0).astype(np.int32),
-                        label="Failures", integrate=True, **plotrc)
+    plot_slices(ax_slc(7), ax_slc(8), dump, (dump['pflag'] > 0).astype(np.int32),
+                        label="Failures", sum=True, **plotrc)
 
     return fig
 
@@ -277,8 +281,39 @@ def floors(fig, dump, diag, plotrc):
             plotrc['ylabel'] = True
             plotrc['yticks'] = None
 
-        plot_xz(ax_slc(p), dump, dump['fflag'] & ff.value, label=ff.name, integrate=True, **plotrc)
-    fig.subplots_adjust(hspace=0.01, wspace=0.12, left=0.05, right=0.95, bottom=0.05, top=0.95)
+        plot_xz(ax_slc(p), dump, dump['fflag'] & ff.value, label=ff.name, sum=True, **plotrc)
+    fig.subplots_adjust(hspace=0.1, wspace=0.12, left=0.05, right=0.95, bottom=0.05, top=0.92)
+    fig.suptitle("t = {}, Total floor hits: {}".format(int(dump['t']), np.sum(dump['fflag'] > 0)))
+    return fig
+
+def fails(fig, dump, diag, plotrc):
+    ax_slc = lambda i: plt.subplot(2, 4, i)
+    plotrc['xlabel'] = False
+    plotrc['xticks'] = []
+    plot_xz(ax_slc(1), dump, 'rho', log=True, **plotrc)
+    plotrc['vmin'] = 0
+    plotrc['vmax'] = 1
+    plotrc['cmap'] = 'Reds'
+    for i in range(1, 8):
+        p = 1+i
+        plotrc['cbar'] = (p % 4 == 0)
+        if p <= 4:
+            plotrc['xlabel'] = False
+            plotrc['xticks'] = []
+        else:
+            plotrc['xlabel'] = True
+            plotrc['xticks'] = None
+
+        if p % 4 != 1:
+            plotrc['ylabel'] = False
+            plotrc['yticks'] = []
+        else:
+            plotrc['ylabel'] = True
+            plotrc['yticks'] = None
+
+        plot_xz(ax_slc(p), dump, dump['pflag'] == i, label=InversionStatus(i).name, sum=True, **plotrc)
+    fig.subplots_adjust(hspace=0.1, wspace=0.12, left=0.05, right=0.95, bottom=0.05, top=0.92)
+    fig.suptitle("t = {}, Total inversion failures: {}".format(int(dump['t']), np.sum(dump['pflag'] > 0)))
     return fig
 
 def old_floors(fig, dump, diag, plotrc):
@@ -288,6 +323,6 @@ def old_floors(fig, dump, diag, plotrc):
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
     for i,ff in enumerate(FloorFlag_iharm3d):
-        plot_xz(ax_slc(2+i), dump, dump['floors'] & ff.value, label=ff.name, integrate=True, **plotrc)
+        plot_xz(ax_slc(2+i), dump, dump['fflag'] & ff.value, label=ff.name, sum=True, **plotrc)
 
     return fig
