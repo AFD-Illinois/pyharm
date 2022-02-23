@@ -1,28 +1,28 @@
 # 'dev' branch NOTE:
-This branch is significantly changed from previous versions of pyHARM.  Therefore, some scripts and even outer portions of the library are temporarily broken until imports and interface changes are updated.  The core features described in the new README sections below should work, as should anything around `movie.py`, i.e. plotting of KHARMA dumps and everything to do with coordinates.  I've tried to update the documentation as I go, but pieces, especially in the open documentation pages, are several versions behind still.
+This branch is significantly changed from previous versions of pyharm.  Therefore, some scripts and even outer portions of the library are temporarily broken until imports and interface changes are updated.  The core features described in the new README sections below should work, as should anything around `movie.py`, i.e. plotting of KHARMA dumps and everything to do with coordinates.  I've tried to update the documentation as I go, but pieces, especially in the open documentation pages, are several versions behind still.
 
-Once everything is in fairly complete working order, the plan is to upload pyHARM to pyPI to have a single working base that's easy to install into different environments.  If you'd like to write your own scripts around KHARMA dumps, the file `pyHARM/io/kharma.py`, specifically `read_var`, is a good place to start.  For a basic reader, you can safely ignore index operations related to ghost zones and slicing, but note the matrix transformations required to read KHARMA "meshblocks" into a single whole "mesh."
+Once everything is in fairly complete working order, the plan is to upload pyharm to pyPI to have a single working base that's easy to install into different environments.  If you'd like to write your own scripts around KHARMA dumps, the file `pyharm/io/kharma.py`, specifically `read_var`, is a good place to start.  For a basic reader, you can safely ignore index operations related to ghost zones and slicing, but note the matrix transformations required to read KHARMA "meshblocks" into a single whole "mesh."
 
-# pyHARM
+# pyharm
 Python tools for HARM analysis
 
-`pyHARM` is a set of Python functions for analyzing and plotting the output of General-Relativistic Magnetohydrodynamic (GRMHD) simulations.  It includes functions for obtaining a long list of different variables of interest (pressures, temperatures, stress-energy tensor, synchrotron emissivity) based on local fluid state.  It additionally includes reductions for performing surface and volume integrals of various types, and plotting tools, as well as MPI-accelerated scripts for producing movies and time-summed or -averaged reductions over large-scale simulations.
+`pyharm` is a set of Python functions for analyzing and plotting the output of General-Relativistic Magnetohydrodynamic (GRMHD) simulations.  It includes functions for obtaining a long list of different variables of interest (pressures, temperatures, stress-energy tensor, synchrotron emissivity) based on local fluid state.  It additionally includes reductions for performing surface and volume integrals of various types, and plotting tools, as well as MPI-accelerated scripts for producing movies and time-summed or -averaged reductions over large-scale simulations.
 
-`pyHARM` primarily supports simulations based on the HARM scheme (Gammie et al. 2003) -- [KHARMA](https://github.com/AFD-Illinois/kharma), [iharm3d](https://github.com/AFD-Illinois/iharm3d), and [ebhlight](https://github.com/AFD-Illinois/ebhlight).  It includes Python re-implementations of core parts of the scheme, useful for deriving everything about the simulation not directly present in output files.  It includes limited support for several other codes, either directly or after translation with [EHT-babel](https://github.com/AFD-Illinois/EHT-babel/).
+`pyharm` primarily supports simulations based on the HARM scheme (Gammie et al. 2003) -- [KHARMA](https://github.com/AFD-Illinois/kharma), [iharm3d](https://github.com/AFD-Illinois/iharm3d), and [ebhlight](https://github.com/AFD-Illinois/ebhlight).  It includes Python re-implementations of core parts of the scheme, useful for deriving everything about the simulation not directly present in output files.  It includes limited support for several other codes, either directly or after translation with [EHT-babel](https://github.com/AFD-Illinois/EHT-babel/).
 
-The core of pyHARM is the `FluidDump` object, which behaves similar to a Python dictionary of `numpy` arrays, but calculates its members on the fly by reading the original file and performing operations only as necessary ("lazy" evaluation).  `FluidDump` objects can be sliced similarly to `numpy` arrays, and subsequent file reads and calculations will be done over only the sliced portion.
+The core of pyharm is the `FluidDump` object, which behaves similar to a Python dictionary of `numpy` arrays, but calculates its members on the fly by reading the original file and performing operations only as necessary ("lazy" evaluation).  `FluidDump` objects can be sliced similarly to `numpy` arrays, and subsequent file reads and calculations will be done over only the sliced portion.
 
-Finally, as a consequence of needing to read GRMHD output, pyHARM includes definitions of various coordinate systems in Kerr spacetime, as well as tools for dealing with a logically Cartesian grid in various coordinate systems.  These might be independently useful, see `coordinates.py` & `grid.py` if you're looking for just coordinate tools.
+Finally, as a consequence of needing to read GRMHD output, pyharm includes definitions of various coordinate systems in Kerr spacetime, as well as tools for dealing with a logically Cartesian grid in various coordinate systems.  These might be independently useful, see `coordinates.py` & `grid.py` if you're looking for just coordinate tools.
 
 ## Installing:
 The preferred installation method, for flexibility in changing the source as needed, is to run simply:
 ```bash
 $ pip3 install -e .
 ```
-Thereafter pyHARM should be importable from any Python prompt or script run in the same environment.  It can also be installed as a user or system package, but at the cost of less easily modifying the source.
+Thereafter pyharm should be importable from any Python prompt or script run in the same environment.  It can also be installed as a user or system package, but at the cost of less easily modifying the source.
 
 ## Examples:
-Often, what you need to do is covered somewhere in the existing scripts bundled with pyHARM.  Check out the `scripts/` directory.  The two main scripts are `movie.py` for producing plots and movies, and `analysis.py` for performing a set of reductions over a full simulation's output.  If you need to produce a plot, try adapting something from `pyHARM.plots.figures`.  Adding plots to that directory makes them accessible to `movie.py` when you're ready to run at scale.
+Often, what you need to do is covered somewhere in the existing scripts bundled with pyharm.  Check out the `scripts/` directory.  The two main scripts are `movie.py` for producing plots and movies, and `analysis.py` for performing a set of reductions over a full simulation's output.  If you need to produce a plot, try adapting something from `pyharm.plots.figures`.  Adding plots to that directory makes them accessible to `movie.py` when you're ready to run at scale.
 
 For more general usage, the `notebooks` directory has a sample Jupyter notebook playing around with some basic reductions & plots.
 
@@ -60,4 +60,4 @@ Finally, members of the `Grid` object are also accessible through `FluidDump` ob
 
 ## Reductions
 
-See `analysis.py` in scripts and `reductions.py` in pyHARM.
+See `analysis.py` in scripts and `reductions.py` in pyharm.

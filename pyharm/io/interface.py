@@ -1,5 +1,5 @@
 
-"""This interface provides the list of functions to implement for new file filters for pyHARM.
+"""This interface provides the list of functions to implement for new file filters for pyharm.
 A good base set of variables would be to provide something logical for the strings RHO:B3 in both
 lists below.  The provided index_of() function returns the expected indices 1-8 for these variables --
 if your file has an array prims[] you can likely return prims[:,:,:,index_of(var)] and cover many/most calls.

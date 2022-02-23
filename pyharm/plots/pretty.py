@@ -1,5 +1,5 @@
 
-"""This file provides a function 'pretty' which takes a variable name used in pyHARM,
+"""This file provides a function 'pretty' which takes a variable name used in pyharm,
 and returns the LaTeX form of the name, suitable for plot axes.
 """
 

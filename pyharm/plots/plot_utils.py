@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors, ticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-"""Generic utilities and plot types -- anything potentially useful/stolen from outside pyHARM
+"""Generic utilities and plot types -- anything potentially useful/stolen from outside pyharm
 """
 
 def pcolormesh_symlog(ax, X, Y, Z, vmax=None, vmin=None, linthresh=None, decades=4, linscale=0.01, cmap='RdBu_r', cbar=True, **kwargs):

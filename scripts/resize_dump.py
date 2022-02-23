@@ -4,11 +4,11 @@
 import sys
 import numpy as np
 
-import pyHARM
-from pyHARM.grmhd.resize import resize
-from pyHARM.io.iharm3d import write_dump
+import pyharm
+from pyharm.grmhd.resize import resize
+from pyharm.io.iharm3d import write_dump
 
-dump = pyHARM.load_dump(sys.argv[1], calc_derived=False, add_ghosts=True)
+dump = pyharm.load_dump(sys.argv[1], calc_derived=False, add_ghosts=True)
 
 # TODO just return IharmDump object?
 params_new, Gnew, Pnew = resize(dump.params, dump.grid, dump.prims, dump['n1']*2, dump['n2']*2, dump['n3']*2)

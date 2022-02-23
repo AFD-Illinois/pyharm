@@ -46,10 +46,10 @@ def write_git_revision(package_name):
         outf.write("GIT_REVISION = %s\n" % repr(git_rev))
 
 
-write_git_revision("pyHARM")
+write_git_revision("pyharm")
 
 
-setup(name="pyHARM",
+setup(name="pyharm",
       version="2022.2",
       description="Python tools for HARM analysis",
       long_description=open("README.md", "rt").read(),

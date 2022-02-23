@@ -8,6 +8,6 @@ from .defs import Loci
 
 def load_dump(fname, **kwargs):
     """Wrapper for creating a new IharmDump object from the given file
-    See pyHARM/ana/iharm_dump.py
+    See pyharm/ana/iharm_dump.py
     """
     return FluidDump(fname, **kwargs)

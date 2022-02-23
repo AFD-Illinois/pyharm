@@ -2,8 +2,8 @@
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
-from pyHARM.defs import Loci
-from pyHARM.grid import Grid
+from pyharm.defs import Loci
+from pyharm.grid import Grid
 
 def resize(params, G, P, n1, n2, n3, method='linear'):
     """Resize the primitives P onto a new grid.

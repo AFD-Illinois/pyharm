@@ -7,8 +7,8 @@ import h5py
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
-from pyHARM.plots.plot_dumps import pcolormesh_symlog
-from pyHARM.ana_results import AnaResults
+from pyharm.plots.plot_dumps import pcolormesh_symlog
+from pyharm.ana_results import AnaResults
 
 infname = sys.argv[1]
 

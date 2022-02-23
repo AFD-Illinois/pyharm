@@ -30,7 +30,7 @@ def get_fnames(path):
     raise FileNotFoundError("No dump files found at {}".format(path))
 
 def _get_filter_class(fname):
-    """Internal pyHARM i/o function to choose which class to use when reading a new file.
+    """Internal pyharm i/o function to choose which class to use when reading a new file.
     Ideally should be kept very fast, as sometimes not much is actually *read* from the file
     afterward.
     """

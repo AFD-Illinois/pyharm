@@ -5,7 +5,7 @@
 
 import sys
 import numpy as np
-import pyHARM.grid as grid
+import pyharm.grid as grid
 
 n1 = int(sys.argv[1])
 n2 = int(sys.argv[2])

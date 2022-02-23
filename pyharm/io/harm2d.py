@@ -70,7 +70,7 @@ class HARM2DFile(DumpFile):
     def read_var(self, var, slc=(), **kwargs):
         """Read the header and primitives from an iharm2d v3 ASCII file.
         No analysis or extra processing is performed
-        @return P, params in standard pyHARM
+        @return P, params in standard pyharm
         """
         i = self.index_of(var)
         if i is not None:

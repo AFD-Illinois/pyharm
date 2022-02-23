@@ -153,9 +153,9 @@ class Iharm3DFile(DumpFile):
 
     def _prep_array(self, arr, astype=None):
         """Re-order and optionally up-convert an array from a file,
-        to put it in usual pyHARM order/format
+        to put it in usual pyharm order/format
         """
-        # Reverse indices on vectors, since most pyHARM tooling expects p,i,j,k
+        # Reverse indices on vectors, since most pyharm tooling expects p,i,j,k
         # See iharm_dump for analysis interface that restores i,j,k,p order
         if len(arr.shape) > 3:
             arr = np.einsum("...m->m...", arr)

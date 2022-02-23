@@ -2,7 +2,7 @@ import numpy as np
 import scipy.fftpack as fft
 
 # This is too darn useful
-from pyHARM.util import i_of
+from pyharm.util import i_of
 
 """
 General interface for reductions:

@@ -51,7 +51,7 @@ class KORALFile(DumpFile):
 
     def _prep_array(arr, as_double=False, zones_first=False, add_ghosts=False):
         """Re-order and optionally up-convert an array from a file,
-        to put it in usual pyHARM order/format
+        to put it in usual pyharm order/format
         """
         # Upconvert to doubles if necessary
         # TODO could add other types?  Not really necessary yet

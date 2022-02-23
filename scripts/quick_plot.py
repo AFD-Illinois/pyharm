@@ -10,10 +10,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-import pyHARM
-import pyHARM.plots.plot_dumps as pplt
-from pyHARM import pretty
-from pyHARM.units import get_units_M87
+import pyharm
+import pyharm.plots.plot_dumps as pplt
+from pyharm import pretty
+from pyharm.units import get_units_M87
 
 FIGX = 10
 FIGY = 10
@@ -47,7 +47,7 @@ if len(sys.argv) > 4:
 else:
     unit = 1
 
-dump = pyHARM.load_dump(dumpfile)
+dump = pyharm.load_dump(dumpfile)
 
 if dump['n3'] > 1:
     fig = plt.figure(figsize=(FIGX, FIGY))

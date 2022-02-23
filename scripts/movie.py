@@ -28,9 +28,9 @@ except ImportError:
     def do_out():
         return True
 
-import pyHARM
-from pyHARM.plots.frame import frame
-from pyHARM.util import calc_nthreads
+import pyharm
+from pyharm.plots.frame import frame
+from pyharm.util import calc_nthreads
 
 @click.command()
 @click.argument('movie_type', nargs=1)
@@ -56,14 +56,14 @@ from pyHARM.util import calc_nthreads
 def movie(movie_type, paths, **kwargs):
     """Movie of type MOVIE_TYPE from dumps at each of PATHS.
 
-    Each PATH can contain dump files in any format readable by pyHARM, either in the given directory or a subdirectory
+    Each PATH can contain dump files in any format readable by pyharm, either in the given directory or a subdirectory
     named "dumps", "dumps_kharma" or similar.
 
     "Movies" are generated as collections of frames in .png format, named frame_tXXXXXXXX.png by simulation time in M,
     and placed in a subdirectory "frames_MOVIE_TYPE" of the given PATH.  One can easily generate a single .mp4 movie
     from these using ffmpeg or similar.
 
-    MOVIE_TYPE can be any variable known to pyHARM (see README, variables.py) or any "figure" function in figures.py.  A common
+    MOVIE_TYPE can be any variable known to pyharm (see README, variables.py) or any "figure" function in figures.py.  A common
     first movie is 'log_rho' which will plot a phi=0 toroidal and midplane poloidal slice of the log_10 of the density. 
 
     If run within an MPI job/allocation with mpi4py installed, movie.py will attempt to use all allocated nodes to generate
@@ -81,7 +81,7 @@ def movie(movie_type, paths, **kwargs):
             # change dir to path we want to image
             os.chdir(path)
             # Try to load known filenames
-            files = pyHARM.io.get_fnames(".")
+            files = pyharm.io.get_fnames(".")
         else:
             files = [path]
 
@@ -96,7 +96,7 @@ def movie(movie_type, paths, **kwargs):
             # Load diagnostics from HARM itself
             fname = glob.glob("*.hst")[0]
             if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
-            diag = pyHARM.io.read_log(fname)
+            diag = pyharm.io.read_log(fname)
         except IOError:
             diag = None
 
@@ -124,7 +124,7 @@ def movie(movie_type, paths, **kwargs):
             # Try to guess how many processes before we MemoryError out
             if 'nthreads' not in kwargs or kwargs['nthreads'] is None:
                 if 'memory_limit' in kwargs and kwargs['memory_limit'] is not None:
-                    hdr = pyHARM.io.read_hdr(files[0])
+                    hdr = pyharm.io.read_hdr(files[0])
                     nthreads = min(calc_nthreads(hdr, pad=0.6),
                                 psutil.cpu_count())
                 else:

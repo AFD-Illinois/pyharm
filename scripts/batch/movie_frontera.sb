@@ -3,10 +3,10 @@
 # This can be used as either a submit script or a bash script from a dev job (bash movie.sb [etc])
 # Usage:
 # sbatch movie.sb type [arguments] -- path1 path2 path3
-# Where type is documented in pyHARM/scripts/movie.py
+# Where type is documented in pyharm/scripts/movie.py
 
 # Frontera sbatch directives
-#SBATCH -J pyHARM_movie
+#SBATCH -J pyharm_movie
 #SBATCH -p development
 #SBATCH -N 1
 #SBATCH --ntasks-per-node 56
@@ -16,7 +16,7 @@
 # Make sure we *do* use Frontera's python, now we don't need OpenCL
 # Intel MPI and mpi4py do *not* mix, load mvapich instead. Speed is secondary.
 module load python3 mvapich2-x
-PYHARM_DIR="$HOME/Code/pyHARM/scripts"
+PYHARM_DIR="$HOME/Code/pyharm/scripts"
 
 # Just in case we're running from bash
 export IBRUN_NPROCS=56
