@@ -91,8 +91,11 @@ class Iharm3DFile(DumpFile):
         else:
             self.params = params
 
-    # def __del__(self):
-    #     fil.close()
+    def __del__(self):
+        # Try to clean up what we can. Anything that may possibly not be a simple ref
+        for cache in ('cache', 'params'):
+            if cache in self.__dict__:
+                del self.__dict__[cache]
 
     def read_params(self, **kwargs):
         """Read the file header and per-dump parameters (t, dt, etc)"""
@@ -111,12 +114,26 @@ class Iharm3DFile(DumpFile):
             return params
 
     def read_var(self, var, slc=(), **kwargs):
+        if var in self.cache:
+            return self.cache[var]
         with h5py.File(self.fname, "r") as fil:
-            # TODO Translate slices to file ordering to read only necessary pieces
+            # Translate the slice to a portion of the file
+            # A bit overkill to stay adaptable: keeps all dimensions until squeeze in _prep_array
+            # TODO ghost zones
+            fil_slc = [slice(None), slice(None), slice(None)]
+            if isinstance(slc, tuple) or isinstance(slc, list):
+                for i in range(len(slc)):
+                    if isinstance(slc[i], int) or isinstance(slc[i], np.int32) or isinstance(slc[i], np.int64):
+                        fil_slc[i] = slice(slc[i], slc[i]+1)
+                    else:
+                        fil_slc[i] = slc[i]
+            fil_slc = tuple(fil_slc)
+
             i = self.index_of(var)
             if i is not None:
                 # This is one of the main vars in the 'prims' array
-                return self._prep_array(fil['/prims'], **kwargs)[i][slc]
+                self.cache[var] = self._prep_array(fil['/prims'][fil_slc + (i,)], **kwargs)
+                return self.cache[var]
             else:
                 # This is something else we should grab by name
                 # Default to int type for flags
@@ -124,9 +141,11 @@ class Iharm3DFile(DumpFile):
                     kwargs['astype'] = np.int32
                 # Read desired slice
                 if var in fil:
-                    return self._prep_array(fil[var], **kwargs)[slc]
+                    self.cache[var] = self._prep_array(fil[var][fil_slc], **kwargs)
+                    return self.cache[var]
                 elif var in fil['/extras']:
-                    return self._prep_array(fil['/extras/'+var], **kwargs)[slc]
+                    self.cache[var] = self._prep_array(fil['/extras/'+var][fil_slc], **kwargs)
+                    return self.cache[var]
                 else:
                     raise IOError("Cannot find variable "+var+" in file "+fil+"!")
 
@@ -145,4 +164,4 @@ class Iharm3DFile(DumpFile):
         if astype is not None:
             arr = arr.astype(astype)
         
-        return arr
+        return np.squeeze(arr)

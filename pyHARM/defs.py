@@ -1,7 +1,7 @@
 # Definitions of enums and slices used throughout the code
 
 from enum import Enum
-
+import numpy as np
 
 class Loci(Enum):
     """Location enumerated value.
@@ -100,7 +100,7 @@ class Slices:
 
     def geom_slc(self, slc):
         """Return the version of a 3D slice suitable for 2D geometry variables"""
-        if isinstance(slc[2], int):
+        if isinstance(slc[2], int) or isinstance(slc[2], np.int32) or isinstance(slc[2], np.int64):
             return slc[:2] + (0,)
         else:
             return slc[:2] + (slice(None),)

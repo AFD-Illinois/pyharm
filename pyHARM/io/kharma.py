@@ -88,7 +88,7 @@ class KHARMAFile(DumpFile):
 
     def __del__(self):
         # Try to clean up what we can. Anything that may possibly not be a simple ref
-        for cache in ('cache', 'params', 'phdf_gen'):
+        for cache in ('cache', 'params'):
             if cache in self.__dict__:
                 del self.__dict__[cache]
 
