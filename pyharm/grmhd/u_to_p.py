@@ -4,7 +4,7 @@
 import numpy as np
 import pyopencl.array as cl_array
 
-from pyHARM.defs import Loci
+from pyharm.defs import Loci
 
 
 def U_to_P(params, G, U, P, loc=Loci.CENT, slc=None):

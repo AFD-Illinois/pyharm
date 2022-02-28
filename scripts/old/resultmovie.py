@@ -8,8 +8,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from pyHARM.ana_results import *
-from pyHARM.util import run_parallel
+from pyharm.ana_results import *
+from pyharm.util import run_parallel
 
 n_avg = 10
 

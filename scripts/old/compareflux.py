@@ -7,8 +7,8 @@ import numpy as np
 from numpy.polynomial.polynomial import Polynomial
 import matplotlib.pyplot as plt
 
-from pyHARM.ana_results import *
-from pyHARM.reductions import pspec
+from pyharm.ana_results import *
+from pyharm.reductions import pspec
 
 ivar = sys.argv[1]
 var = sys.argv[2]

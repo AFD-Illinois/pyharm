@@ -1,6 +1,6 @@
 import numpy as np
 
-from pyHARM.defs import Loci, Slices
+from pyharm.defs import Loci, Slices
 
 """Magnetic field tools. Currently just divB"""
 

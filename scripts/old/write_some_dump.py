@@ -4,9 +4,9 @@
 # TODO WIP to write anything more than trivial zeros, needs BL->KS velocities and sensible starting config
 
 import numpy as np
-from pyHARM import grid, units, coordinates
-import pyHARM.io.iharm3d as h5io
-from pyHARM.grmhd.init_tools import fourvel_to_prim, set_fourvel_t
+from pyharm import grid, units, coordinates
+import pyharm.io.iharm3d as h5io
+from pyharm.grmhd.init_tools import fourvel_to_prim, set_fourvel_t
 
 # Problem-specific parameters
 Ne_unit = 3.e-18

@@ -4,9 +4,6 @@ import sys
 import h5py
 import numpy as np
 
-import pyHARM
-
-
 trace = h5py.File(sys.argv[1], "r")
 outf = h5py.File(sys.argv[2], "w")
 

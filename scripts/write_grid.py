@@ -3,10 +3,10 @@
 import click
 import numpy as np
 import h5py
-from pyHARM.defs import Loci
-from pyHARM import grid
-from pyHARM.grid import Grid
-from pyHARM import io
+from pyharm.defs import Loci
+from pyharm import grid
+from pyharm.grid import Grid
+from pyharm import io
 
 def write_bhlight_grid(G, outfname):
     """Write a Grid object G to a bhlight-format grid file.

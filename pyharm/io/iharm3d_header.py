@@ -24,7 +24,7 @@ mks_keys = ['r_eh', 'r_in', 'r_out', 'a', 'hslope']
 mmks_keys = ['poly_alpha', 'poly_xt']
 fmks_keys = ['mks_smooth', 'poly_alpha', 'poly_xt']
 
-# Translations of things the rest of pyHARM tolerates/understands as elements of 'params', but which are not
+# Translations of things the rest of pyharm tolerates/understands as elements of 'params', but which are not
 # conformant for headers and should be written with an alternate name.
 translations = {'n1': 'n1tot', 'n2': 'n2tot', 'n3': 'n3tot',
                 'metric': 'coordinates', 'metric_run': 'coordinates'}
@@ -105,7 +105,7 @@ def read_hdr(grp):
 
     except KeyError as e:
         print("Warning: {}".format(e))
-        print("File is older than supported, but pyHARM will attempt to continue".format(e))
+        print("File is older than supported, but pyharm will attempt to continue".format(e))
 
 
     # Fix up all the nasty non-Unicode strings
@@ -140,9 +140,9 @@ def read_hdr(grp):
         if ('r_in' not in params) and ('Rin' in params):
             params['r_in'], params['r_out'] = params['Rin'], params['Rout']
 
-    # Renames we've done for pyHARM  or are useful
+    # Renames we've done for pyharm  or are useful
     # params_key -> likely name in existing header
-    # header_key -> desired name in conformant/pyHARM header
+    # header_key -> desired name in conformant/pyharm header
     for params_key in translations:
         header_key = translations[params_key]
         if params_key in params:

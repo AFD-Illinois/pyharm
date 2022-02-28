@@ -70,7 +70,7 @@ class HAMRFile(DumpFile):
 
     def _prep_array(self, arr, astype=None):
         """Re-order and optionally up-convert an array from a file,
-        to put it in usual pyHARM order/format
+        to put it in usual pyharm order/format
         """
         # Ravel
         n1, n2, n3 = self.params['n1'], self.params['n2'], self.params['n3']

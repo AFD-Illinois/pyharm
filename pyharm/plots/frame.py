@@ -17,7 +17,7 @@ from .pretty import pretty
 
 
 """Generate one frame of a movie.  Currently pretty useless outside `movie.py`,
-present in pyHARM so as to be importable by different MPI processes and across movie generation "schemes," if it comes to that.
+present in pyharm so as to be importable by different MPI processes and across movie generation "schemes," if it comes to that.
 """
 
 def frame(fname, diag, kwargs):

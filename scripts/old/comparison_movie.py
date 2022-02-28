@@ -4,7 +4,7 @@
 # Usage: movie.py [type] [/path/to/dumpfiles]
 
 # Where [type] is a string passed to the function below representing what plotting to do in each frame,
-# and [/path/to/dumpfiles] is the path to the *folder* containing HDF5 output in any form which pyHARM can read
+# and [/path/to/dumpfiles] is the path to the *folder* containing HDF5 output in any form which pyharm can read
 
 # Generally good overview movies are 'simplest' & 'traditional', see the function body for details.
 
@@ -19,13 +19,13 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-import pyHARM
-import pyHARM.io as io
-from pyHARM.ana.reductions import *
-import pyHARM.ana.plot as pplt
-import pyHARM.ana.plot_results as ppltr
-from pyHARM.ana.variables import T_mixed, pretty
-from pyHARM.util import i_of, calc_nthreads, run_parallel
+import pyharm
+import pyharm.io as io
+from pyharm.ana.reductions import *
+import pyharm.ana.plot as pplt
+import pyharm.ana.plot_results as ppltr
+from pyharm.ana.variables import T_mixed, pretty
+from pyharm.util import i_of, calc_nthreads, run_parallel
 
 # Movie size in inches. Keep 16/9 for standard-size movies
 FIGX = 16
@@ -81,7 +81,7 @@ def plot(n):
 
     dumps = []
     for i in range(len(files)):
-        dumps.append(pyHARM.load_dump(files[i][n], **to_load))
+        dumps.append(pyharm.load_dump(files[i][n], **to_load))
 
     # Title by time, otherwise number
     try:

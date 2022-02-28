@@ -3,7 +3,7 @@
 import numpy as np
 import h5py
 
-from pyHARM.defs import Loci
+from pyharm.defs import Loci
 
 # TODO readers for iharm3d-style and ebhlight-style grids to Grid objects
 

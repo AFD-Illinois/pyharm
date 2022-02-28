@@ -4,10 +4,10 @@ import sys
 import h5py
 import numpy as np
 
-import pyHARM
+import pyharm
 
 
-dump = pyHARM.load_dump(sys.argv[1])
+dump = pyharm.load_dump(sys.argv[1])
 
 outf = h5py.File(sys.argv[2], "w")
 
@@ -23,8 +23,8 @@ outf['th'] = th
 outf['phi'] = dump.grid.coords.phi(X) - dump['a'] / (r**2 - 2.*r + dump['a']**2) * r
 
 # 4-vectors
-bl = pyHARM.coordinates.BL({'a': dump['a']})
-#ks = pyHARM.coordinates.KS({'a': dump['a']})
+bl = pyharm.coordinates.BL({'a': dump['a']})
+#ks = pyharm.coordinates.KS({'a': dump['a']})
 zero = np.zeros_like(r)
 # Transform native->KS,
 #gcov_ks = ks.gcov(np.array([zero,r,th,zero]))

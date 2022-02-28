@@ -1,4 +1,4 @@
-name: pyHARM
+name: pyharm
 
 channels:
  - conda-forge

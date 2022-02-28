@@ -1,6 +1,6 @@
 #!/bin/bash -i
 
-#SBATCH -J pyHARM_movie
+#SBATCH -J pyharm_movie
 #SBATCH -A ast171
 #SBATCH -N 1
 #SBATCH --ntasks-per-node 32
@@ -22,7 +22,7 @@
 # Sourcing the conda script doesn't seem to fully work anymore,
 # so we run as interactive with '-i' above, which is not ideal
 #source /sw/andes/python/3.7/anaconda-base/etc/profile.d/conda.sh
-conda activate pyHARM
+conda activate pyharm
 
 # Better to oversubscribe CPU than serialize as there are
 # relatively few numpy ops
@@ -32,4 +32,4 @@ export OMP_NUM_THREADS=8
 # The intent of the directives is to start 32 tasks per node (or more?),
 # but not *bind* them to particular cores --
 # we want to allow MKL_NTHREADS and OMP_NTHREADS to work
-srun ~/Code/pyHARM/scripts/movie.py "${@}"
+srun ~/Code/pyharm/scripts/movie.py "${@}"

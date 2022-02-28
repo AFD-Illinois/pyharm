@@ -5,13 +5,13 @@ import psutil
 import click
 import multiprocessing
 
-import pyHARM
+import pyharm
 
 def convert_file(fname, outfname):
     """Read a single file of some type, and write it as Illinois HDF5 format"""
-    dump = pyHARM.load_dump(fname, grid_cache=False)
+    dump = pyharm.load_dump(fname, grid_cache=False)
     # The zero is dt, which KHARMA does not keep
-    pyHARM.io.iharm3d.write_dump(dump, outfname)
+    pyharm.io.iharm3d.write_dump(dump, outfname)
 
 @click.command()
 @click.argument('files', nargs=-1)
@@ -22,10 +22,10 @@ def convert_file(fname, outfname):
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
 def convert(files, path, outfile, nthreads, debug):
     """Convert a file from KHARMA format (or any readable format) into iharm3d/Illinois HDF5 format
-    (and only this format, as pyHARM cannot write other file formats).
+    (and only this format, as pyharm cannot write other file formats).
 
     Tries to preserve as much as possible of the original data, but not everything may transfer:
-    see pyHARM/io/iharm3d.py for details of the file writer.
+    see pyharm/io/iharm3d.py for details of the file writer.
 
     Defaults to writing output to the same directory as input files, optionally output to a different
     directory with '-p'. Adds a '.h5' file extension in place of KHARMA's .phdf, or additionally to other

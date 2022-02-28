@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'pyHARM'
+project = 'pyharm'
 copyright = '2019, Ben Prather, George Wong, Charles Gammie, and the Astrophysical Fluids Group at UIUC'
 author = 'Ben Prather, George Wong, Charles Gammie, and the Astrophysical Fluids Group at UIUC'
 

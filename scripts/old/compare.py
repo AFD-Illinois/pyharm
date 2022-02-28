@@ -6,8 +6,8 @@
 #                                                                              #
 ################################################################################
 
-import pyHARM
-import pyHARM.plots.plot_dumps as pplt
+import pyharm
+import pyharm.plots.plot_dumps as pplt
 
 import sys
 import numpy as np
@@ -28,9 +28,9 @@ dump1file = sys.argv[1]
 dump2file = sys.argv[2]
 imname = sys.argv[3]
 
-dump1 = pyHARM.load_dump(dump1file, grid_cache=False)
+dump1 = pyharm.load_dump(dump1file, grid_cache=False)
 #Hopefully this fails for dumps that shouldn't be compared
-dump2 = pyHARM.load_dump(dump2file, grid_cache=False)
+dump2 = pyharm.load_dump(dump2file, grid_cache=False)
 
 log_floor = -8
 

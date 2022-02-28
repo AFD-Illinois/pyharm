@@ -1,4 +1,4 @@
-Variable names in pyHARM
+Variable names in pyharm
 ========================
 
 The central mode of interacting with ``FluidDump`` objects is via ``[]``, i.e., Python's ``__getitem__()`` function.  This can be used to request nearly any variable or property of a dump file, so long as one knows under what name it is recorded.

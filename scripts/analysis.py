@@ -30,17 +30,17 @@ if not sys.warnoptions:
 # For memory usage stats
 import psutil
 
-import pyHARM
-# Spam base namespace so we don't have to type pyHARM or even ph
-from pyHARM.variables import *
-from pyHARM.reductions import *
+import pyharm
+# Spam base namespace so we don't have to type pyharm or even ph
+from pyharm.variables import *
+from pyharm.reductions import *
 
-import pyHARM.io as io
-import pyHARM.util as util
+import pyharm.io as io
+import pyharm.util as util
 
 # Specific useful things 
-from pyHARM.defs import Loci
-from pyHARM.util import i_of
+from pyharm.defs import Loci
+from pyharm.util import i_of
 
 # Whether to augment or replace existing results
 # Augmenting behaves *very* badly when jobs time out or are cancelled
@@ -119,7 +119,7 @@ if tend == 0.:
     tend = float(ND)
 
 # Get header and geometry stuff from the first dump on the list
-dump = pyHARM.load_dump(dumps[0], params=params, calc_derived=False)
+dump = pyharm.load_dump(dumps[0], params=params, calc_derived=False)
 hdr = dump.header
 
 if dump['r'].ndim == 3:
@@ -177,7 +177,7 @@ def avg_dump(n):
 
     print("Loading {} / {}: t = {}".format((n + 1), len(dumps), int(t)), file=sys.stderr)
     # TODO Add only what we need here...
-    dump = pyHARM.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=False, add_fails=False, add_floors=False)
+    dump = pyharm.load_dump(dumps[n], params=params, calc_derived=True, add_jcon=False, add_fails=False, add_floors=False)
 
     # Should we compute the time-averaged quantities?
     do_tavgs = (tavg_start <= t <= tavg_end)
