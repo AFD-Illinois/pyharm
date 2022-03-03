@@ -192,6 +192,10 @@ class KHARMAFile(DumpFile):
         #print("Reading file slice ", slc)
         file_start, file_stop = slice_to_index((0, 0, 0), ntot, slc)
         out_shape = [file_stop[i] - file_start[i] for i in range(len(file_stop))]
+        # Now that we know which dimensions stay non-trivial, revise our slicing
+        ng_ix = params['ng'] if out_shape[0] > 1 else 0
+        ng_iy = params['ng'] if out_shape[1] > 1 else 0
+        ng_iz = params['ng'] if out_shape[2] > 1 else 0
 
         #print("Reading indices ", file_start, " to ", file_stop, " shape ", out_shape)
 
