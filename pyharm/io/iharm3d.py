@@ -85,9 +85,9 @@ class Iharm3DFile(DumpFile):
         self.cache = {}
         if params is None:
             self.params = self.read_params()
-            self.params['ghost_zones'] = ghost_zones
-            self.params['ng_file'] = self.params['ng']
-            self.params['ng'] = ghost_zones * self.params['ng']
+            #self.params['ghost_zones'] = ghost_zones
+            #self.params['ng_file'] = self.params['ng']
+            #self.params['ng'] = ghost_zones * self.params['ng']
         else:
             self.params = params
 
@@ -128,8 +128,17 @@ class Iharm3DFile(DumpFile):
                     else:
                         fil_slc[i] = slc[i]
             fil_slc = tuple(fil_slc)
+            
+            # iharm 3d will by default have 8 primitives, right?
+            # If we decide to implement new prims - that AREN'T electron heating models - then
+            # this sliing will have to be modified.
+            
+            prim_names  = [prim_name.decode() for prim_name in fil['header/prim_names']]
+            eprim_names = [eprim_name.decode() for eprim_name in fil['header/prim_names'][8:]]
+            eprim_indices = [prim_names.index(eprim_name) for eprim_name in eprim_names]
 
-            i = self.index_of(var)
+            i = self.index_of(var, eprim_names, eprim_indices)
+            print(i)
             if i is not None:
                 # This is one of the main vars in the 'prims' array
                 self.cache[var] = self._prep_array(fil['/prims'][fil_slc + (i,)], **kwargs)

@@ -97,7 +97,7 @@ def movie(movie_type, paths, **kwargs):
             fname = glob.glob("*.hst")[0]
             if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
             diag = pyharm.io.read_log(fname)
-        except IOError:
+        except IndexError:
             diag = None
 
         if do_out(): print("Imaging model {} with movie {}".format(path, movie_type), file=sys.stderr)

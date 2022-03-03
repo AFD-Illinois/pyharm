@@ -22,16 +22,24 @@ class DumpFile(object):
     """
 
     prim_names_iharm = ("RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3",
-                        "KTOT", "KEL_KAWAZURA", "KEL_WERNER", "KEL_ROWAN", "KEL_SHARMA")
+                        "KTOT", "KEL_CONSTANT", "KEL_KAWAZURA", "KEL_WERNER", "KEL_ROWAN", "KEL_SHARMA")
+    
+    # eprim_names_iharm = ("KTOT", "KEL_CONSTANT", "KEL_KAWAZURA", "KEL_WERNER", "KEL_ROWAN", "KEL_SHARMA")
+    # don't need this since we're passing eprim_names to index_of()
+    
     prim_names_new =   ("rho", "u",  "u1", "u2", "u3", "B1", "B2", "B3",
                         "KTOT", "Kel_Kawazura", "Kel_Werner", "Kel_Rowan", "Kel_Sharma")
 
     @classmethod
-    def index_of(cls, vname):
+    def index_of(cls, vname, eprim_names=None, eprim_indices=None):
         # This is provided in the interface, as anything outputting just an array (iharmXd, KORAL, etc)
         # uses this ordering of variables.  Other formats can just avoid calling index_of
-        if vname in cls.prim_names_iharm:
-            return cls.prim_names_iharm.index(vname)
+        if vname.upper() in cls.prim_names_iharm:
+            if eprim_names is not None:
+                if vname.upper() in eprim_names:
+                    return eprim_indices[eprim_names.index(vname.upper())]
+            else:
+                return cls.prim_names_iharm.index(vname)
         elif vname in cls.prim_names_new:
             return cls.prim_names_new.index(vname)
         # Vectors
