@@ -50,7 +50,7 @@ def convert(files, path, outfile, nthreads, debug):
 
         print("Converting {} files with {} threads".format(len(files), nthreads))
         with multiprocessing.Pool(nthreads) as pool:
-            pool.starmap_async(convert_file, files, outfiles).get(720000)
+            pool.starmap_async(convert_file, zip(files, outfiles)).get(720000)
 
 
 if __name__ == "__main__":

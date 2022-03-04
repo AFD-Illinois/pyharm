@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
-
+import glob
 
 # authoritative version in pytools/__init__.py
 def find_git_revision(tree_root):
@@ -54,6 +54,7 @@ setup(name="pyharm",
       description="Python tools for HARM analysis",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
+      scripts=glob.glob("scripts/pyharm-*"),
 
       install_requires=[
           "psutil",

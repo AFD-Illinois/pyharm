@@ -4,6 +4,7 @@
 #SBATCH -A ast171
 #SBATCH -N 1
 #SBATCH --ntasks-per-node 32
+#SBATCH --mem=0
 # Only 'batch' or 'gpu'
 #SBATCH -p batch
 #SBATCH -t 4:00:00
@@ -32,4 +33,4 @@ export OMP_NUM_THREADS=8
 # The intent of the directives is to start 32 tasks per node (or more?),
 # but not *bind* them to particular cores --
 # we want to allow MKL_NTHREADS and OMP_NTHREADS to work
-srun ~/Code/pyharm/scripts/movie.py "${@}"
+srun pyharm-movie "${@}"
