@@ -312,17 +312,25 @@ def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=Fa
 
 def overlay_field(ax, dump, **kwargs):
         overlay_flowlines(ax, dump, 'B1', 'B2', **kwargs)
+        #overlay_flowlines(ax, dump, 'B2', 'B1', **kwargs)
 
-def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False, half_cut=False, reverse=False):
+def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False, half_cut=False, reverse=False, **kwargs):
     """Overlay the "flow lines" of a pair of variables in X1 and X2 directions.  Sums assuming no divergence to obtain a
     potential, then plots contours of the potential so as to total 'nlines' total contours.
     """
     N1 = dump['n1']
     N2 = dump['n2']
 
+    if native:
+        half_cut = True
+
     x, z = dump.grid.get_xz_locations(native=native, half_cut=half_cut)
     varx1 = flatten_xz(dump, varx1, sum=True, half_cut=True) / dump['n3'] * np.squeeze(dump['gdet'])
     varx2 = flatten_xz(dump, varx2, sum=True, half_cut=True) / dump['n3'] * np.squeeze(dump['gdet'])
+
+    if native:
+        varx1 = varx1.T
+        varx2 = -varx2.T
 
     AJ_phi = np.zeros([N1, 2*N2])
     for j in range(N2):
@@ -337,6 +345,9 @@ def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False
                      trapz(varx1[i, j:], dx=dump['dx2']))
     AJ_phi -= AJ_phi.min()
     levels = np.linspace(0, AJ_phi.max(), nlines * 2)
+
+    if half_cut:
+        AJ_phi = AJ_phi[:,:N2]
 
     ax.contour(x, z, AJ_phi, levels=levels, colors=color)
 

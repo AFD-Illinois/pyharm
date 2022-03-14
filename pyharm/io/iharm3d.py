@@ -5,7 +5,7 @@ from .interface import DumpFile
 
 # Treat header i/o as a part of this file,
 # but don't balloon the line count
-from .iharm3d_header import read_hdr, write_hdr
+from .iharm3d_header import read_hdr, write_hdr, _write_value
 
 # This is one-and-done, no need for objects
 def read_log(logfname):
@@ -37,30 +37,106 @@ def read_log(logfname):
 
 # One-and-done like above.  Plus, generally user wants to select which file they're writing,
 # not have a transparent interface
-def write_dump(fluid_dump, fname, astype=np.float32, ghost_zones=False):
+def write_dump(dump, fname, astype=np.float32, ghost_zones=False):
+    """Write a dump file in iharm3d/Illinois HDF format.
+    Uses
+    """
     with h5py.File(fname, "w") as outf:
-        params = fluid_dump.params
-        write_hdr(params, outf)
+        write_hdr(dump.params, outf)
 
         # Per-dump single variables
-        outf['t'] = params['t']
-        outf['dt'] = params['dt']
-        outf['dump_cadence'] = params['dump_cadence']
-        outf['full_dump_cadence'] = params['dump_cadence']
-        outf['is_full_dump'] = 0
-        outf['n_dump'] = params['n_dump']
-        outf['n_step'] = params['n_step']
+        outf['t'] = dump['t']
+        outf['dt'] = dump['dt']
+        outf['dump_cadence'] = dump['dump_cadence']
+        outf['full_dump_cadence'] = dump['dump_cadence']
+        outf['is_full_dump'] = True
+        if 'n_dump' in dump.params:
+            outf['n_dump'] = dump['n_dump']
+        if 'n_step' in dump.params:
+            outf['n_step'] = dump['n_step']
 
         # This will fetch and write all primitive variables
-        G = fluid_dump.grid
+        G = dump.grid
         if G.NG > 0 and not ghost_zones:
-            outf["prims"] = np.einsum("p...->...p", fluid_dump['prims'][G.slices.allv + G.slices.bulk]).astype(astype)
+            p = dump.reader.read_var('prims', astype=astype)
+            outf["prims"] = np.einsum("p...->...p", p[G.slices.allv + G.slices.bulk]).astype(astype)
         else:
-            outf["prims"] = np.einsum("p...->...p", np.array(fluid_dump['prims'])).astype(astype)
+            p = dump.reader.read_var('prims', astype=astype)
+            outf["prims"] = np.einsum("p...->...p", p).astype(astype)
 
         # Extra in-situ calculations or custom debugging additions
         if "extras" not in outf:
             outf.create_group("extras")
+
+def write_restart(dump, fname, astype=np.float64):
+    with h5py.File(fname, "w") as outf:
+
+        # Record this was converted
+        _write_value(outf, "pyharm-converter-0.1", 'version')
+        # Variables needed for restarting
+        outf['n1'] = dump['n1']
+        outf['n2'] = dump['n2']
+        outf['n3'] = dump['n3']
+        outf['gam'] = dump['gam']
+        outf['cour'] = dump['cour']
+        outf['t'] = dump['t']
+        outf['dt'] = dump['dt']
+        if 'tf' in dump.params:
+            outf['tf'] = dump['tf']
+        elif 'tlim' in dump.params:
+            outf['tf'] = dump['tlim']
+        if 'a' in dump.params:
+            outf['a'] = dump['a']
+            outf['hslope'] = dump['hslope']
+            outf['Rhor'] = dump['r_eh']
+            outf['Rin'] = dump['r_in']
+            outf['Rout'] = dump['r_out']
+            outf['R0'] = 0.0
+        else:
+            outf['x1Min'] = dump['x1min']
+            outf['x1Max'] = dump['x1max']
+            outf['x2Min'] = dump['x2min']
+            outf['x2Max'] = dump['x2max']
+            outf['x3Min'] = dump['x3min']
+            outf['x3Max'] = dump['x3max']
+        if 'n_step' in dump.params:
+            outf['nstep'] = dump['n_step']
+        if 'n_dump' in dump.params:
+            outf['dump_cnt'] = dump['n_dump']
+        if 'game' in dump.params:
+            outf['game'] = dump['game']
+            outf['gamp'] = dump['gamp']
+            # This one seems unnecessary?
+            outf['fel0'] = dump['fel0']
+
+        # Every KHARMA dump is full
+        outf['DTd'] = dump['dump_cadence']
+        outf['DTf'] = dump['dump_cadence']
+        # These isn't recorded from KHARMA
+        outf['DTl'] = 0.1
+        outf['DTp'] = 100
+        outf['DTr'] = 10000
+        # I dunno what this is
+        outf['restart_id'] = 100
+        
+        if 'next_dump_time' in dump.params:
+            outf['tdump'] = dump['next_dump_time']
+        else:
+            outf['tdump'] = dump['t'] + dump['dump_cadence']
+        if 'next_log_time' in dump.params:
+            outf['tlog'] = dump['next_log_time']
+        else:
+            outf['tlog'] = dump['t'] + 0.1
+
+        # This will fetch and write all primitive variables,
+        # sans ghost zones as is customary for iharm3d restart files
+        G = dump.grid
+        if G.NG > 0:
+            p = dump.reader.read_var('prims', astype=astype)
+            outf["p"] = np.einsum("pijk->pkji", p[G.slices.allv + G.slices.bulk]).astype(astype)
+        else:
+            p = dump.reader.read_var('prims', astype=astype)
+            outf["p"] = np.einsum("pijk->pkji", p).astype(astype)
 
 class Iharm3DFile(DumpFile):
     """File filter class for iharm3d dump files.

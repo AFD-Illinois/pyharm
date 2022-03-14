@@ -35,7 +35,7 @@ class KHARMAFile(DumpFile):
                        "KEL_ROWAN":    "Kel_Rowan",
                        "KEL_SHARMA":   "Kel_Sharma",
                        "KEL_CONSTANT": "Kel_Constant"}
-    prim_names_ordered = ['rho', 'u', 'uvec', 'B', 'Ktot', 'Kel_Werner', 'Kel_Rowan', 'Kel_Sharma', 'Kel_Constant']
+    prim_names_ordered = ['rho', 'u', 'uvec', 'B', 'q', 'dP', 'Ktot', 'Kel_Werner', 'Kel_Rowan', 'Kel_Sharma', 'Kel_Constant']
 
     @classmethod
     def get_dump_time(cls, fname):
@@ -67,7 +67,7 @@ class KHARMAFile(DumpFile):
             var = "prims."+var
         if ("Kel" in var or "Ktot" in var) and ("cons" not in var):
             var = "prims."+var
-        
+
         return var, ind
 
     def __init__(self, filename, ghost_zones=False, params=None):
@@ -143,13 +143,14 @@ class KHARMAFile(DumpFile):
 
         # All primitives/conserved. We added this to iharm3d, special case it here
         if var == "prims":
-            prims = self.read_var('rho')[None, :, :, :]
+            # Reshape rho to 4D by adding a rank in front for prim index
+            prims = self.read_var('rho')[np.newaxis, Ellipsis]
             for v2 in self.prim_names_ordered[1:]:
                 try:
                     new_prim = self.read_var(v2)
-                    if len(new_prim.shape) == 3:
+                    if len(new_prim.shape) < len(prims.shape):
                         # Reshape to 4D if needed to append
-                        new_prim = new_prim[None, :, :, :]
+                        new_prim = new_prim[np.newaxis, Ellipsis]
                     prims = np.append(prims, new_prim, axis=0)
                 except IOError:
                     pass

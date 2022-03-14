@@ -8,9 +8,11 @@ from pyharm.defs import Loci, Slices, Shapes
 from pyharm.coordinates import *
 
 
-def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_out=1000, caches=True, cache_conn=False):
-    """Convenience function for generating grids with default parameters used at Illinois.
-    Type can be any of 'eks', 'mks', 'fmks', 'minkowski', or exotic systems defined in coordinates.py.
+def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3,
+                    r_in=None, r_out=1000, caches=True, cache_conn=False):
+    """Convenience function for generating grids with default parameters used
+    at Illinois.  Type can be any of 'eks', 'mks', 'fmks', 'minkowski', or
+    exotic systems defined in coordinates.py.
     Nearly all parameters are optional with Illinois-centric defaults.
     """
 
@@ -24,7 +26,7 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3, r_in=None, r_o
     params['n3'] = n3
     params['ng'] = 0
 
-    if type == 'minkowski':
+    if type == 'minkowski' or type == 'cartesian':
         params['x1min'] = 0
         params['x2min'] = 0
         params['x3min'] = 0

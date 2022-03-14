@@ -5,22 +5,29 @@ import psutil
 import click
 import multiprocessing
 
+import numpy as np
+
 import pyharm
 
-def convert_file(fname, outfname):
+def convert_file(fname, outfname, double=False, restart=False):
     """Read a single file of some type, and write it as Illinois HDF5 format"""
     dump = pyharm.load_dump(fname, grid_cache=False)
-    # The zero is dt, which KHARMA does not keep
-    pyharm.io.iharm3d.write_dump(dump, outfname)
+    if restart:
+        # Default in double
+        pyharm.io.iharm3d.write_restart(dump, outfname)
+    else:
+        pyharm.io.iharm3d.write_dump(dump, outfname, astype=(np.float32, np.float64)[double])
 
 @click.command()
 @click.argument('files', nargs=-1)
 # Common options
 @click.option('-p', '--path', default=None, help="Output filepath prefix, e.g. dumps/.")
 @click.option('-o', '--outfile', default=None, help="Output filename, if converting a single dump.")
+@click.option('--double', is_flag=True, help="Read/write in double precision")
+@click.option('--restart', is_flag=True, help="Read/write in double precision")
 @click.option('-nt', '--nthreads', default=None, help="Number of parallel conversions -- defaults to nprocs")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
-def convert(files, path, outfile, nthreads, debug):
+def convert(files, path, outfile, double, restart, nthreads, debug):
     """Convert a file from KHARMA format (or any readable format) into iharm3d/Illinois HDF5 format
     (and only this format, as pyharm cannot write other file formats).
 
@@ -43,14 +50,17 @@ def convert(files, path, outfile, nthreads, debug):
 
     if debug:
         for file, outfile in zip(files, outfiles):
-            convert_file(file, outfile)
+            convert_file(file, outfile, double)
     else:
         if nthreads is None:
             nthreads = min(psutil.cpu_count(), len(files))
 
+        double = (double,)*len(files)
+        restart = (restart,)*len(files)
+
         print("Converting {} files with {} threads".format(len(files), nthreads))
         with multiprocessing.Pool(nthreads) as pool:
-            pool.starmap_async(convert_file, zip(files, outfiles)).get(720000)
+            pool.starmap_async(convert_file, zip(files, outfiles, double, restart)).get(720000)
 
 
 if __name__ == "__main__":

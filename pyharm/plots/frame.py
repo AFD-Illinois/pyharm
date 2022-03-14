@@ -26,6 +26,7 @@ def frame(fname, diag, kwargs):
     # If we're outside the timeframe we don't need to make *anything*
     tstart, tend = kwargs['tstart'], kwargs['tend']
     tdump = io.get_dump_time(fname)
+
     if (tstart is not None and tdump < tstart) or \
         (tend is not None and tdump > tend):
         return
@@ -35,7 +36,11 @@ def frame(fname, diag, kwargs):
     movie_types = []
     ghost_zones = False
     for movie_type in kwargs['movie_type'].split(","):
-        frame_name = os.path.join("frames_"+movie_type, "frame_t%08d.png" % int(tdump))
+        if 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
+            frame_name = os.path.join("frames_"+movie_type, "frame_t%03.2f.png" % tdump)
+        else:
+            frame_name = os.path.join("frames_"+movie_type, "frame_t%08d.png" % int(tdump))
+
         if 'resume' in kwargs and kwargs['resume'] and os.path.exists(frame_name):
             continue
 
@@ -121,6 +126,18 @@ def frame(fname, diag, kwargs):
         if movie_type in figures.__dict__:
             # Named movie frame figures in figures.py
             fig = figures.__dict__[movie_type](fig, dump, diag, plotrc)
+
+            if 'overlay_field' in kwargs and kwargs['overlay_field']:
+                nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
+                overlay_field(ax, dump, **plotrc)
+            # TODO contours
+
+            # If the figure code didn't set the title
+            # I cannot be bothered to flag this for myself
+            if fig._suptitle is None or fig._suptitle.get_text() == "":
+                if "divB" in movie_type:
+                    # Special title for diagnostic divB
+                    fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(np.max(np.abs(dump['divB']))))
 
         else:
             # Try to make a simple movie of just the stated variable

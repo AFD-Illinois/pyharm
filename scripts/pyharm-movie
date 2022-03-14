@@ -31,7 +31,7 @@ except ImportError:
 @click.argument('movie_type', nargs=1)
 @click.argument('paths', nargs=-1, type=click.Path(exists=True))
 # Common options
-@click.option('-s', '--tstart', default=0, help="Start time.")
+@click.option('-s', '--tstart', default=0., help="Start time.")
 @click.option('-e', '--tend', default=1e7, help="End time.")
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
 # If you're invoking manually
@@ -44,9 +44,11 @@ except ImportError:
 @click.option('--vmin', default=None, help="Colorscale minimum.")
 @click.option('--vmax', default=None, help="Colorscale maximum.")
 @click.option('--cmap', default='jet', help="Colormap.")
+@click.option('--overlay_field', is_flag=True, help="Overlay field lines.")
+@click.option('--accurate_fnames', is_flag=True, help="Name frames by 1/100M, for short runs.")
 # Extras
-@click.option('-r', '--resume', is_flag=True, default=False, help="Continue a previous run, by skipping existing frames")
-@click.option('-d', '--debug', is_flag=True, default=False, help="Serial operation for debugging")
+@click.option('-r', '--resume', is_flag=True, help="Continue a previous run, by skipping existing frames")
+@click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
 #@click.option('-m', '--memory_limit', default=1, help="Memory limit in GB for each process, enforced by starting total/m processes.")
 def movie(movie_type, paths, **kwargs):
     """Generate movies of type MOVIE_TYPE from dumps at each of PATHS.
