@@ -373,7 +373,7 @@ class Grid:
         return x, z
 
     def get_xy_locations(self, mesh=False, native=False):
-        """Get the mesh locations x_ij and y_ij needed for plotting a toroidal slice.
+        """Get the mesh locations x_ij and y_ij needed for plotting a midplane slice.
         Note there is no need for an 'at' parameter, at least for plotting: 2D plots should be face-on.
 
         :param mesh: get mesh corners rather than centers, for flat shading
@@ -393,6 +393,42 @@ class Grid:
         
         return x, y
 
+    def get_thphi_locations(self, at, mesh=False, native=False, bottom=False, project=True):
+        """Get the mesh locations x_ij and y_ij needed for plotting a th-phi slice.
+        This can be done in a bunch of ways controlled with options
+
+        :param mesh: get mesh corners rather than centers, for flat shading
+        :param native: get native X1/X3 coordinates rather than Cartesian x,z locations
+        :param bottom: take the view from -z axis instead of +z axis
+        :param project: If True, foreshorten radius in plot as r*sin(th).
+                        If False, use th as radius & plot a circle of diameter pi/2
+        """
+        if native:
+            j_slice = slice(None)
+        elif bottom:
+            j_slice = slice(self.NTOT[2]//2, None)
+        else:
+            j_slice = slice(None, self.NTOT[2]//2)
+
+        if mesh:
+            m = self.coord_jk_mesh(at=at)[j_slice]
+        else:
+            m = self.coord_jk(at=at)[j_slice]
+
+        if native:
+            # This puts phi on the x-axis,
+            # which is much more understandable for movies
+            x = m[3]
+            y = m[2]
+        elif project:
+            x = self.coords.cart_x(m)
+            y = self.coords.cart_y(m)
+        else:
+            x = self.coords.th(m) * np.cos(self.coords.phi(m))
+            y = self.coords.th(m) * np.sin(self.coords.phi(m))
+        
+        return x, y
+
     def can_provide(self, key):
         """Whether the given key would return something from this object.
         Generally for dictionaries the syntax is "if x in dict.keys()" or "if x in dict" but we can't enumerate possibilities.
@@ -404,7 +440,7 @@ class Grid:
             return True
         elif key[:7] == 'pcoord_':
             return True
-        elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'x', 'y', 'z', 'X1', 'X2', 'X3'):
+        elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z', 'X1', 'X2', 'X3'):
             return True
         else:
             return False
@@ -486,9 +522,21 @@ class Grid:
         elif key in ['n1', 'n2', 'n3']:
             return self.NTOT[int(key[-1:])]
         elif key in ['r', 'th', 'phi']:
-            return getattr(self.coords, key)(self.coord_all())
+            self.cache[key] = getattr(self.coords, key)(self.coord_all())
+            return self.cache[key]
+        elif key  == 'r1d':
+            self.cache[key] = self.coords.r(self.coord(np.arange(self.GN[1]), 0, 0))
+            return self.cache[key]
+        elif key  == 'th1d':
+            # Return coord at outer edge for minimum cylindrification
+            self.cache[key] = self.coords.th(self.coord(self.GN[1]-1, np.arange(self.GN[2]), 0))
+            return self.cache[key]
+        elif key  == 'phi1d':
+            self.cache[key] = self.coords.phi(self.coord(0, 0, np.arange(self.GN[3])))
+            return self.cache[key]
         elif key in ['x', 'y', 'z']:
-            return getattr(self.coords, 'cart_' + key)(self.coord_all())
+            self.cache[key] = getattr(self.coords, 'cart_' + key)(self.coord_all())
+            return self.cache[key]
         elif key in ['X1', 'X2', 'X3']:
             return self.coord_all()[int(key[-1:])]
         else:

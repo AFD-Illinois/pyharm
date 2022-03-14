@@ -156,7 +156,7 @@ class Iharm3DFile(DumpFile):
                     self.cache[var] = self._prep_array(fil['/extras/'+var][fil_slc], **kwargs)
                     return self.cache[var]
                 else:
-                    raise IOError("Cannot find variable "+var+" in file "+fil+"!")
+                    raise IOError("Cannot find variable "+var+" in file "+self.fname+"!")
 
 
 

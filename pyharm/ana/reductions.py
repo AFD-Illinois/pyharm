@@ -24,6 +24,7 @@ def flatten_xz(dump, var, at=None, sum=False, half_cut=False):
     """Return an X-Z slice or sum of var, generally for use in making a plot.
     By default takes both the 0-degree (right side) and 180-degree (left side) slices,
     to make a full slice across the pole.
+    Note sums are *not* GR-aware!
 
     :param at: which rank in X3 to take data from
     :param sum: whether to sum all ranks. Overrides 'at'
@@ -52,10 +53,10 @@ def flatten_xz(dump, var, at=None, sum=False, half_cut=False):
                 return np.append(var[:, :, at], np.flip(var[:, :, at + dump['n3']//2], 1), 1)
 
 def flatten_xy(dump, var, at=None, sum=False):
-    """Return an X-Y slice or sum of var.
+    """Return an X-Y slice or sum of var.  Note sums are *not* GR-aware!
 
     :param at: which rank in X2 to take data from, default N2//2
-    :param sum: whether to sum all ranks. Overrides 'at'
+    :param sum: whether to sum all ranks. Overrides 'at'.
     """
     if sum:
         if isinstance(var, str):
@@ -71,10 +72,184 @@ def flatten_xy(dump, var, at=None, sum=False):
 
 def wrap(x):
     """Append the first rank in axis 1 again after the last rank in axis 1
+    (i.e. the angular index, after any reductions).
+
     Useful when plotting zone-centered th or phi variables, as it allows shading
     of the region between ends of the array eliminating an ugly gap.
     """
     return np.append(x[Ellipsis], x[:, 0:1], 1)
+
+def flatten_thphi(dump, var, at=5, sum=False):
+    """Return an th-phi slice or sum of var.  Note sums are *not* GR-aware!
+
+    :param at: which rank in X1 to take data from.
+    :param sum: whether to sum all ranks. Overrides 'at'.
+    """
+    if sum:
+        if isinstance(var, str):
+            var = dump[var]
+        return var.sum(0)
+    else:
+        if isinstance(var, str):
+            return dump[at][var]
+        else:
+            return var[at]
+
+## Slices for below ##
+# Functions to get indices, given locations in r,th,phi
+# TODO does this belong in Grid?  General i_of/j_of/k_of?
+def get_i_slice(dump, r_min, r_max):
+    """Calculate slice imin:imax for a given range in r"""
+    return slice(i_of(dump['r1d'], r_min), i_of(dump['r1d'], r_max))
+
+def get_j_bounds(dump, th_min=np.pi / 3., th_max=2*np.pi / 3.):
+    """Calculate slice jmin:jmax for a given range in theta: returns *tuple*
+    Defaults to EHT disk profile: pi/3 to 2pi/3
+    """
+    return (i_of(dump['th1d'], th_min), i_of(dump['th1d'], th_max))
+
+def get_j_slice(dump, th_min=np.pi / 3., th_max=2*np.pi / 3.):
+    """Calculate slice jmin:jmax for a given range in theta: returns *slice*
+    Defaults to EHT disk profile: pi/3 to 2pi/3
+    """
+    return slice(*get_j_bounds(dump, th_min, th_max))
+
+## Sums and Averages ##
+# Generally GR-aware sum, average, or combination operations producing 1D profiles in r, th.
+
+def shell_sum(dump, var, at_r=None, at_i=None, th_slice=None, j_slice=None, mask=None):
+    """Sum a variable over spherical shells. Returns a radial profile (array length N1) or single-shell sum
+
+    :param at_r: Single radius at which to sum (nearest-neighbor smaller zone is used)
+    :param at_zone: Specific radial zone at which to sum, for compatibility
+    :param th_slice: Tuple of minimum and maximum theta value to sum
+    :param j_slice: Tuple of x2 indices instead of specifying theta. Overrides th_slice
+    :param mask: array of 1/0 of the post-slice size of 'var', which is multiplied with the result
+    """
+
+    # Translate coordinates to zone numbers.
+    # TODO slice dx2, dx3 if they're matrices for exotic coordinates
+    if at_i is not None:
+        i_slice = slice(at_i, at_i+1)
+    elif at_r is not None:
+        at_i = i_of(dump['r1d'], at_r)
+        i_slice = slice(at_i, at_i+1)
+    else:
+        i_slice = slice(None)
+
+    if j_slice is not None:
+        j_slice = slice(j_slice[0], j_slice[1])
+    elif th_slice is not None:
+        j_slice = get_j_slice(dump, th_slice[0], th_slice[1])
+    else:
+        j_slice = slice(None)
+
+    if isinstance(var, str):
+        var = dump[i_slice, j_slice, :][var]
+    else:
+        var = var[i_slice, j_slice, :]
+
+
+    # TODO slice dx2, dx3 if they're matrices for exotic coordinates
+    integrand = var * dump['gdet'][i_slice, j_slice, :] * dump['dx2'] * dump['dx3']
+    if mask is not None:
+        integrand *= mask
+
+    # This should usually return the right thing:
+    # 1d array in r, or 0d array (~= scalar) for single shell 
+    return np.squeeze(np.sum(integrand, axis=(1, 2)))
+
+
+def shell_avg(dump, var, **kwargs):
+    """Average a variable over spherical shells. Returns a radial profile (array length N1) or single-shell average.
+    See shell_sum for arguments.
+    """
+    return shell_sum(dump, var, **kwargs) / shell_sum(dump, '1', **kwargs)
+
+
+def sphere_sum(dump, var, r_slice=None, i_slice=None, th_slice=None, j_slice=None, mask=None):
+    """Sum everything within a sphere, semi-sphere, or thick spherical shell.
+    Extents are specified optionally in r or i, and th or j, with indices taking precedence
+    Mask is multiplied at the end
+    """
+    # Translate coordinates to zone numbers.
+    if i_slice is not None:
+        i_slice = slice(i_slice[0], i_slice[1])
+    elif r_slice is not None:
+        i_slice = get_i_slice(r_slice[0], r_slice[1])
+    else:
+        i_slice = slice(None)
+
+    if j_slice is not None:
+        j_slice = slice(j_slice[0], j_slice[1])
+    elif th_slice is not None:
+        j_slice = get_j_slice(dump, th_slice[0], th_slice[1])
+    else:
+        j_slice = slice(None)
+
+    if isinstance(var, str):
+        var = dump[i_slice, j_slice, :][var]
+    else:
+        var = var[i_slice, j_slice, :]
+
+    # TODO slice dx2, dx3 if they're matrices for exotic coordinates
+    # TODO mask?
+    return np.sum(var * dump['gdet'][i_slice, j_slice, :] * dump['dx1'] * dump['dx2'] * dump['dx3'])
+
+
+def sphere_avg(dump, var, **kwargs):
+    """Average everything within a sphere, semi-sphere or thick spherical shell.
+    See sphere_sum for arguments.
+    """
+    return sphere_sum(dump, var, **kwargs) / sphere_sum(dump, '1', **kwargs)
+
+
+def midplane_sum(dump, var, zones=2, **kwargs):
+    """Average a few zones adjacent to midplane, then sum.
+    Allows specifying an r_slice or i_slice within which to sum.
+    """
+    jmin = dump['n2'] // 2 - zones//2
+    jmax = dump['n2'] // 2 + zones//2
+    return sphere_sum(dump, var, j_slice=(jmin, jmax), **kwargs) / (jmax - jmin)
+
+
+def theta_profile(dump, var, start, zones_to_av=1, use_gdet=True, fold=True):
+    """Profile in theta by averaging over phi at a particular radius (or average among a few close radii).
+    Note that this function returns an array of size N2 if fold==False, N2//2 if fold==True
+    
+    :param start: zone number to average at
+    :param zones_to_av: number of zones to average, starting at 'start'
+    :param use_gdet: whether or not to make averaging GR-aware
+    :param fold: whether to consider the system as symmetric about the midplane and average hemispheres
+    """
+    i_slice = slice(start, start+zones_to_av)
+
+    # Slices representing hemispheres starting from the poles
+    j_top = slice(None, dump['n2']//2)
+    j_bottom = slice(None, dump['n2']//2-1, -1)
+
+    if use_gdet:
+        jacobian = dump['gdet'][i_slice] * dump['dx1'] * dump['dx3']
+        if isinstance(var, str):
+            integrand = dump[i_slice][var] * jacobian
+        else:
+            integrand = var[i_slice] * jacobian
+
+        if fold:
+            return (integrand[:,j_top].sum(axis=(0, 2)) + integrand[:,j_bottom].sum(axis=(0, 2))) / (2*jacobian[:,j_top].sum(axis=(0,2)))
+        else:
+            return integrand.sum(axis=(0, 2)) / jacobian.sum(axis=(0,2))
+    else:
+        if isinstance(var, str):
+            integrand = dump[i_slice][var]
+        else:
+            integrand = var[i_slice]
+
+        if fold:
+            return integrand[:,j_top].mean(axis=(0, 2)) + integrand[:,j_bottom].mean(axis=(0, 2))
+        else:
+            return integrand.mean(axis=(0, 2))
+
 
 ## Correlation functions/lengths ##
 
@@ -217,7 +392,9 @@ def pspec(var, dt=5, window=0.33, half_overlap=False, bin="fib"):
 
 
 def _fib_bin(data, freqs):
-    # Fibonacci binning.  Why is this a thing.
+    """Fibonacci sequence for binning.
+    It is somehow mildly concerning that this is a thing that works.
+    """
     j = 0
     fib_a = 1
     fib_b = 1
@@ -232,134 +409,3 @@ def _fib_bin(data, freqs):
         fib_b = fib_c
 
     return np.array(pspec), np.array(pspec_freq)
-
-
-## Sums and Averages ##
-
-
-def get_eht_disk_j_vals(dump, th_min=np.pi / 3., th_max=2*np.pi / 3.):
-    """Calculate jmin, jmax in theta coordinate for EHT disk profiles (pi/3 - 2pi/3)"""
-    # Calculate jmin, jmax for EHT radial profiles
-    # Use values at large R to get even split in radially-dependent coordinates
-    if len(dump['th'].shape) == 3:
-        ths = dump['th'][-1, :, 0]
-    elif len(dump['th'].shape) == 2:
-        ths = dump['th'][-1, :]
-
-    return (i_of(ths, th_min), i_of(ths, th_max))
-
-
-def shell_sum(dump, var, at_r=None, at_zone=None, th_slice=None, j_slice=None, mask=None):
-    """Sum a variable over spherical shells. Returns a radial profile (array length N1) or single-shell sum
-    :param at_r: Single radius at which to sum (nearest-neighbor smaller zone is used)
-    :param at_zone: Specific radial zone at which to sum, for compatibility
-    :param th_slice: Tuple of minimum and maximum theta value to sum
-    :param j_slice: Tuple of x2 indices instead of specifying theta
-    :param mask: array of 1/0 of remaining size which is multiplied with the result
-    """
-    if isinstance(var, str):
-        var = dump[var]
-
-    # Translate coordinates to zone numbers.
-    # TODO Xtoijk for slices?
-    # TODO slice dx2, dx3 if they're matrices for exotic coordinates
-    if th_slice is not None:
-        j_slice = get_eht_disk_j_vals(dump, th_slice[0], th_slice[1])
-    if j_slice is not None:
-        var = var[:,j_slice[0]:j_slice[1],:]
-        gdet = dump['gdet'][:,j_slice[0]:j_slice[1]]
-    else:
-        gdet = dump['gdet']
-
-    if at_r is not None:
-        at_zone = i_of(dump['r'][:,0,0], at_r)
-    if at_zone is not None:
-        # Keep integrand "3D" and deal with it below
-        var = var[at_zone:at_zone+1]
-        gdet = gdet[at_zone:at_zone+1]
-
-    integrand = var * gdet * dump.header['dx2'] * dump.header['dx3']
-    if mask is not None:
-        integrand *= mask
-
-    ret = np.sum(integrand, axis=(-2, -1))
-    if ret.shape == (1,):
-        # Don't return a scalar result as a length-1 array
-        return ret[0]
-    else:
-        return ret
-
-
-def shell_avg(dump, var, **kwargs):
-    """Average a variable over spherical shells. Returns a radial profile (array length N1) or single-shell average.
-    See shell_sum for arguments.
-    """
-    if isinstance(var, str):
-        var = dump[var]
-    return shell_sum(dump, var, **kwargs) / shell_sum(dump, np.ones_like(var), **kwargs)
-
-
-def sphere_sum(dump, var, r_slice=None, i_slice=None, th_slice=None, j_slice=None, mask=None):
-    """Sum everything within a sphere, semi-sphere, or thick spherical shell
-    Extent can be specified in r and/or theta, or i and/or j
-    Mask is multiplied at the end
-    """
-    # TODO see sum for problems with this
-    if th_slice is not None:
-        j_slice = get_eht_disk_j_vals(dump, th_slice[0], th_slice[1])
-    if j_slice is not None:
-        var = var[:,j_slice[0]:j_slice[1],:]
-        gdet = dump['gdet'][:,j_slice[0]:j_slice[1]]
-    else:
-        gdet = dump['gdet']
-
-    if r_slice is not None:
-        i_slice = (i_of(dump['r'][:,0,0], r_slice[0]), i_of(dump['r'][:,0,0], r_slice[1]))
-    if i_slice is not None:
-        var = var[i_slice[0]:i_slice[1]]
-        gdet = gdet[i_slice[0]:i_slice[1]]
-
-    return np.sum(var * gdet * dump.header['dx1'] * dump.header['dx2'] * dump.header['dx3'])
-
-
-def sphere_av(dump, var, **kwargs):
-    if isinstance(var, str):
-        var = dump[var]
-    return sphere_sum(dump, var, **kwargs) / sphere_sum(dump, np.ones_like(var), **kwargs)
-
-
-def midplane_sum(dump, var, zones=2, **kwargs):
-    """Average a few zones adjacent to midplane and sum.
-    Allows specifying an r_slice or i_slice within which to sum
-    """
-    if isinstance(var, str):
-        var = dump[var]
-
-    jmin = var.shape[1] // 2 - zones//2
-    jmax = var.shape[1] // 2 + zones//2
-    return sphere_sum(dump, var, j_slice=(jmin, jmax), **kwargs) / (jmax - jmin)
-
-
-def theta_av(dump, var, start, zones_to_av=1, use_gdet=False, fold=True):
-    """Profile in theta by averaging over phi, and optionally also:
-    hemispheres: set fold=True
-    radial zones: set zones_to_av > 1
-    """
-    if isinstance(var, str):
-        var = dump[var]
-
-    N2 = var.shape[1]
-    if use_gdet:
-        # TODO currently implies fold -- also does this do anything different from below?
-        return (var[start:start + zones_to_av, :N2//2, :] * dump['gdet'][start:start + zones_to_av, :N2//2, None] *
-                dump.header['dx1'] * dump.header['dx3'] +
-                var[start:start + zones_to_av, :N2//2-1:-1, :] *
-                dump['gdet'][start:start + zones_to_av, :N2//2-1:-1, None] * dump.header['dx1'] * dump.header['dx3']
-                ).sum(axis=(0, 2)) \
-               / ((dump['gdet'][start:start + zones_to_av, :N2 // 2] * dump.header['dx1']).sum(axis=0) * 2 * np.pi)
-    else:
-        if fold:
-            return (var[start:start + zones_to_av, :N2 // 2, :].mean(axis=(0, 2)) +
-                    var[start:start + zones_to_av, :N2 // 2 - 1:-1, :].mean(axis=(0, 2))) / 2
-        else:
-            return var[start:start + zones_to_av, :, :].mean(axis=(0, 2))

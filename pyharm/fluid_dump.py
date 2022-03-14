@@ -13,8 +13,8 @@ from .grmhd.b_field import divB
 from .units import get_units
 
 class FluidDump:
-    """Read and cache data from a fluid dump file in HARM HDF5 format, and allow accessing
-    various derived variables directly.
+    """Read and cache data from a fluid dump file in any supported format, and allow accessing
+    various derived properties directly.
     """
 
     def __init__(self, fname, tag="", ghost_zones=False, grid_cache=True, cache_conn=False, units=None, add_grid=True, params=None):
@@ -30,15 +30,17 @@ class FluidDump:
         this is what you want (think assignment to a slice), but it can be confusing if you're really digging around.
         Try using copy.copy or copy.deepcopy if unsure.
 
-        :param fname: file name or path to dump.
+        :param fname: file name or path to dump
+        :param tag: any string, usually long name of dump/model for plotting
         :param ghost_zones: Load ghost zones when reading from a dump file
         :param grid_cache: Cache geometry values in the grid file.  These are *not* yet automatically added,
-                           so keep this True unless plotting a very simple variable.
-        :param cache_conn: Cache the connection coefficients at zone centers. Memory-intensive, rarely needed
+                           so keep this True unless plotting a very simple variable
+        :param cache_conn: Cache the connection coefficients at zone centers. Default off as memory-intensive and rarely needed
         :param units: a 'Units' object representing a physical scale for the dump (density M_unit and BH mass MBH)
-        Advanced:
-        :param add_grid: Whether to add
-        :param params: dictionary of parameters guaranteed to have the usual file header information already
+
+        Advanced options:
+        :param add_grid: Whether to construct a Grid object at all.  Used only for "copy construction" with Grid added immediately
+        :param params: dictionary of parameters. Must have the usual file header information already!
         """
         self.fname = fname
         if tag == "":
@@ -133,13 +135,15 @@ class FluidDump:
         elif key[:3] == "ln_":
             return np.log(self[key[3:]])
 
-        # TODO transformed full vectors, with e.g. 'ucon_ks'
         # Return vector components
         elif key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3":
             return self[key[:-2]+"cov"][int(key[-1])]
         elif key[-2:] == "^0" or key[-2:] == "^1" or key[-2:] == "^2" or key[-2:] == "^3":
             return self[key[:-2]+"con"][int(key[-1])]
+
         # Return transformed vector components
+        # TODO transformed full vectors, with e.g. 'ucon_ks'
+        # TODO cache these?
         # TODO Cartesian forms, move the complexity here to grid
         elif key[-2:] == "_t" or key[-2:] == "_r" or key[-3:] == "_th" or key[-4:] == "_phi":
             return np.einsum("i...,ij...->j...",
@@ -152,6 +156,12 @@ class FluidDump:
                                 self.grid.coords.dXdx(self.grid.coord_all())
                             )[["t", "r", "th", "phi"].index(key.split("^")[-1])]
 
+        # Return an array of the correct size filled with just zero or one
+        # Don't cache these
+        elif key in ('zero', '0'):
+            return np.zeros_like(self['rho'])
+        elif key in ('one', '1'):
+            return np.ones_like(self['rho'])
         else:
             # Read things that we haven't cached and absolutely can't calculate
             # The reader keeps its own cache, so we don't add its items to ours

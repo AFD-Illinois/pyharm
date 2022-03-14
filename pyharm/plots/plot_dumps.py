@@ -5,7 +5,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 from scipy.integrate import trapz
 
-from ..reductions import flatten_xy, flatten_xz, wrap
+from ..ana.reductions import flatten_xy, flatten_xz, wrap
 from .plot_utils import *
 from .pretty import pretty
 
@@ -203,7 +203,7 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
         else:
-            ax.set_xlim(window[:2])
+            ax.set_xlim(window[:2]) # TODO TODO
             ax.set_ylim(window[2:])
         ax.set_aspect('equal')
 
@@ -222,51 +222,61 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
     return mesh
 
 
-# TODO this is currently just for profiles already in 2D
-def plot_thphi(ax, dump, var, r_i, cmap='jet', vmin=None, vmax=None, window=None,
-               xlabel=True, ylabel=True, native=False, log=False,
+def plot_thphi(ax, dump, var, at, cmap='jet', vmin=None, vmax=None, window=None,
+               xlabel=True, ylabel=True, native=False, log=False, sum=False, average=False,
                project=False, shading='gouraud', **kwargs):
-    """Plot a theta-phi slice at index r_i
+    """Plot a theta-phi slice at index at_i
     DO NOT USE YET, DEAD
     """
-    if native:
-        # X3-X2 makes way more sense than X2-X3 since the disk is horizontal
-        x = (dump['X3'][r_i] - dump['startx3']) / (dump['n3'] * dump['dx3'])
-        y = (dump['X2'][r_i] - dump['startx2']) / (dump['n2'] * dump['dx2'])
-    else:
-        radius = dump['r'][r_i, 0, 0]
-        max_th = dump['n2'] // 2
-        if project:
-            x = _flatten_yz(dump['th'] * np.cos(dump['phi']), r_i)[:max_th, :]
-            y = _flatten_yz(dump['th'] * np.sin(dump['phi']), r_i)[:max_th, :]
-        else:
-            x = _flatten_yz(dump['x'], r_i)[:max_th, :]
-            y = _flatten_yz(dump['y'], r_i)[:max_th, :]
-        var = _flatten_yz(var[:max_th, :])
+    if len(var.shape) == 3:
+        var = var[at, :, :]
 
-    if window is None:
-        if native:
-            ax.set_xlim([0, 1])
-            ax.set_ylim([0, 1])
-        elif project:
-            window = [-1.6, 1.6, -1.6, 1.6]
-        else:
-            window = [-radius, radius, -radius, radius]
-    else:
-        ax.set_xlim(window[:2])
-        ax.set_ylim(window[2:])
+    vname = None
+    if isinstance(var, str):
+        if 'symlog_' in var:
+            log = True
+            var = var.replace("symlog_","")
+        vname = var
+
+    x, y = dump.grid.get_thphi_locations(mesh=(shading == 'flat'), native=native, at=at)
+    var = flatten_thphi(dump, var, at, sum or average)
+    if average:
+        var /= dump['n1']
+    if shading != 'flat':
+        x = wrap(x)
+        y = wrap(y)
+        var = wrap(var)
 
     mesh = ax.pcolormesh(x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
                          shading=shading)
 
     if native:
-        if xlabel: ax.set_xlabel("X3 (arbitrary)")
-        if ylabel: ax.set_ylabel("X2 (arbitrary)")
+        if xlabel: ax.set_xlabel("X3 (native coordinates)")
+        if ylabel: ax.set_ylabel("X2 (native coordinates)")
+        if window is not None:
+            ax.set_xlim(window[:2])
+            ax.set_ylim(window[2:])
+        else:
+            ax.set_xlim([x[0,0], x[-1,-1]])
+            ax.set_ylim([y[0,0], y[-1,-1]])
     else:
-        if xlabel: ax.set_xlabel(r"$x \frac{c^2}{G M}$")
-        if ylabel: ax.set_ylabel(r"$y \frac{c^2}{G M}$")
+        if xlabel: ax.set_xlabel(r"x ($r_g$)")  # or \frac{G M}{c^2}
+        if ylabel: ax.set_ylabel(r"y ($r_g$)")
+        if window is not None:
+            ax.set_xlim(window[:2])
+            ax.set_ylim(window[2:])
+        elif project:
+            radius = dump.grid.coords.r(dump.grid.coord(at, 0, 0))
+            window = [-radius, radius, -radius, radius]
+        else:
+            window = [-1.6, 1.6, -1.6, 1.6]
+        ax.set_aspect('equal')
 
-    ax.set_aspect('equal')
+    # Restore "var" to string for labelling plots
+    if vname is not None:
+        var = vname
+        if log:
+            var = "log_"+var
     _decorate_plot(ax, dump, var, bh=False, **kwargs)
 
     return mesh

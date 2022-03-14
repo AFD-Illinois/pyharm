@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
 # 
-from ..reductions import *
+from ..ana.reductions import *
 from ..variables import *
 from .plot_dumps import *
 from .plot_results import *
@@ -175,8 +175,7 @@ def e_ratio_funnel(fig, dump, diag, plotrc):
     ax_slc = lambda i: plt.subplot(1, 4, i)
     # Energy ratios: difficult places to integrate, with failures
 
-    r1d = dump['r'][:,0,0]
-    r_i = i_of(r1d, plotrc['radius'])
+    r_i = i_of(dump['r1d'], plotrc['radius'])
     plotrc['vmin'] = -3
     plotrc['vmax'] = 3
     plotrc['half_cut'] = True
@@ -217,21 +216,20 @@ def conservation(fig, dump, diag, plotrc):
     E_r = shell_sum(dump, T_mixed(dump, 0, 0))
     Ang_r = shell_sum(dump, T_mixed(dump, 0, 3))
     mass_r = shell_sum(dump, dump['ucon'][0] * dump['RHO'])
-    r1d = dump['r'][:,0,0]
 
     max_e = 50000
     # TODO these will need some work to fully go to just ax.plot calls
-    ax_flux(2).plot(r1d, np.abs(E_r), title='Conserved vars at R', ylim=(0, max_e), rlim=(0, r_out), label="E_r")
-    ax_flux(2).plot(r1d, np.abs(Ang_r) / 10, ylim=(0, max_e), rlim=(0, r_out), color='r', label="L_r")
-    ax_flux(2).plot(r1d, np.abs(mass_r), ylim=(0, max_e), rlim=(0, r_out), color='b', label="M_r")
+    ax_flux(2).plot(dump['r1d'], np.abs(E_r), title='Conserved vars at R', ylim=(0, max_e), rlim=(0, r_out), label="E_r")
+    ax_flux(2).plot(dump['r1d'], np.abs(Ang_r) / 10, ylim=(0, max_e), rlim=(0, r_out), color='r', label="L_r")
+    ax_flux(2).plot(dump['r1d'], np.abs(mass_r), ylim=(0, max_e), rlim=(0, r_out), color='b', label="M_r")
     ax_flux(2).legend()
 
     # Radial energy accretion rate
     Edot_r = shell_sum(dump, T_mixed(dump, 1, 0))
-    ax_flux(4).plot(r1d, Edot_r, label='Edot at R', ylim=(-200, 200), rlim=(0, r_out), native=True)
+    ax_flux(4).plot(dump['r1d'], Edot_r, label='Edot at R', ylim=(-200, 200), rlim=(0, r_out), native=True)
 
     # Radial integrated failures
-    ax_flux(6).plot(r1d, (dump['pflag'] > 0).sum(axis=(1, 2)), label='Fails at R', native=True, rlim=(0, r_out), ylim=(0, 1000))
+    ax_flux(6).plot(dump['r1d'], (dump['pflag'] > 0).sum(axis=(1, 2)), label='Fails at R', native=True, rlim=(0, r_out), ylim=(0, 1000))
 
     return fig
 

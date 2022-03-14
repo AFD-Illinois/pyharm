@@ -10,6 +10,7 @@ from .variables import fns_dict
 
 # Specifically for reading the header as copied/output to result files
 from .io.iharm3d_header import read_hdr
+from .io import read_log
 
 """
 Results are organized by remaining independent variable -- so, a phi- and time-average
@@ -23,9 +24,7 @@ in 'r/rho'.
 For variables in th/phi in FMKS, one can specify a radius r to use.
 """
 
-window_sz = 101
-
-def smoothed(list):
+def smoothed(list, window_sz=101):
     new_list = list.copy()
     for i in range(len(list)):
         new_list[i] = np.mean(list[max(i-window_sz//2, 0):min(i+window_sz//2+1, len(list))])
@@ -38,37 +37,94 @@ class AnaResults(object):
     dependent variables are datasets, header is in iharm3d format as written by iharm3d_header.py
     """
 
-    diag_fns = {'mdot': lambda diag: diag['t/Mdot'][()],
-                'mdot_smooth': lambda diag: smoothed(diag['t/Mdot'][()]),
-                'phi_b_per': lambda diag: diag['t/Phi_b'][()] / np.sqrt(diag['t/Mdot'][()]),
-                'phi_b': lambda diag: diag['t/Phi_b'][()] / np.sqrt(smoothed(diag['t/Mdot'][()])),
-                'edot_per': lambda diag: diag['t/Edot'][()] / diag['t/Mdot'][()],
-                'edot': lambda diag: diag['t/Edot'][()] / smoothed(diag['t/Mdot'][()]),
-                'ldot_per': lambda diag: diag['t/Ldot'][()] / diag['t/Mdot'][()],
-                'ldot': lambda diag: diag['t/Ldot'][()] / smoothed(diag['t/Mdot'][()]),
+    # TODO merge w/ version in variables.py?
+    diag_fns = {'mdot': lambda diag: np.abs(diag['Mdot_EH']),
+                'mdot_smooth': lambda diag: smoothed(diag['mdot']), # Default smoothing when plotting X/mdot normalized plots
+                'phi_b_per': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot']),
+                'phi_b': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot_smooth']),
+                'edot_per': lambda diag: diag['Edot'] / diag['mdot'],
+                'edot': lambda diag: diag['Edot'] / diag['mdot_smooth'],
+                'ldot_per': lambda diag: diag['Ldot'] / diag['mdot'],
+                'ldot': lambda diag: diag['Ldot'] / diag['mdot_smooth'],
+                'Phi_b': lambda diag: diag['Phi_EH'],
                 }
 
     def __init__(self, fname):
-        # Since we don't care as much about either RAM or speed here, we just read the whole thing
+        # When reading HDF5 files, just open the file
+        # When reading diagnostic output, read the whole thing
         self.fname = fname
-        self.file = h5py.File(fname, "r")
-        self.params = read_hdr(fname['/header'])
-        self.grid = Grid(self.params)
-        self.qui_ends = (self.file['avg']['start'][()], self.file['avg']['end'][()])
-        self.qui_slc = self.get_time_slice(*self.qui_ends)
-        if 'diag' in self.file:
-            self.has_diag = True
-            self.qui_diag = self.get_time_slice(*self.qui_ends, diag=True)
+        if ".h5" in fname or ".hdf5" in fname:
+            # Read analysis results
+            self.file = h5py.File(fname, "r")
+            self.params = read_hdr(fname['/header'])
+            self.grid = Grid(self.params)
+            self.qui_ends = (self.file['avg/start'][()], self.file['avg/end'][()])
+            self.qui_slc = self.get_time_slice(*self.qui_ends)
+            if 'diag' in self.file:
+                self.has_diag = True
+                self.qui_diag = self.get_time_slice(*self.qui_ends, diag=True)
+        else:
+            # Read diagnostic output.  Much more limited functionality here,
+            # mostly for applying diag_fns
+            self.file = read_log(fname)
+            self.diag_only = True
+            
 
     def __del__(self):
-        self.file.close()
+        if not isinstance(self.file, dict):
+            self.file.close()
 
     def get_time_slice(self, tstart, tend, diag=False):
-        if diag:
-            t = self.file['diag']['t'][()]
+        return slice(i_of(self['t_diag'], tstart), i_of(self['t_diag'], tend))
+
+    def __getitem__(self, key):
+        #print("Getting result "+key)
+        if key in self.file:
+            return self.file[key][()]
+        elif 'coord' in self.file and key in self.file['coord']:
+            return self.file['coord'][key][()]
+
+        # Postfixes for options:
+        # 
+        elif key[-5:] =='_diag':
+            kname = key.replace('_diag','')
+            if 'diag' in self.file and kname in self.file['diag']:
+                return self.file['diag'][kname][()]
+            else:
+                return self[kname]
+
+        elif '_smoothed' in key:
+            klist = key.split('_')
+            si = klist.index('smoothed')
+            try:
+                window = int(klist[si+1])
+                kname = '_'.join(klist[:si] + klist[si+2:])
+            except (IndexError, TypeError):
+                window=101
+                kname = '_'.join(klist[:si] + klist[si+1:])
+            return smoothed(self[kname], window_sz=window)
+
+        # Prefixes for a few common 1:1 math operations.
+        # Most math should be done by reductions.py
+        # Don't bother to cache these, they aren't intensive to calculate
+        elif key[:5] == "sqrt_":
+            return np.sqrt(self[key[5:]])
+        elif key[:4] == "abs_":
+            return np.abs(self[key[4:]])
+        elif key[:4] == "log_":
+            return np.log10(self[key[4:]])
+        elif key[:3] == "ln_":
+            return np.log(self[key[3:]])
+
+        elif key in fns_dict:
+            return fns_dict[key](self)
+        elif key in self.diag_fns:
+            return self.diag_fns[key](self)
+        elif key[:2] == "t/" and self.diag_only:
+            return self[key[2:]]
         else:
-            t = self.file['coord']['t'][()]
-        return slice(i_of(t, tstart), i_of(t, tend))
+            # TODO except, try other independent vars.  Both?
+            return self.get_result('t', key)
 
     def get_result(self, ivar, var, qui=False, only_nonzero=True, **kwargs):
         """Get the values of a variable, and of the independent variable against which to plot it.
@@ -76,21 +132,18 @@ class AnaResults(object):
         :arg qui Get only "quiescence" time, i.e. range over which time-averages were taken
         :arg only_nonzero Get only nonzero values
         """
+        #print("Getting result "+ivar+" "+var)
         ret_i = np.array(self.get_ivar(ivar, **kwargs))
         ivar_l = ivar.replace("log_","")
 
-        if var in self.file[ivar_l]:
+        if ivar_l in self.file and var in self.file[ivar_l]:
             ret_v = self.file[ivar_l][var][()]
         elif var in fns_dict:
-            ret_v = fns_dict[var](self.file[ivar_l])
-        elif var[:4] == 'log_':
-            ret_i, ret_v = self.get_result(ivar_l, var[4:], qui=qui, only_nonzero=only_nonzero, **kwargs)
-            return ret_i, np.log10(ret_v)
-        elif var in self.diag_fns: # TODO merge this with larger one, provide __getitem__
+            ret_v = fns_dict[var](self)
+        elif var in self.diag_fns:
                 return ret_i, self.diag_fns[var](self)
         else:
-            print("Can't find variable: {} as a function of {}".format(var, ivar_l))
-            return None, None
+            raise IOError("Can't find variable: {} as a function of {}".format(var, ivar_l))
 
         if qui:
             if isinstance(ret_i, list):
@@ -111,19 +164,23 @@ class AnaResults(object):
 
 
     def get_ivar(self, ivar, th_r=None, i_xy=False, mesh=True):
-        """Given an input file and the string of independent variable name(s) ('r', 'rth', 'rt', etc),
-        return a grid of those variables' values.
+        """Get a grid of independent variable values
         """
         ret_i = []
-        G = self.grid
 
-        if mesh:
-            native_coords = G.coord_all_mesh()
-        else:
-            native_coords = G.coord_all()
+        if ivar != 't':
+            print(ivar)
+            G = self.grid
+            if mesh:
+                native_coords = G.coord_all_mesh()
+            else:
+                native_coords = G.coord_all()
 
         if ivar[-1:] == 't':
-            t = self.file['coord']['t'][()]
+            if 'coord' in self.file:
+                t = self.file['coord']['t'][()]
+            else:
+                t = self.file['time']
             if mesh:
                 t = np.append(t, t[-1] + (t[-1] - t[0]) / t.shape[0])
             ret_i.append(t)

@@ -63,7 +63,7 @@ class KHARMAFile(DumpFile):
 
         # Extend the shorthand for primitive variables to their full names in KHARMA,
         # but not other variables.
-        if var in ("rho", "u", "uvec", "B"):
+        if var in ("rho", "u", "uvec", "B", "q", "dP", "psi"):
             var = "prims."+var
         if ("Kel" in var or "Ktot" in var) and ("cons" not in var):
             var = "prims."+var
