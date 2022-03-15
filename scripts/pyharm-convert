@@ -46,7 +46,7 @@ def convert(files, path, outfile, double, restart, nthreads, debug):
     elif outfile is not None:
         outfiles = [outfile]
     else:
-        outfiles = [f.replace(".phdf", "")+".h5" for f in files]
+        outfiles = [f.replace(".phdf", "").replace(".rhdf","")+".h5" for f in files]
 
     if debug:
         for file, outfile in zip(files, outfiles):

@@ -5,6 +5,7 @@ import h5py
 
 from .. import parameters
 from ..util import slice_to_index
+from ..defs import Loci
 from ..grid import Grid
 from .interface import DumpFile
 
@@ -153,7 +154,16 @@ class KHARMAFile(DumpFile):
                         new_prim = new_prim[np.newaxis, Ellipsis]
                     prims = np.append(prims, new_prim, axis=0)
                 except IOError:
-                    pass
+                    # If we're missing B, this is probably a restart.
+                    # Try using cons.B
+                    if "B" in v2:
+                        try:
+                            grid = Grid(self.params)
+                            v2_con = "cons."+v2.replace("prims", "")
+                            new_prim = self.read_var(v2_con) / grid['gdet'][Loci.CENT.value]
+                            prims = np.append(prims, new_prim, axis=0)
+                        except IOError:
+                            print("Error reading cons.B")
             self.cache["prims"] = prims
             return self.cache["prims"]
         elif var == "cons":
