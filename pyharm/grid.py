@@ -175,14 +175,20 @@ class Grid:
                 gcov_loc = self.coords.gcov(x)
                 gcon_loc = self.coords.gcon(gcov_loc)
                 gdet_loc = self.coords.gdet(gcov_loc)
-                self.gcov[loc.value] = gcov_loc[:, :, :, :, None]
-                self.gcon[loc.value] = gcon_loc[:, :, :, :, None]
-                self.gdet[loc.value] = gdet_loc[:, :, None]
-                self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0, :, :, None])
+                if self.GN[2] > 1:
+                    self.gcov[loc.value] = gcov_loc[Ellipsis, np.newaxis]
+                    self.gcon[loc.value] = gcon_loc[Ellipsis, np.newaxis]
+                    self.gdet[loc.value] = gdet_loc[Ellipsis, np.newaxis]
+                    self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0, Ellipsis, np.newaxis])
+                else:
+                    self.gcov[loc.value] = gcov_loc[Ellipsis, np.newaxis, np.newaxis]
+                    self.gcon[loc.value] = gcon_loc[Ellipsis, np.newaxis, np.newaxis]
+                    self.gdet[loc.value] = gdet_loc[Ellipsis, np.newaxis, np.newaxis]
+                    self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0, Ellipsis, np.newaxis, np.newaxis])
 
             if cache_conn:
                 # It will probably never be advantageous to store this in 3D
-                self.conn = self.coords.conn_func(x_cent)[:, :, :, :, :, None]
+                self.conn = self.coords.conn_func(x_cent)[Ellipsis, np.newaxis]
 
     def __del__(self):
         # Try to clean up what we can. Anything that may possibly not be a simple ref
