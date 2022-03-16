@@ -24,11 +24,12 @@ in 'r/rho'.
 For variables in th/phi in FMKS, one can specify a radius r to use.
 """
 
-def smoothed(list, window_sz=101):
-    new_list = list.copy()
-    for i in range(len(list)):
-        new_list[i] = np.mean(list[max(i-window_sz//2, 0):min(i+window_sz//2+1, len(list))])
-    return new_list
+def smoothed(a, window_sz=101):
+    """A potentially slightly faster smoothing operation"""
+    ret = np.array([np.mean(a[:n]) for n in range(1,window_sz//2+1)])
+    ret = np.append(ret, np.convolve(a, np.ones(window_sz), 'valid') / window_sz)
+    ret = np.append(ret, np.array([np.mean(a[-n:]) for n in range(1,window_sz//2+1)]))
+    return ret
 
 class AnaResults(object):
     """
