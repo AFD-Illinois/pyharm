@@ -3,11 +3,9 @@
 #SBATCH -J pyharm_movie
 #SBATCH -A ast171
 #SBATCH -N 1
-#SBATCH --ntasks-per-node 32
-#SBATCH --mem=0
 # Only 'batch' or 'gpu'
 #SBATCH -p batch
-#SBATCH -t 4:00:00
+#SBATCH -t 12:00:00
 #SBATCH -o out-%j.txt
 
 # Run a movie(s) as an MPI job on Andes.
@@ -30,7 +28,6 @@ conda activate pyharm
 export MKL_NUM_THREADS=8
 export OMP_NUM_THREADS=8
 
-# The intent of the directives is to start 32 tasks per node (or more?),
-# but not *bind* them to particular cores --
-# we want to allow MKL_NTHREADS and OMP_NTHREADS to work
-srun pyharm-movie "${@}"
+# Start 1 task/cpu by default. -O option allows more tasks,
+# if this proves efficient for simple movies.
+srun -n $(($SLURM_JOB_NUM_NODES * 32)) --cpu-bind=no pyharm-movie "${@}"

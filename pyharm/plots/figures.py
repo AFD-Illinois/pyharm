@@ -83,14 +83,19 @@ def traditional(fig, dump, diag, plotrc):
     # CUTS
     plot_slices(ax_slc(1), ax_slc(2), dump, 'rho', log=True, **plotrc)
     plot_slices(ax_slc(3), ax_slc(4), dump, 'UU', log=True, **{**plotrc, **{'ylabel': False}})
-    plot_slices(ax_slc(5), ax_slc(6), dump, 'beta', log=True, **plotrc)
+
+    # Beta
+    #plot_slices(ax_slc(5), ax_slc(6), dump, 'beta', log=True, **plotrc)
+    # Zoomed in rho
+    plotrc['window'] = (-10, 10, -10, 10)
+    plot_slices(ax_slc(5), ax_slc(6), dump, 'rho', log=True, **plotrc)
+    # bsq
+    #plot_slices(ax_slc(7), ax_slc(8), dump, 'bsq', log=True, **plotrc)
+
     # FLUXES
     plot_hst(ax_flux(6), diag, 'Mdot', tline=dump['t'], xticklabels=[])
     plot_hst(ax_flux(8), diag, 'phi_b', tline=dump['t'])
-    # bsq
-    #plot_slices(ax_slc(7), ax_slc(8), dump, 'bsq', log=True, **plotrc)
-    # Zoomed in rho
-    #plot_slices(ax_slc(7), ax_slc(8), dump, 'rho', log=True, window=[-10, 10, -10, 10])
+
     fig.subplots_adjust(hspace=0.1, wspace=0.23, left=0.05, right=0.95, bottom=0.05, top=0.95)
     return fig
 
