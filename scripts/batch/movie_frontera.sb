@@ -15,12 +15,11 @@
 
 # Make sure we *do* use Frontera's python, now we don't need OpenCL
 # Intel MPI and mpi4py do *not* mix, load mvapich instead. Speed is secondary.
-module load python3 mvapich2-x
-PYHARM_DIR="$HOME/Code/pyharm/scripts"
+module load python3/3.9.2 mvapich2-x
 
 # Just in case we're running from bash
-export IBRUN_NPROCS=56
-# Let MKL know we want 
+export IBRUN_TASKS_PER_NODE=56
+# Let MKL know we want 8 threads
 export MKL_DYNAMIC="FALSE"
 export MKL_NUM_THREADS=8
 
@@ -29,4 +28,4 @@ export MKL_NUM_THREADS=8
 #trap "srun killall python python2 launcher" SIGTERM SIGINT
 
 # Pass all arguments. movie.py will handle looping over directories
-ibrun $PYHARM_DIR/movie.py "${@}"
+ibrun pyharm-movie "${@}"

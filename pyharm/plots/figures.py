@@ -87,16 +87,19 @@ def traditional(fig, dump, diag, plotrc):
     # Beta
     #plot_slices(ax_slc(5), ax_slc(6), dump, 'beta', log=True, **plotrc)
     # Zoomed in rho
-    plotrc['window'] = (-10, 10, -10, 10)
-    plot_slices(ax_slc(5), ax_slc(6), dump, 'rho', log=True, **plotrc)
+    plot_slices(ax_slc(5), ax_slc(6), dump, 'rho', log=True, **{**plotrc, **{'window': (-10, 10, -10, 10)}})
     # bsq
     #plot_slices(ax_slc(7), ax_slc(8), dump, 'bsq', log=True, **plotrc)
 
     # FLUXES
-    plot_hst(ax_flux(6), diag, 'Mdot', tline=dump['t'], xticklabels=[])
-    plot_hst(ax_flux(8), diag, 'phi_b', tline=dump['t'])
+    if diag is not None:
+        plot_hst(ax_flux(6), diag, 'mdot', tline=dump['t'], xticklabels=[])
+        plot_hst(ax_flux(8), diag, 'phi_b', tline=dump['t'])
+    else:
+        print("Not plotting fluxes!", file=sys.stderr)
+        plot_slices(ax_slc(7), ax_slc(8), dump, 'beta', log=True, **plotrc)
 
-    fig.subplots_adjust(hspace=0.1, wspace=0.23, left=0.05, right=0.95, bottom=0.05, top=0.95)
+    fig.subplots_adjust(hspace=0.12, wspace=0.23, left=0.05, right=0.96, bottom=0.05, top=0.95)
     return fig
 
 def prims(fig, dump, diag, plotrc, log=True, simple=True, type="poloidal"):

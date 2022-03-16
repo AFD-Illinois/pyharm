@@ -101,10 +101,10 @@ def slice_to_index(current_start, current_stop, slc):
             new_stop[i] = current_start[i] + slc[i] + 1
         elif slc[i] is not None:
             if slc[i].start is not None:
-                new_start[i] = current_start + slc[i].start if slc[i].start > 0 else current_stop[i] + slc[i].stop
+                new_start[i] = current_start[i] + slc[i].start if slc[i].start >= 0 else current_stop[i] + slc[i].stop
             if slc[i].stop is not None:
                 # Count forward from global_start, or backward from global_stop
-                new_stop[i] = current_start + slc[i].stop if slc[i].stop > 0 else current_stop[i] + slc[i].stop
+                new_stop[i] = current_start[i] + slc[i].stop if slc[i].stop >= 0 else current_stop[i] + slc[i].stop
 
     return new_start, new_stop
 

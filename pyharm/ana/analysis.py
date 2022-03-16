@@ -32,8 +32,13 @@ def write_ana_dict(out, out_full, n, n_dumps):
         except TypeError as e:
             print("Encountered error when updating {}: {}".format(key, e))
 
-def analyze(fname, kwargs):
+def analyze(args):
+    fname, kwargs = args
     out = {}
     dump = FluidDump(fname)
-    for type in kwargs['ana_types']:
-        analyses.__dict__(type)(dump, out, **kwargs)
+    ana_types = kwargs['ana_types'].split(",")
+    if "basic" not in ana_types:
+        ana_types.append("basic")
+    for type in ana_types:
+        analyses.__dict__[type](dump, out, **kwargs)
+    return out

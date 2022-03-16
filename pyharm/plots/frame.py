@@ -26,6 +26,8 @@ def frame(fname, diag, kwargs):
     # If we're outside the timeframe we don't need to make *anything*
     tstart, tend = kwargs['tstart'], kwargs['tend']
     tdump = io.get_dump_time(fname)
+    if tdump is None:
+        return
 
     if (tstart is not None and tdump < tstart) or \
         (tend is not None and tdump > tend):
@@ -35,7 +37,7 @@ def frame(fname, diag, kwargs):
     # and which will include ghosts
     movie_types = []
     ghost_zones = False
-    for movie_type in kwargs['movie_type'].split(","):
+    for movie_type in kwargs['movie_types'].split(","):
         if 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
             frame_name = os.path.join("frames_"+movie_type, "frame_t%03.2f.png" % tdump)
         else:

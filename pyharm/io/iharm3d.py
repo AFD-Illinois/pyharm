@@ -214,7 +214,6 @@ class Iharm3DFile(DumpFile):
             eprim_indices = [prim_names.index(eprim_name) for eprim_name in eprim_names]
 
             i = self.index_of(var, eprim_names, eprim_indices)
-            print(i)
             if i is not None:
                 # This is one of the main vars in the 'prims' array
                 self.cache[var] = self._prep_array(fil['/prims'][fil_slc + (i,)], **kwargs)

@@ -200,7 +200,6 @@ class KHARMAFile(DumpFile):
 
         # What locations do we want to read from the file?
         # Get a start and end point based on the total size and slice
-        #print("Reading file slice ", slc)
         file_start, file_stop = slice_to_index((0, 0, 0), ntot, slc)
         out_shape = [file_stop[i] - file_start[i] for i in range(len(file_stop))]
         # Now that we know which dimensions stay non-trivial, revise our slicing
@@ -208,7 +207,7 @@ class KHARMAFile(DumpFile):
         ng_iy = params['ng'] if out_shape[1] > 1 else 0
         ng_iz = params['ng'] if out_shape[2] > 1 else 0
 
-        #print("Reading indices ", file_start, " to ", file_stop, " shape ", out_shape)
+        #print("Reading slice", slc, " of file, indices ", file_start, " to ", file_stop, " to shape ", out_shape)
 
         # Allocate the full mesh size
         if "jcon" in var:
@@ -217,7 +216,6 @@ class KHARMAFile(DumpFile):
             out = np.zeros((3, *out_shape), dtype=astype)
         else:
             out = np.zeros(out_shape, dtype=astype)
-        #print("Reading block of total size ", out.shape)
 
         # Arrange and read each block
         for ib in range(fil.NumBlocks):

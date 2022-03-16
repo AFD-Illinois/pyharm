@@ -21,11 +21,16 @@ from . import gridfile
 
 def get_fnames(path):
     """Return what should be the list of fluid dump files in a directory 'path',
-    while trying to avoid extraneous files caught in normal globs (e.g., grid.h5)
+    while trying to avoid extraneous files caught in normal globs (e.g., grid.h5, other runs/filetypes)
     """
-    for scheme in itertools.product((".","dumps","dumps_kharma"), ("dump_*.h5", "*out0*.phdf", "*out*.phdf", "*.phdf", "dump*", "*.h5", "*.hdf5")):
+    # These are at best a touchy heuristic
+    for scheme in itertools.product((".","dumps","dumps_kharma"),
+                                    ("*out0*.phdf", "*out*.phdf", "*.phdf", "*out0*.h5", 
+                                    "dump_*.h5", "dump[0-9][0-9][0-9]")):
         files = np.sort(glob(os.path.join(path, scheme[0], scheme[1])))
         if len(files) > 0:
+            # Explicitly take out some common things in dump directories
+            files = [f for f in files if ("grid" not in f) and ("eht_out" not in f)]
             return files
     raise FileNotFoundError("No dump files found at {}".format(path))
 
@@ -33,6 +38,7 @@ def _get_filter_class(fname):
     """Internal pyharm i/o function to choose which class to use when reading a new file.
     Ideally should be kept very fast, as sometimes not much is actually *read* from the file
     afterward.
+    TODO keep in mind we should print good errors called on e.g. a gridfile
     """
     if ".phdf" in fname or ".rhdf" in fname:
         return KHARMAFile

@@ -1,5 +1,5 @@
 
-
+import sys
 
 from ..variables import *
 from .reductions import *
@@ -30,26 +30,24 @@ def basic(dump, out, **kwargs):
     iEH = get(kwargs, 'iEH')
     iF = i_of(dump['r1d'], get(kwargs, 'rF'))
 
-    # Record dump time or number
-    t = io.get_dump_time(dump)
-    if t == 0.:
-        try:
-            t = dump['n_dump']
-        except ValueError:
-            t = 0
-    out['coord/t'] = t
+    # Record dump time. TODO fallbacks?
+    out['coord/t'] = dump['t']
     # Record whether this dump is part of the average
-    out['t/is_avg'] = t > kwargs['']
+    out['t/is_avg'] = kwargs['t_avg_start'] < dump['t'] < kwargs['t_avg_end']
+
+    print("Analyzing t={}".format(int(dump['t'])), file=sys.stderr)
 
     # FIELD STRENGTHS
     # The HARM B_unit is sqrt(4pi)*c*sqrt(rho), and this is standard for EHT comparisons
     out['t/Phi_b'] = 0.5 * shell_sum(dump, 'abs_B1', at_r=iEH)
+    out['t/Phi_b_upper'] = shell_sum(dump, 'B1', at_r=iEH, j_slice=(0, dump['n2']//2))
+    out['t/Phi_b_lower'] = shell_sum(dump, 'B1', at_r=iEH, j_slice=(dump['n2']//2, dump['n2']))
 
     # FLUXES
     # Radial profiles of Mdot and Edot, and their particular values
     # EHT code-comparison normalization has all these values positive
     for var, flux in [['Edot', 'FE'], ['Mdot', 'FM'], ['Ldot', 'FL']]:
-        out['t/'+var] = shell_sum(dump, flux, at_zone=iF)
+        out['t/'+var] = shell_sum(dump, flux, at_i=iF)
     # Mdot and Edot are defined inward/positive at EH
     out['t/Mdot'] *= -1
     out['t/Edot'] *= -1

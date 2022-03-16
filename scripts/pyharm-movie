@@ -19,7 +19,8 @@ try:
     from mpi4py.futures import MPICommExecutor, MPIPoolExecutor
     if MPI.COMM_WORLD.Get_rank() == 0:
         print("Using MPI", file=sys.stderr)
-    use_mpi = True
+    # Use MPI unless we're alone
+    use_mpi = (MPI.COMM_WORLD.Get_size() > 1)
     def do_out():
         return MPI.COMM_WORLD.Get_rank() == 0
 except ImportError:
@@ -28,7 +29,7 @@ except ImportError:
         return True
 
 @click.command()
-@click.argument('movie_type', nargs=1)
+@click.argument('movie_types', nargs=1)
 @click.argument('paths', nargs=-1, type=click.Path(exists=True))
 # Common options
 @click.option('-s', '--tstart', default=0., help="Start time.")
@@ -50,7 +51,7 @@ except ImportError:
 @click.option('-r', '--resume', is_flag=True, help="Continue a previous run, by skipping existing frames")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
 #@click.option('-m', '--memory_limit', default=1, help="Memory limit in GB for each process, enforced by starting total/m processes.")
-def movie(movie_type, paths, **kwargs):
+def movie(movie_types, paths, **kwargs):
     """Generate movies of type MOVIE_TYPE from dumps at each of PATHS.
 
     "Movies" are generated as collections of frames in .png format, named frame_tXXXXXXXX.png by simulation time in M,
@@ -71,7 +72,7 @@ def movie(movie_type, paths, **kwargs):
     if len(path_dirs) == 0:
         # Single file argument, pass this
         path_dirs = paths
-    if do_out(): print("Generating ",len(path_dirs)*len(movie_type.split(","))," movie(s)", file=sys.stderr)
+    if do_out(): print("Generating ",len(path_dirs)*len(movie_types.split(","))," movie(s)", file=sys.stderr)
     base_path = os.getcwd()
     for path in path_dirs:
         # If a path...
@@ -84,11 +85,12 @@ def movie(movie_type, paths, **kwargs):
             files = [path]
 
         # Add these so we can pass on just the args
-        kwargs['movie_type'] = movie_type
+        kwargs['movie_types'] = movie_types
         kwargs['path'] = path
 
-        frame_dir = "frames_" + movie_type
-        os.makedirs(frame_dir, exist_ok=True)
+        for movie_type in movie_types.split(","):
+            frame_dir = "frames_" + movie_type
+            os.makedirs(frame_dir, exist_ok=True)
 
         try:
             # Load diagnostics from HARM itself
@@ -144,7 +146,7 @@ def movie(movie_type, paths, **kwargs):
                     if executor is not None:
                         print("Imaging {} files across pool size {}".format(len(files), MPI.COMM_WORLD.Get_size()), file=sys.stderr)
                         executor.map(frame, files, (diag,)*len(files), (kwargs,)*len(files))
-        if do_out(): print("Imaged model {} with movie {}".format(path, movie_type), file=sys.stderr)
+        if do_out(): print("Imaged model {} with movie(s) {}".format(path, movie_types), file=sys.stderr)
 
         # Change back to wherever our root was, argument paths can be relative
         os.chdir(base_path)

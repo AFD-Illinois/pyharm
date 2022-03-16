@@ -442,6 +442,8 @@ class Grid:
         Generally for dictionaries the syntax is "if x in dict.keys()" or "if x in dict" but we can't enumerate possibilities.
         So instead, check strings on the fly.
         """
+        if isinstance(key, int):
+            return False
         if key in self.__dict__:
             return True
         elif key in self.cache:

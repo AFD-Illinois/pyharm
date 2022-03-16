@@ -33,7 +33,7 @@ class DumpFile(object):
             return eprim_indices[eprim_names.index(vname.upper())]
         # Normal names
         elif vname.upper() in cls.prim_names_iharm:
-            return cls.prim_names_iharm.index(vname)
+            return cls.prim_names_iharm.index(vname.upper())
         # Vectors
         elif vname == "uvec":
             return slice(cls.index_of("u1"), cls.index_of("u3")+1)
