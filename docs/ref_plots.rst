@@ -9,6 +9,7 @@ Plotting from Dump Files
 ------------------------
 
 .. automodule:: pyharm.plots.plot_dumps
+   :private-members:
    :members:
 
 Plotting from Analysis Results

@@ -66,7 +66,8 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             half_cut=False, cmap='jet', shading='gouraud',
             at=None, average=False, sum=False, **kwargs):
     """Plot a poloidal or X1/X2 slice of a dump file.
-    NOTE: also accepts all keyword arguments to _decorate_plot()
+    Note this function also accepts all keyword arguments to _decorate_plot()
+
     :param ax: Axes object to paint on
     :param dump: fluid state object
     :param vmin, vmax: colorbar minimum and maximum
@@ -144,7 +145,8 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             cmap='jet', shading='gouraud',
             at=None, average=False, sum=False, **kwargs):
     """Plot a toroidal or X1/X3 slice of a dump file.
-    NOTE: also accepts all keyword arguments to _decorate_plot()
+    Note this function also accepts all keyword arguments to _decorate_plot()
+
     :param ax: Axes object to paint on
     :param dump: fluid state object
     :param vmin, vmax: colorbar minimum and maximum, 'None' auto-detects
