@@ -133,7 +133,7 @@ def analysis(ana_types, paths, **kwargs):
             except (IndexError, IOError):
                 # But don't cry if we can't
                 pass
-            # And record pretty much the only relevant parameters
+            # And record pretty much the only relevant command-line parameters
             outfile['avg/start'] = kwargs['t_avg_start']
             outfile['avg/end'] = kwargs['t_avg_end']
 

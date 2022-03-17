@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# This can be used as either a submit script or a bash script from a dev job (bash ana.sb [etc])
+# This can be used as either a submit script or a bash script from a dev job (bash movie.sb [etc])
 # Usage:
-# sbatch movie.sb type [arguments] path1 path2 path3
-# Where type is documented in pyharm/scripts/pyharm-movie or pyharm-movie --help
+# sbatch ana.sb type [arguments] path1 path2 path3
+# Where type is documented in pyharm/scripts/pyharm-analysis, or pyharm-analysis --help
 
 # Frontera sbatch directives
-#SBATCH -J pyharm_movie
+#SBATCH -J pyharm_ana
 #SBATCH -p development
 #SBATCH -N 1
 #SBATCH --ntasks-per-node 56
@@ -23,9 +23,5 @@ export IBRUN_TASKS_PER_NODE=56
 export MKL_DYNAMIC="FALSE"
 export MKL_NUM_THREADS=8
 
-# Trap on sigterm/int and kill everything we've spawned
-# TODO still necessary?
-#trap "srun killall python python2 launcher" SIGTERM SIGINT
-
 # Pass all arguments. movie.py will handle looping over directories
-ibrun pyharm-movie "${@}"
+ibrun pyharm-analysis "${@}"
