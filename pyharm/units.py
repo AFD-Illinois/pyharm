@@ -1,4 +1,3 @@
-# Tools for converting a set of self-consistent "code" units to CGS units
 
 import numpy as np
 
@@ -24,31 +23,38 @@ cgs = {
     'LSOLAR': 3.827e33
 }
 
+"""Tools for converting a set of self-consistent "code" units to CGS units
+"""
 
 def get_cgs():
+    """Get just the list of constants in CGS.
+    """
     return cgs
 
 
 def get_units_M87(M_unit, tp_over_te=3):
-    """Get units dict for MBH=6.2e9, i.e. M87
-    See get_units
+    """Get units dict for MBH=6.2e9, i.e. M87.
+    See get_units for details.
     """
     return get_units(6.2e9, M_unit, tp_over_te)
 
 def get_units_SgrA(M_unit, tp_over_te=3):
-    """Get units dict for MBH=6.2e9, i.e. M87
-    See get_units
+    """Get units dict for MBH=6.2e9, i.e. M87.
+    See get_units for details.
     """
     return get_units(4.14e6, M_unit, tp_over_te)
 
 def get_units(MBH, M_unit, tp_over_te=3, gam=4/3):
     """Get derived units and certain quantities for a system, given a BH mass in Msolar,
     and accretion density M_unit.
-    Arguments tp_over_te and gam only matter for resulting Thetae_unit
-    Also note Mdotedd assumes 10% efficiency
+    Arguments tp_over_te and gam only matter for calculating Thetae_unit.
+    Also note the calculation of Mdotedd assumes 10% efficiency.
+
+    :param MBH: Black hole mass in solar masses
+    :param M_unit: Density unit in grams, as fit by imaging with e.g. ``ipole``
     """
     out = {}
-    MBH *= cgs['MSOLAR'] # Take input in solar masses since this 
+    MBH *= cgs['MSOLAR'] # Take input in solar masses
     out['MBH'] = MBH
     out['M_unit'] = M_unit
     out['L_unit'] = L_unit = cgs['GNEWT']*MBH / cgs['CL']**2

@@ -37,10 +37,8 @@ class FluidDump:
                            so keep this True unless plotting a very simple variable
         :param cache_conn: Cache the connection coefficients at zone centers. Default off as memory-intensive and rarely needed
         :param units: a 'Units' object representing a physical scale for the dump (density M_unit and BH mass MBH)
-
-        Advanced options:
-        :param add_grid: Whether to construct a Grid object at all.  Used only for "copy construction" with Grid added immediately
-        :param params: dictionary of parameters. Must have the usual file header information already!
+        :param add_grid: Whether to construct a Grid object at all.  Only used for copy construction.
+        :param params: dictionary of parameters. Only used for copy construction.
         """
         self.fname = fname
         if tag == "":
@@ -69,17 +67,21 @@ class FluidDump:
                 del self.__dict__[cache]
 
     def set_units(self, MBH, M_unit):
-        """Associate a scale & units with this dump, for calculating scale-dependent quantities in CGS"""
+        """Associate a scale & units with this dump, for calculating scale-dependent quantities in CGS.
+        :param MBH: Black hole mass in solar masses
+        :param M_unit: Density unit in grams, as fit by imaging with e.g. ``ipole``
+        """
         self.units = get_units(MBH, M_unit, gam=self.params['gam'])
 
     def __getitem__(self, key):
-        """Get any of a number of different things from the backing dump file,
-        or from a cached version.
+        """Get any of a number of different things from the backing dump file, or from a cached version.
+        The full list of keys is covered in depth in the documentation at :ref:`keys`.
 
-        Also allows slicing FluidDump objects to get just a section, and read/operate on that section thereafter
-        Supports only a small subset of slicing operations, must pass a list/tuple of some sort & not None
-        Also note this means no requesting lists of variables at once. I have no idea why you'd want that.
-        Just, don't.
+        Also allows slicing FluidDump objects to get just a section, and read/operate on just that section
+        thereafter. This supports only a small subset of slicing operations:  you must pass a tuple of three
+        elements, all of which must either be integers or slice objects (not None).
+        Due to overloading, it is thus impossible to allow requesting lists of variables at once.
+        I have no idea why you'd want that.  Just, don't.
         """
         if type(key) in (list, tuple):
             slc = key

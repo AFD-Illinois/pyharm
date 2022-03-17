@@ -10,20 +10,42 @@ default_met_params = {'a': 0.9375, 'hslope': 0.3, 'r_out': 50.0, 'n1tot': 192,
 legacy_small_th = True
 
 class CoordinateSystem(object):
-    """ Base class for representing coordinate systems
-    Coordinate classes define, as functions of their native coordinates X:
+    """ Interface for representing coordinate systems.  Each system implements these functions.
+    Each system is designed to return at least:
+
      * r,th,phi in spherical Kerr-Schild coordinates (or just spherical coordinates in the case of Minkowski)
      * A transformation matrix, dxdX, for tensors from one system to the other
      * The forms and determinant of the metric, gcov, gcon, & gdet
 
-     Of these, most are derivable
+    Everything this class can return is derived from a metric and transformation matrix,
+    so most new coordinate systems just define those two things.
+
+    TODO notes on indexing flexibility in these functions
     """
 
     def native_startx(cls, met_params):
+        """Where the native coordinates X (e.g. 'startx1') should start,
+        given a set of metric parameters (e.g. grid size & 'r_out').
+        Most HARM systems in KS use this to place exactly 5 zones inside the EH.
+        """
         raise NotImplementedError
 
     def native_stopx(cls, met_params):
+        """Where the native coordinates X should stop given a set of metric parameters.
+        """
         raise NotImplementedError
+
+    def ks_coord(self, x):
+        """Return Spherical Kerr-Schild or Minkowski coordinates corresponding to a point X in native coordinates.
+        Individual coordinates below.
+        """
+        return np.array([self.r(x), self.th(x), self.phi(x)])
+
+    def cart_coord(self, x):
+        """Return Cartesian Kerr-Schild or Minkowski coordinates corresponding to a point X in native coordinates.
+        Individual coordinates below.
+        """
+        return np.array([self.cart_x(x), self.cart_y(x), self.cart_z(x)])
 
     def r(self, x):
         raise NotImplementedError
@@ -43,16 +65,8 @@ class CoordinateSystem(object):
     def cart_z(self, x):
         raise NotImplementedError
 
-    def ks_coord(self, x):
-        """Return Spherical Kerr-Schild coordinates of a point X in native coordinates"""
-        return np.array([self.r(x), self.th(x), self.phi(x)])
-
-    def cart_coord(self, x):
-        """Return Cartesian Kerr-Schild coordinates of a point X in native coordinates"""
-        return np.array([self.cart_x(x), self.cart_y(x), self.cart_z(x)])
-
     def correct_small_th(self, theta):
-        # Corrections for small theta
+        r""""Corrections" to the theta coordinate to avoid returning exactly 0 or :math:`\pi`"""
         if isinstance(theta, np.ndarray):
             # Perform statically to save lines (/time?)
             # TODO can do with np.clip...
@@ -76,6 +90,7 @@ class CoordinateSystem(object):
         return theta
 
     def gcov_ks(self, X):
+        """Covariant metric in Kerr-Schild coordinates at some native location 4-vector X"""
         gcov_ks = np.zeros([4, 4, *(X.shape[1:])])
         r, th, _ = self.ks_coord(X)
         if 'small_th' not in self.__dict__:
@@ -106,7 +121,7 @@ class CoordinateSystem(object):
         return gcov_ks
 
     def gcov(self, X):
-        # Apply coordinate transformation to code coordinates X
+        """Covariant metric in native coordinates at some native location 4-vector X"""
         gcov_ks = self.gcov_ks(X)
         dxdX = self.dxdX(X)
         return np.einsum("ab...,ac...,bd...->cd...", gcov_ks, dxdX, dxdX)
@@ -158,7 +173,8 @@ class CoordinateSystem(object):
     # TODO Einsum this too
     def conn_func(self, x, delta=1e-5):
         r"""Calculate all connection coefficients :math:`\Gamma^{i}_{j, k}`.
-        Returns a 3+N dimensional array conn[i,j,k,...]"""
+        Returns a 3+N dimensional array conn[i,j,k,...]
+        """
 
         conn = np.zeros([4, 4, 4, *(x.shape[1:])])
         tmp = np.zeros_like(conn)

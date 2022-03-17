@@ -25,29 +25,39 @@ For variables in th/phi in FMKS, one can specify a radius r to use.
 """
 
 def smoothed(a, window_sz=101):
-    """A potentially slightly faster smoothing operation"""
-    ret = np.array([np.mean(a[:n]) for n in range(1,window_sz//2+1)])
+    """A potentially reasonably fast smoothing operation.
+    Averages only available data, i.e. only half window-size at edges.
+    """
+    ret = np.array([np.mean(a[:n+window_sz//2]) for n in range(1,window_sz//2+1)])
     ret = np.append(ret, np.convolve(a, np.ones(window_sz), 'valid') / window_sz)
-    ret = np.append(ret, np.array([np.mean(a[-n:]) for n in range(1,window_sz//2+1)]))
+    ret = np.append(ret, np.array([np.mean(a[-n-window_sz//2:]) for n in range(1,window_sz//2+1)]))
     return ret
 
 class AnaResults(object):
     """
     Tools for dealing with the results computed by scripts/analysis.py.
     Output format documentation soon^TM but the upshot is independent variables are directories,
-    dependent variables are datasets, header is in iharm3d format as written by iharm3d_header.py
+    dependent variables are datasets, header is in iharm3d format as written by
+    :mod:`pyharm.io.iharm3d_header`
     """
 
-    # TODO merge w/ version in variables.py?
-    diag_fns = {'mdot': lambda diag: np.abs(diag['Mdot_EH']),
-                'mdot_smooth': lambda diag: smoothed(diag['mdot']), # Default smoothing when plotting X/mdot normalized plots
-                'phi_b_per': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot']),
-                'phi_b': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot_smooth']),
-                'edot_per': lambda diag: diag['Edot'] / diag['mdot'],
-                'edot': lambda diag: diag['Edot'] / diag['mdot_smooth'],
-                'ldot_per': lambda diag: diag['Ldot'] / diag['mdot'],
-                'ldot': lambda diag: diag['Ldot'] / diag['mdot_smooth'],
-                'Phi_b': lambda diag: diag['Phi_EH'],
+    diag_fn_common = {'mdot_smooth': lambda diag: smoothed(diag['mdot']),
+                    'phi_b_per': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot']),
+                    'phi_b': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot_smooth']),
+                    'edot_per': lambda diag: diag['Edot'] / diag['mdot'],
+                    'edot': lambda diag: diag['Edot'] / diag['mdot_smooth'],
+                    'ldot_per': lambda diag: diag['Ldot'] / diag['mdot'],
+                    'ldot': lambda diag: diag['Ldot'] / diag['mdot_smooth'],
+                    }
+    diags_hst = {'mdot': lambda diag: np.abs(diag['Mdot_EH']),
+                 'Phi_b': lambda diag: diag['Phi_EH'],
+                 'Edot': lambda diag: diag['Edot_EH'],
+                 'Ldot': lambda diag: diag['Ldot_EH'],
+                }
+    diags_ana = {'mdot': lambda diag: np.abs(diag['t/Mdot']),
+                 'Phi_b': lambda diag: diag['t/Phi_b'],
+                 'Edot': lambda diag: diag['t/Edot'],
+                 'Ldot': lambda diag: diag['t/Ldot'],
                 }
 
     def __init__(self, fname):
@@ -57,10 +67,13 @@ class AnaResults(object):
         if ".h5" in fname or ".hdf5" in fname:
             # Read analysis results
             self.file = h5py.File(fname, "r")
-            self.params = read_hdr(fname['/header'])
+            self.diag_only = False
+            self.diag_fns = {**self.diag_fn_common, **self.diags_ana}
+            self.params = read_hdr(self.file['/header'])
             self.grid = Grid(self.params)
-            self.qui_ends = (self.file['avg/start'][()], self.file['avg/end'][()])
-            self.qui_slc = self.get_time_slice(*self.qui_ends)
+            if 'avg/start' in self.file:
+                self.qui_ends = (self.file['avg/start'][()], self.file['avg/end'][()])
+                self.qui_slc = self.get_time_slice(*self.qui_ends)
             if 'diag' in self.file:
                 self.has_diag = True
                 self.qui_diag = self.get_time_slice(*self.qui_ends, diag=True)
@@ -68,6 +81,7 @@ class AnaResults(object):
             # Read diagnostic output.  Much more limited functionality here,
             # mostly for applying diag_fns
             self.file = read_log(fname)
+            self.diag_fns = {**self.diag_fn_common, **self.diags_hst}
             self.diag_only = True
             
 
@@ -123,6 +137,8 @@ class AnaResults(object):
             return self.diag_fns[key](self)
         elif key[:2] == "t/" and self.diag_only:
             return self[key[2:]]
+        elif '/' in key:
+            return self.get_result(*key.split("/"))
         else:
             # TODO except, try other independent vars.  Both?
             return self.get_result('t', key)
@@ -130,10 +146,10 @@ class AnaResults(object):
     def get_result(self, ivar, var, qui=False, only_nonzero=True, **kwargs):
         """Get the values of a variable, and of the independent variable against which to plot it.
         Various common slicing options:
-        :arg qui Get only "quiescence" time, i.e. range over which time-averages were taken
-        :arg only_nonzero Get only nonzero values
+        :param qui: Get only "quiescence" time, i.e. range over which time-averages were taken
+        :param only_nonzero: Get only nonzero values
         """
-        #print("Getting result "+ivar+" "+var)
+        print("Getting result ", ivar, var)
         ret_i = np.array(self.get_ivar(ivar, **kwargs))
         ivar_l = ivar.replace("log_","")
 

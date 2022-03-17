@@ -5,16 +5,21 @@ import numpy as np
 
 class Loci(Enum):
     """Location enumerated value.
-    Locations are defined by:
-    ^ theta
-    |----------------------
-    |                     |
-    |                     |
-    |FACE1   CENT         |
-    |                     |
-    |CORN    FACE2        |
-    -------------------------> R
-    With FACE3 as the plane in phi"""
+    Locations are defined by::
+
+        ^ theta
+        |----------------------
+        |                     |
+        |                     |
+        |FACE1     CENT       |
+        |                     |
+        |CORN      FACE2      |
+        -------------------------> R
+    
+    And FACE3 as the plane in phi.
+    Several items in ``Grid`` are indexed by location. To retrieve the
+    one you want, use e.g. ``Loci.CENT.value`` as the first index.
+    """
     FACE1 = 0
     FACE2 = 1
     FACE3 = 2
@@ -22,6 +27,9 @@ class Loci(Enum):
     CORN = 4
 
 class InversionStatus(Enum):
+    """Enum denoting U to P inversion status.
+    See e.g. u_to_p.hpp in KHARMA for documentation.
+    """
     unused = -1
     success = 0
     neg_input = 1
@@ -33,7 +41,7 @@ class InversionStatus(Enum):
     neg_rhou = 7
 
 class FloorFlag_iharm3d(Enum):
-    # Floor Codes: bit masks
+    """Bit masks for HARM floor codes."""
     HIT_FLOOR_GEOM_RHO = 1
     HIT_FLOOR_GEOM_U = 2
     HIT_FLOOR_B_RHO = 4
@@ -44,9 +52,10 @@ class FloorFlag_iharm3d(Enum):
     FLOOR_UTOP_FAIL = 128
 
 class FloorFlag_KHARMA(Enum):
-    # Floor codes are non-exclusive, so it makes little sense to use an enum
-    # Instead, we use bitflags, starting high enough that we can stick the enum in the bottom 5 bits
-    # See floors.hpp for explanations of the flags
+    """Floor codes are non-exclusive, so it makes little sense to use a straight Enum.
+    Instead, we use bitflags, starting high enough that we can stick the enum in the bottom 5 bits
+    See floors.hpp in KHARMA for explanations of the flags
+    """
     HIT_FLOOR_GEOM_RHO = 32
     HIT_FLOOR_GEOM_U = 64
     HIT_FLOOR_B_RHO = 128
@@ -61,9 +70,10 @@ class FloorFlag_KHARMA(Enum):
     HIT_FLOOR_GEOM_U_FLUX = 8192
 
 class Slices:
-    """Named slices
+    """Object to hold a bunch of named slices.
     The "bulk" fluid is the physical zones only, without any of the surrounding "ghost" zones obtained
-    from other MPI ranks.  When parts of the set of ghost zones are used, they're called a "halo"
+    from other MPI ranks.
+    When parts of the set of ghost zones are used, they're called a "halo"
     """
 
     def __init__(self, ng):

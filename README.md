@@ -1,8 +1,3 @@
-# 'dev' branch NOTE:
-This branch is significantly changed from previous versions of pyharm.  Therefore, some scripts and even outer portions of the library are temporarily broken until imports and interface changes are updated.  The core features described in the new README sections below should work, as should anything around `movie.py`, i.e. plotting of KHARMA dumps and everything to do with coordinates.  I've tried to update the documentation as I go, but pieces, especially in the open documentation pages, are several versions behind still.
-
-Once everything is in fairly complete working order, the plan is to upload pyharm to pyPI to have a single working base that's easy to install into different environments.  If you'd like to write your own scripts around KHARMA dumps, the file `pyharm/io/kharma.py`, specifically `read_var`, is a good place to start.  For a basic reader, you can safely ignore index operations related to ghost zones and slicing, but note the matrix transformations required to read KHARMA "meshblocks" into a single whole "mesh."
-
 # pyharm
 Python tools for HARM analysis
 
@@ -15,35 +10,42 @@ The core of pyharm is the `FluidDump` object, which behaves similar to a Python 
 Finally, as a consequence of needing to read GRMHD output, pyharm includes definitions of various coordinate systems in Kerr spacetime, as well as tools for dealing with a logically Cartesian grid in various coordinate systems.  These might be independently useful, see `coordinates.py` & `grid.py` if you're looking for just coordinate tools.
 
 ## Installing:
-The preferred installation method, for flexibility in changing the source as needed, is to run simply:
+The preferred installation method is to run simply:
 ```bash
 $ pip3 install -e .
 ```
-Thereafter pyharm should be importable from any Python prompt or script run in the same environment.  It can also be installed as a user or system package, but at the cost of less easily modifying the source.
+Thereafter pyharm should be importable from any Python prompt or script run in the same environment.  This command installs `pyharm` as "editable," so that changes to the source will be reflected immediately when next importing the package -- this is recommended, as it is expected that users will have to modify the source code eventually.  `pyharm` can also be installed as a user or system package, but at the cost of less easily modifying the source.
 
 ## Examples:
-Often, what you need to do is covered somewhere in the existing scripts bundled with pyharm.  Check out the `scripts/` directory.  The two main scripts are `movie.py` for producing plots and movies, and `analysis.py` for performing a set of reductions over a full simulation's output.  If you need to produce a plot, try adapting something from `pyharm.plots.figures`.  Adding plots to that directory makes them accessible to `movie.py` when you're ready to run at scale.
+One good starting point learning to use `pyharm` is to try out the existing tools in the `scripts/` directory.  These are quite capable wrappers for large swaths of `pyharm`'s functionality, and are added to the system `$PATH` variable upon installation to make them easy to call.  They support MPI parallelization for use at scale on big clusters (sample batch scripts for some Illinois-relevant clusters are included in `scripts/batch/`).
 
-For more general usage, the `notebooks` directory has a sample Jupyter notebook playing around with some basic reductions & plots.
+The two main scripts are `pyharm-movie` for producing plots and movies, and `pyharm-analysis` for performing a set of reductions over a full simulation's output.  If what you need to do involves making a movie or performing a reduction, it can often be implemented as a plugin to these existing scripts -- see the examples in `pyharm.plots.figures` for movies, and in `pyharm.ana.analyses` for reductions & computations.  New additions to those files will automatically become valid arugments to `pyharm-movie` and `pyharm-analysis`.
+
+For more advanced usage, the `notebooks` directory has a sample Jupyter notebook playing around with some basic reductions & plots.
 
 ## Keys:
-The full list of `FluidDump` "keys" is long and growing, and there are some ways to combine keys, so any list is incomplete.
+Several parts of `pyharm` try to parse strings to determine behavior, to specify a desired variable, plot, or result from the command line or quickly in notebooks.  These replace what might traditionally be member functions (think `dump.ucov()`) with what acts like a giant Python dictionary (`dump['ucov']`). Each "item" is computed at first access and cached thereafter.
+
+Since it's possible to combine keys in arbitrary ways, there is no master list of items, nor does it make sense to write e.g. `for key in dump` or `if "key" in dump`.  The most reliable way to determine whether something can be computed is to try it, and catch the `ValueError` (for unknown keys) or `IOError` (for known keys not present in a file) if it is not found.
 
 ### Base keys (variables):
 
-All the fluid primitives in HARM-like schemes are supported: rho, `u`, `u1`, `u2`, `u3`, `uvec`, `B1`, `B2`, `B3`, `bvec`. `*vec` versions return all 3 components of the primitives.
+All the fluid primitives in HARM-like schemes are supported, of course: `rho`, `u`, `u1`, `u2`, `u3`, `uvec`, `B1`, `B2`, `B3`, `bvec`. The `*vec` versions return all 3 components of the primitives.
 
-The contravariant and covariant 4-vectors `ucon`, `ucov`, `bcon`, `bcov` and dot product `bsq`, as well as any individual component in native 1,2,3 coordinates `u^{1,2,3}`, or in KS coordinates `u^{r,th,phi}`, or (soon) Cartesian `u^{x,y,z}`.
+The contravariant and covariant 4-vectors `ucon`, `ucov`, `bcon`, `bcov` and dot product `bsq` are supported, as well as any individual component of either vector in any coordinate system: native 1,2,3 coordinates `u^{1,2,3}`, KS coordinates `u^{r,th,phi}`, or (soon) Cartesian `u^{x,y,z}`.
 
-Fluid variables `Pg` for ideal gas pressure, `Pb` for magnetic pressure, `Ptot` for both summed.  
+Pressures are denoted `Pg` for ideal gas pressure, `Pb` for magnetic pressure, `Ptot` for both summed.  For dumps including output of the 4-current (& eventually for others, via a full step calculation), we additionally define `jcon`, `jcov`, `jsq`, and `Jsq` -- with the former being the 4-current magnitude squared, and the latter the 3-current.
 
-For dumps including output of the 4-current (& soon for others via a full step calculation): `jcon`, `jcov`, `jsq`, `Jsq`
+There are a number of specialized or particular definitions more easily defined than described.  See `pyharm.ana.variables` for definitions.  The patterns in that file should be straightforward if/when you want to add your own variables, which will then be accessible from FluidDump objects, and consequently from the command line or notebooks when plotting.
 
-There are a number of specialized or particular definitions which will be easier to define than describe.  See `variables.py` for definitions.  The patterns in that file should be straightforward if/when you want to add your own variables, which will then be accessible from FluidDump objects, and consequently from the command line or notebooks when plotting.
+### Properties:
+All of a dump's parameters (e.g. the contents of `header` in the Illinois format) are parsed and included in the dictionary `dump.params`.  Anything in this dictionary can be accessed via the shorthand `dump['key']` just like a variable.  These include at least the `gam`, the coordinate system parameters `a`, `hslope`, `r_in`, `r_out`, etc., and the grid size `n1`, `n2`, `n3` to name some of the most useful.  The full list is accessible as `dump.params.keys()`.
 
+### Grid parameters
+Finally, members of the `Grid` object are also accessible through `FluidDump` objects, e.g. `dump['gcon']` for the full contravariant metric or `dump['gdet']` for the sqare root of the negative metric determinant.
 ### Combining elements:
 
-Common mathematical unary operations can just be combined into a variable name to get the result.  This is most common/useful when specifying what to plot, most commonly `log_` for the log base 10.  Similarly, `abs_`, `sqrt_`, and `ln_` for natural log are available.  So for example, asking for `sqrt_bsq` is equivalent to asking for the field magnitude `b`.  You can, of course, perform these operations for yourself in code -- however, many scripts take a variable name as argument, e.g. on the command line.  For these, it's very nice to have a few common operations available without writing any code whatsoever.
+Common mathematical unary operations can just be combined into a variable name to get the result.  This is most common/useful when specifying what to plot, most commonly `log_` for the log base 10.  Similarly, `abs_`, `sqrt_`, and `ln_` for natural log are available.  So for example, asking for `sqrt_bsq` is equivalent to asking for the field magnitude `b`.  You can, of course, perform these operations for yourself in code -- these are present to help you when specifying a variable name on the command line, or for functions which operate only on some small portion of a dump, where the variable needn't be computed over the whole dump.
 
 There are a few modifiers specific to requesting plots which build on this "unary operator" scheme but are mostly *after* any relevant variable. The exception is `symlog_`, which plots a signed value on a symmetric log scale.  The list of postfix options can be gleaned from `plots/frame.py` but includes at least:
 * `_array` for plots in native coordinates on the Cartesian logical grid
@@ -51,13 +53,3 @@ There are a few modifiers specific to requesting plots which build on this "unar
 * `_1d` likewise for radial/1D simulation output
 * `_ghost` for plotting ghost zones (works best with `_array`)
 * `_simple` to turn off axis labels, ticks, and colorbars for a presentation or outreach movie, or if you just need the screen real-estate
-
-As mentioned, components of certain vectors (anything suffixed `*cov` or `*con`) can be requested specifically by separating the name and index with `^` or `_`, and their transforms (e.g. to KS coordinates) can be requested similarly by coordinate name.
-
-Anything in the dump parameters or "header," `dump.params.keys()`.  These can be listed for a full view, but include e.g. the adiabatic index `'gam'` and full domain size `'n1','n2','n3'` among a bunch of other things.
-
-Finally, members of the `Grid` object are also accessible through `FluidDump` objects, e.g. `dump['gcon']` for the full contravariant metric or `dump['gdet']` for the sqare root of the negative metric determinant.
-
-## Reductions
-
-See `analysis.py` in scripts and `reductions.py` in pyharm.

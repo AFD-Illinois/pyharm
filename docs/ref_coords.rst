@@ -1,15 +1,12 @@
-.. module:: pyharm
-.. moduleauthor:: Ben Prather <bprathr2@illinois.edu>
-
 .. _ref_coords:
 
 Coordinate Tools
 ================
 
-pyharm's tools for dealing with coordinates are split into two files: :mod:`pyharm.coordinates`, for dealing with continuous transformations between different coordinate systems in the Kerr metric, and :mod:`pyharm.grid` for holding a Cartesian mesh of native coordinates, coupled with their local metric, connection coefficients, and transformation matrices back to some "base" coordinate system (currently must be Kerr-Schild coordinates)
+pyharm's tools for dealing with coordinates are split into two files: :mod:`pyharm.coordinates`, for dealing with general-relativistic quantities (e.g. the metric) and transformations between coordinate systems, and :mod:`pyharm.grid` for holding a Cartesian mesh of native coordinates, coupled with their local metric, connection coefficients, and transformation matrices back to some "base" coordinate system (currently must be Kerr-Schild coordinates)
 
-Coordinate Systems
-------------------
+Coordinate System Classes
+-------------------------
 
 Coordinate systems are implemented as classes, each of which subclasses :class:`pyharm.coordinates.CoordinateSystem` and implements the methods it contains:
 
@@ -22,4 +19,5 @@ The Grid Class
 --------------
 
 .. automodule:: pyharm.grid
+   :special-members:
    :members:

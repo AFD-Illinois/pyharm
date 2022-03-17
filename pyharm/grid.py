@@ -10,10 +10,14 @@ from pyharm.coordinates import *
 
 def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3,
                     r_in=None, r_out=1000, caches=True, cache_conn=False):
-    """Convenience function for generating grids with default parameters used
-    at Illinois.  Type can be any of 'eks', 'mks', 'fmks', 'minkowski', or
-    exotic systems defined in coordinates.py.
-    Nearly all parameters are optional with Illinois-centric defaults.
+    """Convenience function for generating grids with particular known parameters.
+
+    :param type: coordinate system, denoted 'eks', 'mks', 'fmks', 'minkowski', or
+                 anything exotic defined in :mode`pyharm.coordinates`
+
+    All other parameters are as described in Grid.__init__, and are optional with
+    Illinois-centric defaults. If not given, 'r_in' will be chosen to put 5 zones
+    inside the event horizon as done in iharm3d/KHARMA.
     """
 
     params = {}
@@ -58,29 +62,36 @@ class Grid:
         Initialize a Grid object.  This object divides a domain in native coordinates into zones, and caches the
         local metric (and some other convenient information) at several locations in each zone.
         Primarily, this object should be used to consult the grid size/shape for global calculations, and raise and
-        lower the indices of fluid 4-vectors.
+        lower the indices of fluid 4-vectors.  Note that "params" is usually filled by reading a file, not manually:
+        for manual Grid creation, see :func:`pyharm.grid.make_some_grid`.
 
         :param caches: Whether to cache gcon/gcov/gdet at zone centers/faces. Usually desired.
         :param cache_conn: Whether to cache connection coefficients (all 64/zone) at zone centers. Usually not desired.
 
-        :param params: Dictionary containing the following parameters, depending on coordinate system:
-        n{1,2,3}tot: total number of physical grid zones in each direction
-        ng: number of "ghost" zones in each direction to add for boundary conditions/domain decomposition
-        coordinates: name of the coordinate system (value in parens below)
-        === For Minkowski coordinates ("minkowski"): ===
-        x{1,2,3}min: location of nearest corner of first grid zone [0,0,0]
-        x{1,2,3}max: location of farthest corner of last grid zone [n1tot, n2tot, n3tot]
-        === For Spherical Kerr-Schild coordinates ("ks"): ===
-        a: black hole spin
-        r_out: desired location of the outer edge of the farthest radial zone on the grid
-        === For Modified Kerr-Schild coordinates ("mks"): ===
-        hslope: narrowing parameter for X2, defined in Gammie et. al. '03 `here <https://doi.org/10.1086/374594>`_
-        === For Modified Modified Kerr-Schild coordinates ("mmks"): ===
-        All of the MKS parameters, plus
-        poly_xt, poly_alpha: See HARM docs `wiki <https://github.com/AFD-Illinois/docs/wiki/Coordinates>`_
-        === For "Funky" Modified Kerr-Schild coordinates ("fmks"): ===
-        All of the MMKS parameters, plus
-        mks_smooth: See HARM docs wiki
+        :param params:
+            | Dictionary containing the following parameters, depending on coordinate system:
+            | n{1,2,3}tot: total number of physical grid zones in each direction
+            | ng: number of "ghost" zones in each direction to add for boundary conditions/domain decomposition
+            | coordinates: name of the coordinate system (value in parens below)
+            |
+            | === For Minkowski coordinates ("minkowski"): ===
+            | x{1,2,3}min: location of nearest corner of first grid zone [0,0,0]
+            | x{1,2,3}max: location of farthest corner of last grid zone [n1tot, n2tot, n3tot]
+            |
+            | === For Spherical Kerr-Schild coordinates ("ks"): ===
+            | a: black hole spin
+            | r_out: desired location of the outer edge of the farthest radial zone on the grid
+            |
+            | === For Modified Kerr-Schild coordinates ("mks"): ===
+            | hslope: narrowing parameter for X2, defined in `Gammie et. al. (2003) <https://doi.org/10.1086/374594>`_
+            |
+            | === For Modified Modified Kerr-Schild coordinates ("mmks"): ===
+            | All of the MKS parameters, plus
+            | poly_xt, poly_alpha: See the AFD `docs wiki <https://github.com/AFD-Illinois/docs/wiki/Coordinates>`_
+            |
+            | === For "Funky" Modified Kerr-Schild coordinates ("fmks"): ===
+            | All of the MMKS parameters, plus
+            | mks_smooth: See HARM docs wiki
         """
         # Set the basic grid parameters
         # Total grid size (all MPI processes)

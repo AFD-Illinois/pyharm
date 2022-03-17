@@ -9,8 +9,10 @@ import numpy as np
 
 def parse_iharm3d_dat(params, fname):
     """Parse the iharm3d params.dat file format to produce a Python dict.
-    params.dat format:
+    The params.dat format is:
+
     [tag] name = value
+
     Where tag is in {dbl, float, int, str} corresponding to desired datatype.
     All lines not in this format are ignored, though conventionally comments begin with '# '
     """
@@ -32,10 +34,13 @@ def parse_iharm3d_dat(params, fname):
 
 def parse_parthenon_dat(string):
     """Parse the Parthenon/KHARMA params.dat format to produce a Python dict.
-    params.dat format:
-    <header/subheader>
-    name = value
-    All lines not in this format are ignored, though conventionally comments begin with '# '
+    The run.par format is:
+
+    | <header/subheader>
+    | name = value
+
+    All lines not in this format are ignored, though conventionally comments begin with '# '.
+    This implementation does not distinguish packages (<>), nor line continuations (&) correctly.
     """
     # TODO:
     # parse & include headers, so we can guarantee picking out the correct nx1/2/3
@@ -101,7 +106,9 @@ def parse_parthenon_dat(string):
 
 
 def fix(params):
-    """Fix a bunch of common problems and omissions in parameters dictionaries."""
+    """Fix a bunch of common problems and omissions in parameters dictionaries.
+    Already called by both parameter parsing functions.
+    """
 
     if (not 'r_out' in params) and 'Rout' in params:
         params['r_out'] = params['Rout']
