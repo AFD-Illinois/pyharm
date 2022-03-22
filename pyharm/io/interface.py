@@ -37,7 +37,7 @@ class DumpFile(object):
         # Vectors
         elif vname == "uvec":
             return slice(cls.index_of("u1"), cls.index_of("u3")+1)
-        elif vname == "B":
+        elif vname == "B" or vname == "Bvec":
             return slice(cls.index_of("B1"), cls.index_of("B3")+1)
         # All
         elif vname == "prims" or vname == "primitives" or vname == "all":

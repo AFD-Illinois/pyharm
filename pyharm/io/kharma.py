@@ -147,23 +147,11 @@ class KHARMAFile(DumpFile):
             # Reshape rho to 4D by adding a rank in front for prim index
             prims = self.read_var('rho')[np.newaxis, Ellipsis]
             for v2 in self.prim_names_ordered[1:]:
-                try:
-                    new_prim = self.read_var(v2)
-                    if len(new_prim.shape) < len(prims.shape):
-                        # Reshape to 4D if needed to append
-                        new_prim = new_prim[np.newaxis, Ellipsis]
-                    prims = np.append(prims, new_prim, axis=0)
-                except IOError:
-                    # If we're missing B, this is probably a restart.
-                    # Try using cons.B
-                    if "B" in v2:
-                        try:
-                            grid = Grid(self.params)
-                            v2_con = "cons."+v2.replace("prims", "")
-                            new_prim = self.read_var(v2_con) / grid['gdet'][Loci.CENT.value]
-                            prims = np.append(prims, new_prim, axis=0)
-                        except IOError:
-                            print("Error reading cons.B")
+                new_prim = self.read_var(v2)
+                if len(new_prim.shape) < len(prims.shape):
+                    # Reshape to 4D if needed to append
+                    new_prim = new_prim[np.newaxis, Ellipsis]
+                prims = np.append(prims, new_prim, axis=0)
             self.cache["prims"] = prims
             return self.cache["prims"]
         elif var == "cons":
@@ -178,6 +166,11 @@ class KHARMAFile(DumpFile):
             return self.cache["cons"]
 
         if var not in fil.Variables and self.index_of(var) is None:
+            var_con = "cons"+var.replace("prims", "")
+            if "B" in var_con and var_con in fil.Variables:
+                grid = Grid(self.params)
+                return self.read_var(var_con, astype=astype, slc=slc) / \
+                        grid['gdet'][Loci.CENT.value][grid.slices.geom_slc(slc)]
             raise IOError("Cannot find variable "+var+" in dump "+self.fname+". Should it have been calculated?")
 
         params = self.params

@@ -110,10 +110,13 @@ class Slices:
 
     def geom_slc(self, slc):
         """Return the version of a 3D slice suitable for 2D geometry variables"""
-        if isinstance(slc[2], int) or isinstance(slc[2], np.int32) or isinstance(slc[2], np.int64):
-            return slc[:2] + (0,)
+        if len(slc) > 2:
+            if isinstance(slc[2], int) or isinstance(slc[2], np.int32) or isinstance(slc[2], np.int64):
+                return slc[:2] + (0,)
+            else:
+                return slc[:2] + (slice(None),)
         else:
-            return slc[:2] + (slice(None),)
+            return slc
 
 
 class Shapes:

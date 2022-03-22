@@ -52,7 +52,7 @@ fns_dict = {# 4-vectors
             'JE2': lambda dump: -T_mixed(dump, 2, 0),
             'lam_MRI': lambda dump: lam_MRI(dump),
             'jet_psi': lambda dump: jet_psi(dump),
-            'divB': lambda dump: divB(dump.grid, dump.prims),
+            'divB': lambda dump: divB(dump.grid, dump['B']),
             'lumproxy': lambda dump: lum_proxy(dump),
             'jI': lambda dump: jnu(dump),
             'K': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),

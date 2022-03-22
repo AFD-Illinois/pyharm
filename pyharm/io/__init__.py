@@ -10,6 +10,7 @@ import h5py
 # TODO not sure this is how I want names
 from . import iharm3d
 from .iharm3d import Iharm3DFile
+from .iharm3d_restart import Iharm3DRestart
 from . import kharma
 from .kharma import KHARMAFile
 from .harm2d import HARM2DFile
@@ -49,6 +50,8 @@ def _get_filter_class(fname):
                     return KORALFile
                 else:
                     return Iharm3DFile
+            elif 'restart_id' in f.keys():
+                return Iharm3DRestart
             else:
                 return KHARMAFile
     elif ".hdf5" in fname:
