@@ -170,7 +170,8 @@ class FluidDump:
             if "flag" in key:
                 out = self.reader.read_var(key, astype=np.int32, slc=self.slice)
             else:
-                out = self.reader.read_var(key, astype=np.float32, slc=self.slice)
+                # TODO Option for double
+                out = self.reader.read_var(key, astype=np.float64, slc=self.slice)
             if out is None:
                 raise ValueError("FluidDump cannot find or compute {}".format(key))
             else:

@@ -166,11 +166,14 @@ class KHARMAFile(DumpFile):
             return self.cache["cons"]
 
         if var not in fil.Variables and self.index_of(var) is None:
-            var_con = "cons"+var.replace("prims", "")
-            if "B" in var_con and var_con in fil.Variables:
-                grid = Grid(self.params)
-                return self.read_var(var_con, astype=astype, slc=slc) / \
-                        grid['gdet'][Loci.CENT.value][grid.slices.geom_slc(slc)]
+            # Try to get it from conserved version (e.g. KHARMA restarts lack prims.B)
+            if "cons" not in var:
+                var_con = "cons"+var.replace("prims", "")
+                if "B" in var_con and var_con in fil.Variables:
+                    grid = Grid(self.params)
+                    return self.read_var(var_con, astype=astype, slc=slc) / \
+                            grid['gdet'][Loci.CENT.value][grid.slices.geom_slc(slc)]
+            # If we can't find it at all:
             raise IOError("Cannot find variable "+var+" in dump "+self.fname+". Should it have been calculated?")
 
         params = self.params
@@ -186,19 +189,17 @@ class KHARMAFile(DumpFile):
         ng_fz = params['ng_file'] if params['n3'] > 1 else 0
         # Finally, we need to decipher where to put each meshblock vs the whole grid,
         # which we do inelegantly using zone locations
-        dx = params['dx1']
-        dy = params['dx2']
-        dz = params['dx3']
-        startx = (0., params['startx1'], params['startx2'], params['startx3'])
+        dx = (params['dx1'], params['dx2'], params['dx3'])
+        startx = (params['startx1'], params['startx2'], params['startx3'])
 
         # What locations do we want to read from the file?
-        # Get a start and end point based on the total size and slice
+        # Get a start and end point based on the *total* size and slice
         file_start, file_stop = slice_to_index((0, 0, 0), ntot, slc)
         out_shape = [file_stop[i] - file_start[i] for i in range(len(file_stop))]
         # Now that we know which dimensions stay non-trivial, revise our slicing
-        ng_ix = params['ng'] if out_shape[0] > 1 else 0
-        ng_iy = params['ng'] if out_shape[1] > 1 else 0
-        ng_iz = params['ng'] if out_shape[2] > 1 else 0
+        ng = [params['ng'] if out_shape[0] > 1 else 0,
+              params['ng'] if out_shape[1] > 1 else 0,
+              params['ng'] if out_shape[2] > 1 else 0]
 
         #print("Reading slice", slc, " of file, indices ", file_start, " to ", file_stop, " to shape ", out_shape)
 
@@ -213,30 +214,31 @@ class KHARMAFile(DumpFile):
         # Arrange and read each block
         for ib in range(fil.NumBlocks):
             bb = fil.BlockBounds[ib]
-            # Internal location of the block i.e. starting/stopping indices in the final, big mesh
+            # Internal location of the block i.e. starting/stopping physical indices in the final, big mesh
             # First, take the start/stop locations and map them to integers
             # We only need to add ghost zones here if the file has them *and* we want them:
             # If so, each block will be 2*ng bigger, but we'll want to handle indices from zero regardless
-            b = (slice(int((bb[0]+dx/2 - startx[1])/dx), int((bb[1]+dx/2 - startx[1])/dx)+2*ng_ix),
-                 slice(int((bb[2]+dy/2 - startx[2])/dy), int((bb[3]+dy/2 - startx[2])/dy)+2*ng_iy),
-                 slice(int((bb[4]+dz/2 - startx[3])/dz), int((bb[5]+dz/2 - startx[3])/dz)+2*ng_iz))
+            b = tuple([slice(int((bb[2*i]   + dx[i]/2 - startx[i])/dx[i]) + ng[i],
+                             int((bb[2*i+1] + dx[i]/2 - startx[i])/dx[i]) + ng[i]) for i in range(3)])
             # Intersect block's global bounds with our desired slice: this is where we're outputting to,
-            # on a fictional global grid
+            # on the (never instantiated) global grid
             loc_slc = tuple([slice(max(b[i].start, file_start[i]), min(b[i].stop, file_stop[i])) for i in range(3)])
-            # Subtract off the starting location: this is where we're outputting to in our real array
-            out_slc = tuple([slice(loc_slc[i].start - file_start[i], loc_slc[i].stop - file_start[i]) for i in range(3)])
+            # Subtract off the start of the slice: this is where we're outputting to in our real array
+            out_slc = tuple([slice(loc_slc[i].start - file_start[i] - ng[i], loc_slc[i].stop - file_start[i] + ng[i]) for i in range(3)])
             # Subtract off the block's global starting point: this is what we're taking from in the block
             # If the ghost zones are included (ng_f > 0) but we don't want them (all) (ng_i = 0),
             # then take a portion of the file.  Otherwise take it all.
             # Also include the block number out front
-            fil_slc = (ib, slice(loc_slc[2].start - b[2].start + ng_fz - ng_iz, loc_slc[2].stop - b[2].start + ng_fz + ng_iz),
-                           slice(loc_slc[1].start - b[1].start + ng_fy - ng_iy, loc_slc[1].stop - b[1].start + ng_fy + ng_iy),
-                           slice(loc_slc[0].start - b[0].start + ng_fx - ng_ix, loc_slc[0].stop - b[0].start + ng_fx + ng_ix))
+            fil_slc = (ib, slice(loc_slc[2].start - b[2].start + ng_fz - ng[2], loc_slc[2].stop - b[2].start + ng_fz + ng[2]),
+                           slice(loc_slc[1].start - b[1].start + ng_fy - ng[1], loc_slc[1].stop - b[1].start + ng_fy + ng[1]),
+                           slice(loc_slc[0].start - b[0].start + ng_fx - ng[0], loc_slc[0].stop - b[0].start + ng_fx + ng[0]))
             if (fil_slc[1].start > fil_slc[1].stop) or (fil_slc[2].start > fil_slc[2].stop) or (fil_slc[3].start > fil_slc[3].stop):
                 # Don't read blocks outside our domain
                 #print("Skipping block: ", b, " would be to location ", out_slc, " from portion ", fil_slc)
                 continue
-            #print("Reading block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
+            # print("Reading block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
+            # print("{} {} {} {}".format(loc_slc[2].start, b[2].start, ng_fz, ng[2]))
+            # print(fil.Get(var, False).shape)
 
             if 'prims.rho' in fil.Variables:
                 # New file format. Read whatever

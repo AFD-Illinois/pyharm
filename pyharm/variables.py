@@ -4,7 +4,7 @@
 import numpy as np
 
 from .defs import Loci
-from .grmhd.b_field import divB
+from .grmhd.b_field import *
 
 # Define a dict of names, coupled with the functions required to obtain their variables.
 # That way, we only need to specify lists and final operations in eht_analysis,
@@ -53,6 +53,7 @@ fns_dict = {# 4-vectors
             'lam_MRI': lambda dump: lam_MRI(dump),
             'jet_psi': lambda dump: jet_psi(dump),
             'divB': lambda dump: divB(dump.grid, dump['B']),
+            'divB_con': lambda dump: divB_cons(dump.grid, dump['cons.B']),
             'lumproxy': lambda dump: lum_proxy(dump),
             'jI': lambda dump: jnu(dump),
             'K': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),

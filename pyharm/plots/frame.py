@@ -19,7 +19,7 @@ from .pretty import pretty
 """Generate one frame of a movie.  Currently pretty useless outside `pyharm-movie` script,
 included in pyharm so as to be imported there easily.
 
-The code in `figures` would be a better place to start in writing
+The code in `figures` would be a better place to start in writing your own additional movies/plots.
 """
 
 def frame(fname, diag, kwargs):
@@ -157,10 +157,14 @@ def frame(fname, diag, kwargs):
             if "_poloidal" in movie_type or "_2d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
                 var = movie_type.replace("_poloidal","")
+                if "divB" in var:
+                    var = dump[var]
                 plot_xz(ax, dump, var, **plotrc)
             elif "_toroidal" in movie_type:
                 ax = plt.subplot(1, 1, 1)
                 var = movie_type.replace("_toroidal","")
+                if "divB" in var:
+                    var = dump[var]
                 plot_xy(ax, dump, var, **plotrc)
             elif "_1d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
@@ -175,6 +179,8 @@ def frame(fname, diag, kwargs):
                 ax = ax_slc[0]
                 var = movie_type
                 #print("Plotting slices. plotrc: ", plotrc)
+                if "divB" in var:
+                    var = dump[var]
                 plot_slices(ax_slc[0], ax_slc[1], dump, var, **plotrc) # We'll plot the field ourselves
 
             if no_margin or "jsq" in movie_type:
@@ -192,7 +198,16 @@ def frame(fname, diag, kwargs):
         if fig._suptitle is None or fig._suptitle.get_text() == "":
             if "divB" in movie_type:
                 # Special title for diagnostic divB
-                fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(np.max(np.abs(dump['divB']))))
+                if "con" in movie_type:
+                    divb = np.abs(dump['divB_con'])
+                    divb_max = np.max(divb)
+                    divb_argmax = np.argmax(divb)
+                else:
+                    divb = np.abs(dump['divB'])
+                    divb_max = np.max(divb)
+                    divb_argmax = np.argmax(divb)
+                fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(divb_max))
+                print("divB max", divb_max, "at", np.unravel_index(divb_argmax, divb.shape))
             else:
                 # Title by time, otherwise number
                 fig.suptitle("t = {}".format(int(tdump)))
