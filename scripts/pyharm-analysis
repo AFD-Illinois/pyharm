@@ -118,8 +118,6 @@ def analysis(ana_types, paths, **kwargs):
             if not is_ilhdf:
                 # Just put in a written one
                 hdr_preserve = pyharm.io.read_hdr(files[0])
-                if not 'header' in outfile:
-                    outfile.create_group('header')
                 hdr.write_hdr(hdr_preserve, outfile)
 
             # Copy in any diagnostics that are present
@@ -150,6 +148,7 @@ def analysis(ana_types, paths, **kwargs):
                 out = analyze((fname, kwargs))
                 write_ana_dict(out, outfile, n, len(files))
                 tr.print_diff()
+            outfile.close()
             
             pr.disable()
             s = io.StringIO()
@@ -176,9 +175,10 @@ def analysis(ana_types, paths, **kwargs):
                 print("Using {} processes".format(nthreads))
                 with multiprocessing.Pool(nthreads) as pool:
                     args = zip(files, (kwargs,)*len(files))
-                    out_iter = pool.imap(analyze, args)
+                    out_iter = pool.imap(analyze_catch_err, args)
                     for n, result in enumerate(out_iter):
                         write_ana_dict(result, outfile, n, len(files))
+                outfile.close()
 
             else:
                 # Everything is set by MPI.  We inherit a situation and use it
@@ -189,8 +189,9 @@ def analysis(ana_types, paths, **kwargs):
                         print("Analyzing {} files across pool size {}".format(len(files), MPI.COMM_WORLD.Get_size()), file=sys.stderr)
                         args = zip(files, (kwargs,)*len(files))
                         # This probably shouldn't be a straight map(), or we might run out of memory on the master node
-                        for n, result in enumerate(executor.map(analyze, args)):
+                        for n, result in enumerate(executor.map(analyze_catch_err, args)):
                             write_ana_dict(result, outfile, n, len(files))
+                        outfile.close()
 
 
 

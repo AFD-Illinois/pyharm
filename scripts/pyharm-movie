@@ -133,6 +133,8 @@ def movie(movie_types, paths, **kwargs):
                                 psutil.cpu_count())
                 else:
                     nthreads = psutil.cpu_count()
+            else:
+                nthreads = int(kwargs['nthreads'])
             # This application is entirely side-effects (frame creation)
             # So we map & ignore result
             # TODO pass single figure & blit/encode within Python?

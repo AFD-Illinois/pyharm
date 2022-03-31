@@ -20,6 +20,12 @@ def read_log(fname):
     out = {}
     for name in header:
         out[name] = np.array(tab[name])
+
+    # Files can contain multiple runs. Find the most recent zero time
+    start = len(out['time']) - np.argmin(out['time'][::-1]) - 1
+    for name in header:
+        out[name] = out[name][start:]
+
     return out
 
 class KHARMAFile(DumpFile):

@@ -1,6 +1,6 @@
 
 """This file provides a function 'pretty' which takes a variable name used in pyharm,
-and returns the LaTeX form of the name, suitable for plot axes.
+and returns the LaTeX form of the name, suitable for plot axes/titles.
 """
 
 # TODO: use units more widely.  Integrate with units.py?
@@ -44,6 +44,7 @@ pretty_dict = {'rho': r"\rho",
             'JE1': r"JE^{r}",
             'JE2': r"JE^{\theta}",
             'divB': r"\nabla \cdot B",
+            'MaxDivB': r"\mathrm{max}\left(\nabla \cdot B \right)",
             # Results of reductions which are canonically named
             'MBH': r"M_{\mathrm{BH}}",
             'Mdot': r"\dot{M}",

@@ -49,12 +49,18 @@ class AnaResults(object):
                     'ldot_per': lambda diag: diag['Ldot'] / diag['mdot'],
                     'ldot': lambda diag: diag['Ldot'] / diag['mdot_smooth'],
                     }
-    diags_hst = {'mdot': lambda diag: np.abs(diag['Mdot_EH']),
+    # How to load variables from a KHARMA .hst file dictionary
+    diags_hst = {'t': lambda diag: diag['time'],
+                 't_diag': lambda diag: diag['time'],
+                 'mdot': lambda diag: np.abs(diag['Mdot_EH_Flux']),
                  'Phi_b': lambda diag: diag['Phi_EH'],
                  'Edot': lambda diag: diag['Edot_EH'],
                  'Ldot': lambda diag: diag['Ldot_EH'],
                 }
-    diags_ana = {'mdot': lambda diag: np.abs(diag['t/Mdot']),
+    # How to load from analysis results
+    diags_ana = {'t': lambda diag: diag['coord/t'],
+                 't_diag': lambda diag: diag['diag/time'],
+                 'mdot': lambda diag: np.abs(diag['t/Mdot']),
                  'Phi_b': lambda diag: diag['t/Phi_b'],
                  'Edot': lambda diag: diag['t/Edot'],
                  'Ldot': lambda diag: diag['t/Ldot'],
@@ -71,8 +77,9 @@ class AnaResults(object):
             self.diag_fns = {**self.diag_fn_common, **self.diags_ana}
             self.params = read_hdr(self.file['/header'])
             self.grid = Grid(self.params)
-            if 'avg/start' in self.file:
+            if 'avg/start' in self.file: 
                 self.qui_ends = (self.file['avg/start'][()], self.file['avg/end'][()])
+                # TODO interaction of this with t/is_avg?
                 self.qui_slc = self.get_time_slice(*self.qui_ends)
             if 'diag' in self.file:
                 self.has_diag = True
@@ -86,15 +93,19 @@ class AnaResults(object):
             
 
     def __del__(self):
-        if not isinstance(self.file, dict):
+        if 'file' in self.__dict__ and not isinstance(self.file, dict):
             self.file.close()
 
     def get_time_slice(self, tstart, tend, diag=False):
-        return slice(i_of(self['t_diag'], tstart), i_of(self['t_diag'], tend))
+        pass
+        #if diag or self.diag_only:
+        #    return slice(i_of(self['t_diag'], tstart), i_of(self['t_diag'], tend))
+        #else:
+        #    return slice(i_of(self['t'], tstart), i_of(self['t'], tend))
 
     def __getitem__(self, key):
-        #print("Getting result "+key)
-        if key in self.file:
+        print("Getting result "+key)
+        if key in self.file and key not in ('t', 'rt', 'tht', 'phit', 'rth'):
             return self.file[key][()]
         elif 'coord' in self.file and key in self.file['coord']:
             return self.file['coord'][key][()]

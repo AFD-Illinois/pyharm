@@ -4,6 +4,12 @@
 Keys
 ====
 
+In several places, for flexibility, ``pyharm`` adopts a dictionary-like syntax to refer to what might otherwise be member variables or functions. This allows parsing the dictionary "key" to return a much wider range of items than one might bother to code or cache explicity as traditional member variables/functions.  It also allows flexibility in "passing through" keys: if one object is asked for a key it cannot calculate, it can fall through and ask another object (or several more, in order of preference) -- if any of the objects can furnish the item, it is then returned.
+
+The main place that keys are parsed is when requesting variables or properties calculated from a GRMHD dump file, represented by a :class:`pyharm.fluid_dump.FluidDump` object.  In addition to performing its own calculations, implemented in :mod:`pyharm.variables`, the ``FluidDump`` class can obtain any named items from its component :class:`pyharm.grid.Grid` object or the original dump file (:class:`pyharm.io.interface.DumpFile` subclass).
+
+Even beyond ``FluidDump`` objects, both the ``pyharm-movie`` and ``pyharm-analysis`` scripts have additional lists of keys and modifiers that they accept, representing what plots to render or sets of reductions to perform.
+
 Fluid Dump Keys
 ---------------
 
@@ -15,15 +21,15 @@ Pressures are denoted ``Pg`` for ideal gas pressure, ``Pb`` for magnetic pressur
 
 There are a number of specialized or particular definitions more easily defined than described, see :mod:`pyharm.ana.variables` for definitions.  The patterns in that file should be straightforward if/when you want to add your own variables.
 
-Combining elements:
-~~~~~~~~~~~~~~~~~~~
+Combining elements
+~~~~~~~~~~~~~~~~~~
 Common mathematical unary operations can just be combined into a variable name to get the result.  This is most common/useful when specifying what to plot, most commonly ``log_`` for the log base 10.  Similarly, ``abs_, sqrt_,`` and ``ln_`` do what one would expect; for example, asking for ``sqrt_bsq`` is equivalent to asking for the field magnitude ``b``.
 
 You can, of course, perform these operations for yourself in code -- these are present to help you when specifying a variable name on the command line, or for functions which operate only on some small portion of a dump, where the variable needn't be computed over the whole dump.
 
-Property Keys:
-~~~~~~~~~~~~~~
-All of a dump's parameters (e.g. the contents of `header` in the Illinois format) are parsed and included in the dictionary `dump.params`.  Anything in this dictionary can be accessed via the shorthand `dump['key']` just like a variable.  These include at least the `gam`, the coordinate system parameters `a`, `hslope`, `r_in`, `r_out`, etc., and the grid size `n1`, `n2`, `n3` to name some of the most useful.
+Property Keys
+~~~~~~~~~~~~~
+All of a dump's parameters (e.g. the contents of `header` in the Illinois format) are parsed and included in the dictionary `dump.params`.  Anything in this dictionary can be accessed via the shorthand `dump['key']` just like a variable.  These include at least the `gam`, the coordinate system parameters `a`, `hslope`, `r_in`, `r_out`, etc., and the grid size `n1`, `n2`, `n3` and zone size `dx1`, `dx2`, `dx3`,  to name some of the most useful.
 
 Properties draw from two dictionaries, which you can list out for yourself: ``dump.params.keys()`` and ``dump.grid.params.keys()``
 
