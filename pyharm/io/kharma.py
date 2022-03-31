@@ -212,7 +212,7 @@ class KHARMAFile(DumpFile):
         # Allocate the full mesh size
         if "jcon" in var:
             out = np.zeros((4, *out_shape), dtype=astype)
-        elif "B" in var or "uvec" in var: # We cache the whole thing even for an index
+        elif var.split(".")[-1][:1] == "B" or var.split(".")[-1] == "uvec": # We cache the whole thing even for an index
             out = np.zeros((3, *out_shape), dtype=astype)
         else:
             out = np.zeros(out_shape, dtype=astype)

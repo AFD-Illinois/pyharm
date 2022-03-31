@@ -48,7 +48,10 @@ def flatten_xz(dump, var, at=None, sum=False, half_cut=False):
                 return np.append(dump[:, :, at][var], np.flip(dump[:, :, at + dump['n3']//2][var], 1), 1)
         else:
             if half_cut:
-                return var[:, :, at]
+                if len(var.shape) == 3:
+                    return var[:, :, at]
+                else:
+                    return var
             else:
                 return np.append(var[:, :, at], np.flip(var[:, :, at + dump['n3']//2], 1), 1)
 
