@@ -1,0 +1,60 @@
+#!/bin/bash
+
+#SBATCH -J encode_movies
+#SBATCH -A ast171
+#SBATCH -N 1
+# Only 'batch' or 'gpu'
+#SBATCH -p batch
+#SBATCH -t 8:00:00
+#SBATCH -o out-%j.txt
+
+# Encode movie(s) as a launcher job on Andes.
+# Experimenting still to be done with tasks per node
+
+FPS=24
+
+# Trap on sigterm/int and kill everything we've spawned
+trap "srun killall ffmpeg python python2 launcher" SIGTERM SIGINT
+
+# Work around Andes weirdness
+export HOSTNAME=$(hostname) 
+# Launcher vars. Adjust LAUNCHER_DIR with installation dir
+export LAUNCHER_DIR=$HOME/libs/launcher
+export LAUNCHER_PLUGIN_DIR=$LAUNCHER_DIR/plugins
+export LAUNCHER_RMI=SLURM
+export LAUNCHER_WORKDIR=$MEMBERWORK/ast171/launcher_workdir
+export LAUNCHER_JOB_FILE=$LAUNCHER_WORKDIR/jobs_list.$(date +%s)
+# Control procs per node with *launcher*, not slurm
+export LAUNCHER_PPN=8
+export NTHREADS=$((32 / $LAUNCHER_PPN))
+# We don't want binding or static scheduling
+export LAUNCHER_BIND=1
+export LAUNCHER_BIND_HT=0
+#export LAUNCHER_SCHED=
+
+mkdir -p $LAUNCHER_WORKDIR
+
+echo Using $NTHREADS threads
+
+# Iterate through directories recording movies to make
+JOBFILE=$LAUNCHER_JOB_FILE
+>$JOBFILE
+BASE_DIR="$(pwd)"
+for run in * */* */*/*
+do
+    if [ -d "$run" ]; then
+        cd "$run"
+        for folder in frames_*
+        do
+            if [ -d $folder ]
+            then
+                # Include full paths for other nodes' benefit
+                echo "ffmpeg -y -r ${FPS} -threads ${NTHREADS} -f image2 -pattern_type glob -i \"${PWD}/${folder}/*.png\" -vcodec libx264 -crf 22 -pix_fmt yuv420p ${PWD}/${folder#*_}.mp4" >> $JOBFILE
+            fi
+        done
+        cd "$BASE_DIR"
+    fi
+done
+
+# Process the list
+$LAUNCHER_DIR/paramrun

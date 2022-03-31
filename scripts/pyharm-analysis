@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+
+import os, sys
+import click
+import glob
+import psutil
+import multiprocessing
+import warnings
+import h5py
+
+import pyharm
+from pyharm import io
+from pyharm.util import calc_nthreads
+from pyharm.ana.analysis import *
+import pyharm.io.iharm3d_header as hdr
+
+# Use mpi4py if available, or multiprocessing
+# TODO if MPI world size 1, fallback
+try:
+    import mpi4py
+    from mpi4py import MPI
+    from mpi4py.futures import MPICommExecutor, MPIPoolExecutor
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        print("Using MPI", file=sys.stderr)
+    # Use MPI unless we're alone
+    use_mpi = (MPI.COMM_WORLD.Get_size() > 1)
+    def do_out():
+        return MPI.COMM_WORLD.Get_rank() == 0
+except ImportError:
+    use_mpi = False
+    def do_out():
+        return True
+
+
+@click.command()
+@click.argument('ana_types', nargs=1)
+@click.argument('paths', nargs=-1, type=click.Path(exists=True))
+# Common options
+@click.option('-s', '--start', default=None, help="Only consider dumps after this time, in M")
+@click.option('-e', '--end', default=None, help="Only consider dumps after this time, in M")
+@click.option('-as', '--average_start', default=None, help="Beginning time for time-averages")
+@click.option('-ae', '--average_end', default=None, help="End time for time-averages")
+@click.option('-a', '--append', is_flag=True, help="Append to existing results file, rather than starting fresh")
+@click.option('-f', '--filename', default="eht_out.h5", help="Name of each result file")
+# Extras
+@click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
+@click.option('-d', '--debug', is_flag=True, default=False, help="Serial operation for debugging")
+#@click.option('-m', '--memory_limit', default=1, help="Memory limit in GB for each process, enforced by starting total/m processes.")
+def analysis(ana_types, paths, **kwargs):
+    """Analyze the simulation output at each of PATHS with the function/combo specified by ANA_TYPES
+
+    This script is designed for large time-average and time-domain operations, where scripts treating individual
+    dump files or analyses are too slow.  Analysis output is batched together in the form of an HDF5 summary file,
+    in a format readable with 'ana_results.py', specified in the commends in that file.
+
+    Each PATH can contain dump files in any format readable by pyharm, either in the given directory or a subdirectory
+    named "dumps", "dumps_kharma" or similar.
+
+    \b
+    ANA_TYPE is a comma-separated list containing one or more of:
+    * basic: EH fluxes vs time with accretion rate, magnetization, etc. Always enabled regardless of inclusion
+    * r_profiles: radial profiles of a basic set of variables
+    * th_profiles: theta profiles of a couple variables at r=25M
+    * diagnostic: energy ratio profiles, floor and inversion flag counts
+    The full list of analyses is available in pyharm/ana/analyses.py
+
+    If run within an MPI job/allocation with mpi4py installed, pyharm-analysis will attempt to use all allocated nodes to generate
+    frames.  YMMV wildly with MPI installations, with mpi4py installed via pip generally a better choice than through conda.
+
+    """
+    path_dirs = [p for p in paths if os.path.isdir(p)]
+    if len(path_dirs) == 0:
+        # Single file argument, pass this
+        path_dirs = paths
+    if do_out(): print("Generating ",len(paths)," analyses sequentially", file=sys.stderr)
+    base_path = os.getcwd()
+    for path in path_dirs:
+        # If a path...
+        if os.path.isdir(path):
+            # change dir to path we want to image
+            os.chdir(path)
+            # Try to load known filenames
+            files = pyharm.io.get_fnames(".")
+        else:
+            # Just the single dump file. TODO move to its dir?
+            files = [path]
+
+        # Add these so we can pass on just the args
+        kwargs['ana_types'] = ana_types
+        kwargs['path'] = path
+        # Canonical start & end time for averages
+        tend = pyharm.io.get_dump_time(files[-1])
+        if 'average_start' in kwargs and kwargs['average_start'] is not None:
+            kwargs['t_avg_start'] = float(kwargs['average_start'])
+        else:
+            kwargs['t_avg_start'] = tend / 2
+
+        if 'average_start' in kwargs and kwargs['average_end'] is not None:
+            kwargs['t_avg_end'] = float(kwargs['average_end'])
+        else:
+            kwargs['t_avg_end'] = tend
+
+        if do_out():
+            # Initialize the file
+            if kwargs['append']:
+                outfile = h5py.File(kwargs['filename'], 'a')
+            else:
+                outfile = h5py.File(kwargs['filename'], 'w')
+            # Copy in the header, either as-is or converted
+            is_ilhdf = False
+            with h5py.File(files[0],'r') as inf:
+                if 'header' in inf:
+                    hdr_preserve = hdr.hdf5_to_dict(inf['header'])
+                    if not 'header' in outfile:
+                        outfile.create_group('header')
+                    hdr.dict_to_hdf5(hdr_preserve, outfile['header'])
+                    is_ilhdf = True
+            if not is_ilhdf:
+                # Just put in a written one
+                hdr_preserve = pyharm.io.read_hdr(files[0])
+                hdr.write_hdr(hdr_preserve, outfile)
+
+            # Copy in any diagnostics that are present
+            try:
+                fname = glob.glob("*.hst")[0]
+                if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
+                diag = pyharm.io.read_log(fname)
+                if not 'diag' in outfile:
+                    outfile.create_group('diag')
+                hdr.dict_to_hdf5(diag, outfile['diag'])
+            except (IndexError, IOError):
+                # But don't cry if we can't
+                pass
+            # And record pretty much the only relevant command-line parameters
+            outfile['avg/start'] = kwargs['t_avg_start']
+            outfile['avg/end'] = kwargs['t_avg_end']
+
+        if kwargs['debug']:
+            # Import profiling only if used, start it
+            import cProfile, pstats, io
+            from pstats import SortKey
+            from pympler import tracker
+            pr = cProfile.Profile()
+            pr.enable()
+            # Run sequentially to make profiling & backtraces work
+            for n,fname in enumerate(files):
+                tr = tracker.SummaryTracker()
+                out = analyze((fname, kwargs))
+                write_ana_dict(out, outfile, n, len(files))
+                tr.print_diff()
+            outfile.close()
+            
+            pr.disable()
+            s = io.StringIO()
+            ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.TIME)
+            ps.print_stats(10)
+            print(s.getvalue())
+
+        else:
+            # Suppress math warnings, some are expected
+            if not sys.warnoptions:
+                warnings.simplefilter("ignore")
+            # Try to guess how many processes before we MemoryError out
+            if 'nthreads' not in kwargs or kwargs['nthreads'] is None:
+                if 'memory_limit' in kwargs and kwargs['memory_limit'] is not None:
+                    header = pyharm.io.read_hdr(files[0])
+                    nthreads = min(calc_nthreads(header, pad=0.6),
+                                psutil.cpu_count())
+                else:
+                    nthreads = psutil.cpu_count()
+            # This application is entirely side-effects (frame creation)
+            # So we map & ignore result
+            # TODO pass single figure & blit/encode within Python?
+            if not use_mpi:
+                print("Using {} processes".format(nthreads))
+                with multiprocessing.Pool(nthreads) as pool:
+                    args = zip(files, (kwargs,)*len(files))
+                    out_iter = pool.imap(analyze_catch_err, args)
+                    for n, result in enumerate(out_iter):
+                        write_ana_dict(result, outfile, n, len(files))
+                outfile.close()
+
+            else:
+                # Everything is set by MPI.  We inherit a situation and use it
+                with MPICommExecutor() as executor:
+                    # Only the master process gets an executor object here,
+                    # so the following is done only once
+                    if executor is not None:
+                        print("Analyzing {} files across pool size {}".format(len(files), MPI.COMM_WORLD.Get_size()), file=sys.stderr)
+                        args = zip(files, (kwargs,)*len(files))
+                        # This probably shouldn't be a straight map(), or we might run out of memory on the master node
+                        for n, result in enumerate(executor.map(analyze_catch_err, args)):
+                            write_ana_dict(result, outfile, n, len(files))
+                        outfile.close()
+
+
+
+        if do_out(): print("Ran analysis {} on model {}".format(ana_types, path), file=sys.stderr)
+        # Change back to wherever our root was, argument paths can be relative
+        os.chdir(base_path)
+
+
+
+
+if __name__ == "__main__":
+  analysis()

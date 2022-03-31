@@ -17,9 +17,9 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'pyHARM'
-copyright = '2019, Ben Prather, George Wong, Charles Gammie, and the Astrophysical Fluids Group at UIUC'
-author = 'Ben Prather, George Wong, Charles Gammie, and the Astrophysical Fluids Group at UIUC'
+project = 'pyharm'
+copyright = '2022, Astrophysical Fluids Group at UIUC'
+author = 'Astrophysical Fluids Group at UIUC'
 
 master_doc = 'index'
 

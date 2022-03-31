@@ -1,4 +1,4 @@
-name: pyHARM
+name: pyharm
 
 channels:
  - conda-forge
@@ -8,9 +8,10 @@ dependencies:
  - psutil
  - numpy
  - scipy
+ - pandas
  - matplotlib
  - h5py
+ - click
  - sphinx
  - ipykernel
  - ipympl
- - ipywidgets

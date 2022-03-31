@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
-
+import glob
 
 # authoritative version in pytools/__init__.py
 def find_git_revision(tree_root):
@@ -46,14 +46,15 @@ def write_git_revision(package_name):
         outf.write("GIT_REVISION = %s\n" % repr(git_rev))
 
 
-write_git_revision("pyHARM")
+write_git_revision("pyharm")
 
 
-setup(name="pyHARM",
-      version="2021.6",
+setup(name="pyharm",
+      version="2022.3",
       description="Python tools for HARM analysis",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
+      scripts=glob.glob("scripts/pyharm-*"),
 
       install_requires=[
           "psutil",
@@ -61,7 +62,11 @@ setup(name="pyHARM",
           "scipy",
           "matplotlib",
           "h5py",
-          ],
+          "click",
+          "pandas",
+          "sphinx",
+          "ipykernel",
+          "ipympl"],
 
       author="AFD Group, UIUC",
       packages=find_packages(),
