@@ -153,11 +153,16 @@ class KHARMAFile(DumpFile):
             # Reshape rho to 4D by adding a rank in front for prim index
             prims = self.read_var('rho')[np.newaxis, Ellipsis]
             for v2 in self.prim_names_ordered[1:]:
-                new_prim = self.read_var(v2)
-                if len(new_prim.shape) < len(prims.shape):
-                    # Reshape to 4D if needed to append
-                    new_prim = new_prim[np.newaxis, Ellipsis]
-                prims = np.append(prims, new_prim, axis=0)
+                try:
+                    new_prim = self.read_var(v2)
+                    if len(new_prim.shape) < len(prims.shape):
+                        # Reshape to 4D if needed to append
+                        new_prim = new_prim[np.newaxis, Ellipsis]
+                    prims = np.append(prims, new_prim, axis=0)
+                except (IOError, OSError):
+                    # Not every file will have all prims
+                    pass
+            # Save the result
             self.cache["prims"] = prims
             return self.cache["prims"]
         elif var == "cons":
