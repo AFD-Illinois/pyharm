@@ -95,12 +95,16 @@ def movie(movie_types, paths, **kwargs):
 
         try:
             # Load diagnostics from HARM itself
+            fname = None
             if len(glob.glob("*.hst")) > 0:
                 fname = glob.glob("*.hst")[0]
             elif len(glob.glob("*/*.hst")) > 0:
                 fname = glob.glob("*/*.hst")[0]
-            if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
-            diag = pyharm.io.read_log(fname)
+            if fname is not None:
+                if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
+                diag = pyharm.io.read_log(fname)
+            else:
+                diag = None
         except (IndexError, IOError):
             diag = None
 
