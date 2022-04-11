@@ -68,7 +68,7 @@ def frame(fname, diag, kwargs):
         # Set some plot options
         plotrc = {}
         # Copy in the equivalent options, casting them to what below code expects
-        for key in ('vmin', 'vmax', 'shading', 'native', 'cmap', 'at', 'bh', 'nlines'):
+        for key in ('vmin', 'vmax', 'shading', 'native', 'cmap', 'at', 'average', 'sum', 'bh', 'nlines'):
             if key in kwargs:
                 plotrc[key] = kwargs[key]
                 if key in ('vmin', 'vmax'):

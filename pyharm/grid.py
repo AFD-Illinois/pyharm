@@ -467,11 +467,13 @@ class Grid:
             return False
 
     def __getitem__(self, key):
-        """This function works something like its companion in FluidDump.  It parses a dictionary member "request" and returns
-        various members based on it.  The idea is to be able to 
+        """This function works something like its companion in FluidDump:
+        It parses a dictionary member "request" and returns various members based on it.
+        This function also allows slicing -- slices must be 3D like for fluid dumps, though
+        only the X1 and X2 slices are applied.
         """
         if type(key) in (list, tuple) and type(key[0]) in (int, np.int32, np.int64, slice):
-            # Grids also support slicing
+            # Grids also support slicing, see analogue in FluidDump
             slc = self.slices.geom_slc(key) # cut 3rd index, geometry is 2D
             relevant_0 = isinstance(slc[0], int) or isinstance(slc[0], np.int32) or isinstance(slc[0], np.int64) \
                          or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)

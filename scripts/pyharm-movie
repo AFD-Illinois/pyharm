@@ -41,6 +41,8 @@ except ImportError:
 @click.option('--fig_dpi', default=100, help="DPI of resulting figure.")
 @click.option('-g','--plot_ghost', is_flag=True, default=False, help="Plot ghost zones.")
 @click.option('-at','--at','--at_zone', 'at', default=0, help="Phi zone to plot at.")
+@click.option('-av','--av','--average', 'average', is_flag=True, help="Average quantities over phi.")
+@click.option('--sum', is_flag=True, help="Sum quantities over phi.")
 @click.option('-sz','--sz','--size', 'size', default=None, help="Window size, in M each side of central object.")
 @click.option('-sh','--sh','--shading', 'shading', default='gouraud', help="Shading: flat, nearest, gouraud.")
 @click.option('--vmin', default=None, help="Colorscale minimum.")
