@@ -122,7 +122,8 @@ def vecs_prim(fig, dump, diag, plotrc):
     ax_slc = lambda i: plt.subplot(2, 4, i)
     # Usual movie: RHO beta fluxes
     # CUTS
-    plot_slices(ax_slc(1), ax_slc(5), dump, 'rho', log=True, average=True, **plotrc)
+    plotrc['average'] = True
+    plot_slices(ax_slc(1), ax_slc(5), dump, 'rho', log=True, **plotrc)
 
     for i,var in zip((2,3,4,6,7,8), ("U1", "U2", "U3", "B1", "B2", "B3")):
         plot_xz(ax_slc(i), dump, var, log=True, **plotrc)
@@ -147,8 +148,9 @@ def ejection(fig, dump, diag, plotrc):
     ax_slc = lambda i: plt.subplot(1, 2, i)
     # Usual movie: RHO beta fluxes
     # CUTS
-    plot_xz(ax_slc(1), dump, 'rho', label=pretty('rho')+" phi-average", average=True, **plotrc)
-    plot_xz(ax_slc(2), dump, 'bsq', label=pretty('bsq')+" phi-average", average=True, **plotrc)
+    plotrc['average'] = True
+    plot_xz(ax_slc(1), dump, 'rho', label=pretty('rho')+" phi-average", **plotrc)
+    plot_xz(ax_slc(2), dump, 'bsq', label=pretty('bsq')+" phi-average", **plotrc)
     return fig
 
 def b_bug(fig, dump, diag, plotrc):
@@ -165,18 +167,21 @@ def e_ratio(fig, dump, diag, plotrc):
     ax_slc = lambda i: plt.subplot(2, 4, i)
     plotrc['vmin'] = -3
     plotrc['vmax'] = 3
+    plotrc['average'] = True
     # Energy ratios: difficult places to integrate, with failures
     plot_slices(ax_slc(1), ax_slc(2), dump, np.log10(dump['UU'] / dump['RHO']),
-                        label=r"$\log_{10}(U / \rho)$", average=True, **plotrc)
+                        label=r"$\log_{10}(U / \rho)$", **plotrc)
     plot_slices(ax_slc(3), ax_slc(4), dump, np.log10(dump['bsq'] / dump['RHO']),
-                        label=r"$\log_{10}(b^2 / \rho)$", average=True, **plotrc)
+                        label=r"$\log_{10}(b^2 / \rho)$", **plotrc)
     plot_slices(ax_slc(5), ax_slc(6), dump, np.log10(1 / dump['beta']),
-                        label=r"$\beta^{-1}$", average=True, **plotrc)
+                        label=r"$\beta^{-1}$", **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
+    plotrc['average'] = False
+    plotrc['sum'] = True
     plot_slices(ax_slc(7), ax_slc(8), dump, (dump['pflag'] > 0).astype(np.int32),
-                        label="Failures", sum=True, **plotrc)
+                        label="Failures", **plotrc)
     return fig
 
 def e_ratio_funnel(fig, dump, diag, plotrc):
@@ -187,17 +192,20 @@ def e_ratio_funnel(fig, dump, diag, plotrc):
     plotrc['vmin'] = -3
     plotrc['vmax'] = 3
     plotrc['half_cut'] = True
+    plotrc['average'] = True
     plot_thphi(ax_slc(1), dump, 'log_Theta', r_i,
-                        label=r"$\log_{10}(U / \rho)$", average=True, **plotrc)
+                        label=r"$\log_{10}(U / \rho)$", **plotrc)
     plot_thphi(ax_slc(2), dump, 'log_sigma', r_i,
-                        label=r"$\log_{10}(b^2 / \rho)$", average=True, **plotrc)
+                        label=r"$\log_{10}(b^2 / \rho)$", **plotrc)
     plot_thphi(ax_slc(3), dump, 'log_betainv', r_i,
-                        label=r"$\beta^{-1}$", average=True, **plotrc)
+                        label=r"$\beta^{-1}$", **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
+    plotrc['average'] = False
+    plotrc['sum'] = True
     plot_thphi(ax_slc(4), dump, (dump['pflag'] > 0).astype(np.int32), r_i,
-                        label="Failures", sum=True, **plotrc)
+                        label="Failures", **plotrc)
     return fig
 
 def conservation(fig, dump, diag, plotrc):
@@ -209,11 +217,12 @@ def conservation(fig, dump, diag, plotrc):
     plotrc['native'] = True
     plotrc['vmin'] = 0
     plotrc['vmax'] = 2000
-    plot_slices(ax_slc(1), ax_slc(2), dump, 'JE1', label=r"$T^1_0$ Integrated", sum=True)
+    plotrc['sum'] = True
+    plot_slices(ax_slc(1), ax_slc(2), dump, 'JE1', label=r"$T^1_0$ Integrated")
 
     # integrated T00: continuity plot for energy conservation
     plotrc['vmax'] = 3000
-    plot_slices(ax_slc(5), ax_slc(6), dump, 'JE0', label=r"$T^0_0$ Integrated", sum=True)
+    plot_slices(ax_slc(5), ax_slc(6), dump, 'JE0', label=r"$T^0_0$ Integrated")
 
     # Usual fluxes for reference
     #ppltr.plot_hst(ax_flux[1], diag, 'Mdot', tline=dump['t'], logy=MDOT)
@@ -247,18 +256,21 @@ def energies(fig, dump, diag, plotrc):
     plotrc['half_cut'] = True
     plotrc['vmin'] = -3
     plotrc['vmax'] = 3
+    plotrc['average'] = True
     # Energy ratios: difficult places to integrate, with failures
     plot_slices(ax_slc(1), ax_slc(2), dump, 'rho',
-                label=r"$\log_{10}(\rho)$", average=True, **plotrc)
+                label=r"$\log_{10}(\rho)$", **plotrc)
     plot_slices(ax_slc(3), ax_slc(4), dump, 'bsq',
-                label=r"$\log_{10}(b^2)$", average=True, **plotrc)
+                label=r"$\log_{10}(b^2)$", **plotrc)
     plot_slices(ax_slc(5), ax_slc(6), dump, 'UU',
-                label=r"$\log_{10}(UU)$", average=True, **plotrc)
+                label=r"$\log_{10}(UU)$", **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
+    plotrc['average'] = False
+    plotrc['sum'] = True
     plot_slices(ax_slc(7), ax_slc(8), dump, (dump['pflag'] > 0).astype(np.int32),
-                        label="Failures", sum=True, **plotrc)
+                        label="Failures", **plotrc)
 
     return fig
 
@@ -270,6 +282,7 @@ def floors(fig, dump, diag, plotrc):
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
+    plotrc['sum'] = True
     for i,ff in enumerate(FloorFlag_KHARMA):
         p = 2+i
         plotrc['cbar'] = (p % 5 == 0)
@@ -287,7 +300,7 @@ def floors(fig, dump, diag, plotrc):
             plotrc['ylabel'] = True
             plotrc['yticks'] = None
 
-        plot_xz(ax_slc(p), dump, dump['fflag'] & ff.value, label=ff.name, sum=True, **plotrc)
+        plot_xz(ax_slc(p), dump, dump['fflag'] & ff.value, label=ff.name, **plotrc)
     fig.subplots_adjust(hspace=0.1, wspace=0.12, left=0.05, right=0.95, bottom=0.05, top=0.92)
     fig.suptitle("t = {}, Total floor hits: {}".format(int(dump['t']), np.sum(dump['fflag'] > 0)))
     return fig
@@ -300,6 +313,7 @@ def fails(fig, dump, diag, plotrc):
     plotrc['vmin'] = 0
     plotrc['vmax'] = 1
     plotrc['cmap'] = 'Reds'
+    plotrc['sum'] = True
     for i in range(1, 8):
         p = 1+i
         plotrc['cbar'] = (p % 4 == 0)
@@ -317,7 +331,7 @@ def fails(fig, dump, diag, plotrc):
             plotrc['ylabel'] = True
             plotrc['yticks'] = None
 
-        plot_xz(ax_slc(p), dump, dump['pflag'] == i, label=InversionStatus(i).name, sum=True, **plotrc)
+        plot_xz(ax_slc(p), dump, dump['pflag'] == i, label=InversionStatus(i).name, **plotrc)
     fig.subplots_adjust(hspace=0.1, wspace=0.12, left=0.05, right=0.95, bottom=0.05, top=0.92)
     fig.suptitle("t = {}, Total inversion failures: {}".format(int(dump['t']), np.sum(dump['pflag'] > 0)))
     return fig
@@ -328,7 +342,8 @@ def old_floors(fig, dump, diag, plotrc):
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
+    plotrc['sum'] = True
     for i,ff in enumerate(FloorFlag_iharm3d):
-        plot_xz(ax_slc(2+i), dump, dump['fflag'] & ff.value, label=ff.name, sum=True, **plotrc)
+        plot_xz(ax_slc(2+i), dump, dump['fflag'] & ff.value, label=ff.name, **plotrc)
 
     return fig
