@@ -22,6 +22,9 @@ def read_log(fname):
         out[name] = np.array(tab[name])
 
     # Files can contain multiple runs. Find the most recent zero time
+    if not 'time' in out:
+        print("Not loading KHARMA log file: header not present!")
+        return None
     start = len(out['time']) - np.argmin(out['time'][::-1]) - 1
     for name in header:
         out[name] = out[name][start:]
