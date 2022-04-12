@@ -461,7 +461,7 @@ class Grid:
             return True
         elif key[:7] == 'pcoord_':
             return True
-        elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z', 'X1', 'X2', 'X3'):
+        elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z', 'X1', 'X2', 'X3', 'dXdx', 'dxdX'):
             return True
         else:
             return False
@@ -516,9 +516,6 @@ class Grid:
                     out.__dict__[cache] = self.__dict__[cache][(slice(None), slice(None), slice(None)) + out.slice]
             return out
 
-        elif key in self.__dict__:
-            # Return anything we have a member for
-            return self.__dict__[key]
         elif key in self.cache:
             # Return anything we've cached
             return self.cache[key]
@@ -544,8 +541,9 @@ class Grid:
 
         elif key in ['n1', 'n2', 'n3']:
             return self.NTOT[int(key[-1:])]
-        elif key in ['r', 'th', 'phi']:
-            self.cache[key] = getattr(self.coords, key)(self.coord_all())
+        elif key in ['r', 'th', 'phi', 'dxdX', 'dXdx']:
+            # Assuming 2D grids is so much faster.  TODO accommodate 3D?
+            self.cache[key] = getattr(self.coords, key)(self.coord_ij()[:, :, :, np.newaxis])
             return self.cache[key]
         elif key  == 'r1d':
             self.cache[key] = self.coords.r(self.coord(np.arange(self.GN[1]), 0, 0))
@@ -558,10 +556,16 @@ class Grid:
             self.cache[key] = self.coords.phi(self.coord(0, 0, np.arange(self.GN[3])))
             return self.cache[key]
         elif key in ['x', 'y', 'z']:
-            self.cache[key] = getattr(self.coords, 'cart_' + key)(self.coord_all())
+            self.cache[key] = getattr(self.coords, 'cart_' + key)(self.coord_ij()[:, :, :, np.newaxis])
             return self.cache[key]
         elif key in ['X1', 'X2', 'X3']:
-            return self.coord_all()[int(key[-1:])]
+            return self.coord_ij()[:, :, :, np.newaxis][int(key[-1:])]
+
+        # Finally, any of our attributes.  This is to allow overriding with the above
+        elif key in self.__dict__:
+            # Return anything we have a member for
+            return self.__dict__[key]
+
         else:
             raise ValueError("Grid cannot find or compute {}".format(key))
         raise ValueError("Reached end of Grid retrieval, retrieving key {}".format(key))

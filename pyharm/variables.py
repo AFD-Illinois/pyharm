@@ -15,6 +15,11 @@ fns_dict = {# 4-vectors
             'ucov': lambda dump: dump.grid.lower_grid(dump['ucon']),
             'bcon': lambda dump: bcon_calc(dump),
             'bcov': lambda dump: dump.grid.lower_grid(dump['bcon']),
+            # Versions in base coordinates
+            'ucon_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucon"], dump['dXdx']),
+            'ucov_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucov"], dump['dxdX']),
+            'bcon_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcon"], dump['dXdx']),
+            'bcov_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcov"], dump['dxdX']),
             # Miscallany!
             'bsq': lambda dump: dump.grid.dot(dump['bcov'], dump['bcon']),
             'sigma': lambda dump: dump['bsq'] / dump['RHO'],
@@ -53,7 +58,7 @@ fns_dict = {# 4-vectors
             'lam_MRI': lambda dump: lam_MRI(dump),
             'jet_psi': lambda dump: jet_psi(dump),
             'divB': lambda dump: divB(dump.grid, dump['B']),
-            'divB_con': lambda dump: divB_cons(dump.grid, dump['cons.B']),
+            'divB_cons': lambda dump: divB_cons(dump.grid, dump['cons.B']),
             'lumproxy': lambda dump: lum_proxy(dump),
             'jI': lambda dump: jnu(dump),
             'K': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),

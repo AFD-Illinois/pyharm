@@ -144,19 +144,11 @@ class FluidDump:
             return self[key[:-2]+"con"][int(key[-1])]
 
         # Return transformed vector components
-        # TODO transformed full vectors, with e.g. 'ucon_ks'
-        # TODO cache these?
-        # TODO Cartesian forms, move the complexity here to grid
+        # TODO Currently only u,b. Support more vectors like this
         elif key[-2:] == "_t" or key[-2:] == "_r" or key[-3:] == "_th" or key[-4:] == "_phi":
-            return np.einsum("i...,ij...->j...",
-                                self[key[0]+"cov"],
-                                self.grid.coords.dxdX(self.grid.coord_all())
-                            )[["t", "r", "th", "phi"].index(key.split("_")[-1])]
+            return self[key[0]+"cov_base"][["t", "r", "th", "phi"].index(key.split("_")[-1])]
         elif key[-2:] == "^t" or key[-2:] == "^r" or key[-3:] == "^th" or key[-4:] == "^phi":
-            return np.einsum("i...,ij...->j...",
-                                self[key[0]+"con"],
-                                self.grid.coords.dXdx(self.grid.coord_all())
-                            )[["t", "r", "th", "phi"].index(key.split("^")[-1])]
+            return self[key[0]+"con_base"][["t", "r", "th", "phi"].index(key.split("^")[-1])]
 
         # Return an array of the correct size filled with just zero or one
         # Don't cache these
