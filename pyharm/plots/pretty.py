@@ -3,7 +3,7 @@
 and returns the LaTeX form of the name, suitable for plot axes/titles.
 """
 
-# TODO: use units more widely.  Integrate with units.py?
+# TODO: optionally add code or CGS units to any name
 
 pretty_dict = {'rho': r"\rho",
             'bsq': r"b^{2}",

@@ -13,5 +13,6 @@ dependencies:
  - h5py
  - click
  - sphinx
+ - pympler
  - ipykernel
  - ipympl
