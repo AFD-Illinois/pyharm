@@ -33,7 +33,8 @@ def flatten_xz(dump, var, at=None, sum=False, half_cut=False):
     if sum:
         if isinstance(var, str):
             var = dump[var]
-        var = var.sum(-1)
+        if len(var.shape) == 3:
+            var = var.sum(-1)
         if half_cut:
             return var
         else:
