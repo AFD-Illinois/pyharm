@@ -36,8 +36,8 @@ except ImportError:
 @click.option('-e', '--tend', default=1e7, help="End time.")
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
 # If you're invoking manually
-@click.option('--fig_x', default=16, help="Figure width in inches.")
-@click.option('--fig_y', default=9, help="Figure height in inches.")
+@click.option('--fig_x', default=16.0, help="Figure width in inches.")
+@click.option('--fig_y', default=9.0, help="Figure height in inches.")
 @click.option('--fig_dpi', default=100, help="DPI of resulting figure.")
 @click.option('-g','--plot_ghost', is_flag=True, default=False, help="Plot ghost zones.")
 @click.option('-at','--at','--at_zone', 'at', default=0, help="Phi zone to plot at.")
