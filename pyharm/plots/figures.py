@@ -3,22 +3,22 @@
 
 import os
 import sys
-from turtle import filling
 import psutil
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
-# 
 from ..ana.reductions import *
 from ..variables import *
 from .plot_dumps import *
 from .plot_results import *
 from ..defs import FloorFlag_KHARMA, FloorFlag_iharm3d, InversionStatus
 
-"""Various full figures, combining plots & settings frequently used together
-Similar to reports.py in imtools
+"""Various full figures, combining plots & settings frequently used together.
+Similar to reports.py in imtools.
 """
+
+# TODO omit titles on no_title?
 
 def simplest(fig, dump, diag, plotrc, type="both", var='log_rho'):
     """Simplest movie: show log-variable without color bars for outreach animations

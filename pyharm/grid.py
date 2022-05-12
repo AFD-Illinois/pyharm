@@ -166,7 +166,30 @@ class Grid:
 
         self.dV = self.dx[1]*self.dx[2]*self.dx[3]
 
-        if caches:
+        if caches and (self.coords == Minkowski):
+            # Shapes. Store like a 0-dim array:
+            # locations, tensor dims, grid dims
+            self.gcov = np.zeros((5,4,4,1,1,1))
+            self.gdet = np.zeros((5,1,1,1))
+            # Replicate
+            self.gcon = np.zeros_like(self.gcov)
+            self.lapse = np.zeros_like(self.gdet)
+
+            for loc in Loci:
+                ilist = np.arange(1)
+                jlist = np.arange(1)
+                x = self.coord(ilist, jlist, 0, loc)
+
+                gcov_loc = self.coords.gcov(x)
+                gcon_loc = self.coords.gcon(gcov_loc)
+                gdet_loc = self.coords.gdet(gcov_loc)
+
+                self.gcov[loc.value] = gcov_loc[Ellipsis, np.newaxis, np.newaxis, np.newaxis]
+                self.gcon[loc.value] = gcon_loc[Ellipsis, np.newaxis, np.newaxis, np.newaxis]
+                self.gdet[loc.value] = gdet_loc[Ellipsis, np.newaxis, np.newaxis, np.newaxis]
+                self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0, Ellipsis, np.newaxis, np.newaxis, np.newaxis])
+
+        elif caches:
             # Shapes
             self.gcov = np.zeros(self.shapes.locus_geom_tensor)
             self.gdet = np.zeros(self.shapes.locus_geom_scalar)

@@ -62,23 +62,26 @@ def frame(fname, diag, kwargs):
 
     # This just attaches the file and creates a grid.  We do need to specify
     # if any movie will need ghosts, for the index math
-    dump = FluidDump(fname, ghost_zones=ghost_zones)
+    dump = FluidDump(fname, ghost_zones=ghost_zones, grid_cache=(not kwargs['no_grid_cache']))
 
     for movie_type in movie_types:
         # Set some plot options
         plotrc = {}
         # Copy in the equivalent options, casting them to what below code expects
-        for key in ('vmin', 'vmax', 'shading', 'native', 'cmap', 'at', 'average', 'sum', 'bh', 'nlines'):
+        for key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax', # float
+                    'at', 'nlines', # int
+                    'native', 'bh', 'no_title', 'average', 'sum', # bool
+                    'shading', 'cmap'): # string
             if key in kwargs:
                 plotrc[key] = kwargs[key]
-                if key in ('vmin', 'vmax'):
+                if key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax'):
                     # Should be floats or none
                     if plotrc[key] is not None:
                         plotrc[key] = float(plotrc[key])
                 if key in ('at', 'nlines'):
                     # Should be ints
                     plotrc[key] = int(plotrc[key])
-                if key in ('native', 'bh'):
+                if key in ('native', 'bh', 'no_title', 'average', 'sum'):
                     # Should be bools
                     plotrc[key] = bool(plotrc[key])
 
@@ -101,7 +104,11 @@ def frame(fname, diag, kwargs):
 
         # Choose a centered window
         # TODO 'half' and similar args for non-centered windows
-        if sz is not None:
+        user_window = False
+        if kwargs['xmin'] is not None:
+            plotrc['window'] = (plotrc['xmin'], plotrc['xmax'], plotrc['ymin'], plotrc['ymax'])
+            user_window = True
+        elif sz is not None:
             plotrc['window'] = (-sz, sz, -sz, sz)
         else:
             plotrc['window'] = None
@@ -110,7 +117,8 @@ def frame(fname, diag, kwargs):
         # Handle and strip
         if "_array" in movie_type:
             plotrc['native'] = True
-            plotrc['window'] = None # Let plotter choose based on grid
+            if not user_window:
+                plotrc['window'] = None # Let plotter choose based on grid
             plotrc['shading'] = 'flat'
             plotrc['half_cut'] = True
             movie_type = movie_type.replace("_array","")
@@ -183,7 +191,7 @@ def frame(fname, diag, kwargs):
                     var = dump[var]
                 plot_slices(ax_slc[0], ax_slc[1], dump, var, **plotrc) # We'll plot the field ourselves
 
-            if no_margin or "jsq" in movie_type:
+            if no_margin:
                 fig.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
             else:
                 fig.subplots_adjust(left=0.03, right=0.97)
@@ -195,7 +203,7 @@ def frame(fname, diag, kwargs):
 
         # If the figure code didn't set the title
         # I cannot be bothered to flag this for myself
-        if fig._suptitle is None or fig._suptitle.get_text() == "":
+        if (fig._suptitle is None or fig._suptitle.get_text() == "") and not plotrc['no_title']:
             if "divB" in movie_type:
                 # Special title for diagnostic divB
                 if "con" in movie_type:

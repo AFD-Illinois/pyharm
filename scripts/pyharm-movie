@@ -7,6 +7,10 @@ import psutil
 import multiprocessing
 import warnings
 
+# Make sure we use Agg
+import matplotlib
+matplotlib.use('Agg')
+
 import pyharm
 from pyharm.plots.frame import frame
 from pyharm.util import calc_nthreads
@@ -35,10 +39,11 @@ except ImportError:
 @click.option('-s', '--tstart', default=0., help="Start time.")
 @click.option('-e', '--tend', default=1e7, help="End time.")
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
-# If you're invoking manually
+# Plotting options
 @click.option('--fig_x', default=16.0, help="Figure width in inches.")
 @click.option('--fig_y', default=9.0, help="Figure height in inches.")
 @click.option('--fig_dpi', default=100, help="DPI of resulting figure.")
+@click.option('--no_title', is_flag=True, help="Omit a plot title e.g. of simulation time.")
 @click.option('-g','--plot_ghost', is_flag=True, default=False, help="Plot ghost zones.")
 @click.option('-at','--at','--at_zone', 'at', default=0, help="Phi zone to plot at.")
 @click.option('-av','--av','--average', 'average', is_flag=True, help="Average quantities over phi.")
@@ -48,9 +53,14 @@ except ImportError:
 @click.option('--vmin', default=None, help="Colorscale minimum.")
 @click.option('--vmax', default=None, help="Colorscale maximum.")
 @click.option('--cmap', default='jet', help="Colormap.")
+@click.option('--xmin', default=None, help="Window X minimum.")
+@click.option('--xmax', default=None, help="Window X maximum.")
+@click.option('--ymin', default=None, help="Window Y minimum.")
+@click.option('--ymax', default=None, help="Window Y maximum.")
 @click.option('--overlay_field', is_flag=True, help="Overlay field lines.")
-@click.option('--accurate_fnames', is_flag=True, help="Name frames by 1/100M, for short runs.")
+@click.option('--no_grid_cache', is_flag=True, help="Don't cache geometry.  For plotting large Cartesian simulations.")
 # Extras
+@click.option('-a', '--accurate_fnames', is_flag=True, help="Name frames by 1/100M, for short runs.")
 @click.option('-r', '--resume', is_flag=True, help="Continue a previous run, by skipping existing frames")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
 #@click.option('-m', '--memory_limit', default=1, help="Memory limit in GB for each process, enforced by starting total/m processes.")
