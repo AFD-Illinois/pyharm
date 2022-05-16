@@ -90,6 +90,11 @@ def diagnostics(dump, out, **kwargs):
     out['rt/total_floors'] = np.sum(dump['floors'] > 0, axis=(1,2))
     out['rt/total_fails'] = np.sum(dump['fails'] > 0, axis=(1,2))
 
+def max_divb(dump, out, **kwargs):
+    out['t/MaxDivB'] = np.max(dump['divB'])
+    # Print if running this specifically
+    print("{} max div B: {}".format(dump.fname, out['t/MaxDivB']), file=sys.stderr)
+
 def r_profile_phi(dump, out, **kwargs):
     """Spherical and midplane magnetizations of radial shells, analogous to FM or FE for Phi_b.
     Separated as the manual iteration in r is very slow.

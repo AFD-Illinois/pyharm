@@ -30,4 +30,9 @@ export OMP_NUM_THREADS=8
 
 # Start 1 task/cpu by default. -O option allows more tasks,
 # if this proves efficient for simple stuff.
-srun -n $(($SLURM_JOB_NUM_NODES * 32)) --cpu-bind=no pyharm-analysis "${@}"
+if [[ "$*" != *"-d "* ]]
+then
+  srun -n $(($SLURM_JOB_NUM_NODES * 32)) --cpu-bind=no pyharm-analysis "${@}"
+else
+  pyharm-analysis "${@}"
+fi

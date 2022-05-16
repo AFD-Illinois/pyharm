@@ -35,6 +35,7 @@ except ImportError:
 @click.command()
 @click.argument('ana_types', nargs=1)
 @click.argument('paths', nargs=-1, type=click.Path(exists=True))
+@click.option('--paths_are_files', is_flag=True, help="Paths are single files, treat as a single set")
 # Common options
 @click.option('-s', '--start', default=None, help="Only consider dumps after this time, in M")
 @click.option('-e', '--end', default=None, help="Only consider dumps after this time, in M")
@@ -69,10 +70,18 @@ def analysis(ana_types, paths, **kwargs):
 
     """
     path_dirs = [p for p in paths if os.path.isdir(p)]
+
+    # Only treat files if *none* of the args is a directory
     if len(path_dirs) == 0:
-        # Single file argument, pass this
         path_dirs = paths
-    if do_out(): print("Generating ",len(paths)," analyses sequentially", file=sys.stderr)
+
+    # If we're treating files together, just treat "." as the only "directory"
+    if not kwargs['paths_are_files']:
+        if do_out(): print("Generating {} analyses sequentially".format(len(path_dirs)), file=sys.stderr)
+    else:
+        if do_out(): print("Analyzing {} files as a set".format(len(paths)), file=sys.stderr)
+        path_dirs = "."
+
     base_path = os.getcwd()
     for path in path_dirs:
         # If a path...
@@ -80,7 +89,10 @@ def analysis(ana_types, paths, **kwargs):
             # change dir to path we want to image
             os.chdir(path)
             # Try to load known filenames
-            files = pyharm.io.get_fnames(".")
+            if not kwargs['paths_are_files']:
+                files = pyharm.io.get_fnames(".")
+            else:
+                files = paths
         else:
             # Just the single dump file. TODO move to its dir?
             files = [path]

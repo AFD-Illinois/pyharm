@@ -25,7 +25,7 @@ def get_fnames(path):
     while trying to avoid extraneous files caught in normal globs (e.g., grid.h5, other runs/filetypes)
     """
     # These are at best a touchy heuristic
-    for scheme in itertools.product((".","dumps","dumps_kharma"),
+    for scheme in itertools.product((".","dumps_kharma","dumps"),
                                     ("*out0*.phdf", "*out*.phdf", "*.phdf", "*out0*.h5", 
                                     "dump_*.h5", "dump[0-9][0-9][0-9]")):
         files = np.sort(glob(os.path.join(path, scheme[0], scheme[1])))
