@@ -41,7 +41,6 @@ fns_dict = {# 4-vectors
             'Pb': lambda dump: dump['bsq'] / 2,
             'Ptot': lambda dump: dump['Pg'] + dump['Pb'],
             'beta': lambda dump: dump['Pg'] / dump['Pb'],
-            'betainv': lambda dump: dump['Pb'] / dump['Pg'],
             'jcov': lambda dump: dump.grid.lower_grid(dump['jcon']),
             'jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']),
             'Jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,

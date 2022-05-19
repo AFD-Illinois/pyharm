@@ -1,0 +1,96 @@
+import sys
+import glob
+import click
+import inspect
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+import pyharm
+from pyharm.defs import Loci
+
+def eh_fluxes(result):
+    # Event horizon fluxes
+    fig, _ = plt.subplots(4,1, figsize=(7,7))
+    ax = fig.get_axes()
+    for a,var in enumerate(('mdot', 'phi_b', 'abs_ldot_per', 'eff')):
+        ax[a].plot(result['t'], result[var])
+        ax[a].set_ylabel(pyharm.pretty(var), rotation=0, ha='right') #sep
+        ax[a].grid(True)
+
+    fig.savefig("fluxes_"+result.tag+".png", dpi=200) 
+
+def radial_averages_window(result):
+    # Radial profiles of variables
+    ir = pyharm.util.i_of(result['r'], 50)
+    fig, _ = plt.subplots(2,4, figsize=(16,6))
+    ax = fig.get_axes()
+    for a,var in enumerate(('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post')):
+        for i in range(1,6):
+            ax[a].loglog(result['r'][:ir], np.mean(result['rt/{}_disk'.format(var)][i*1000:(i+1)*1000], axis=0)[:ir], label="{}M".format(i*1000*5))
+        ax[a].set_ylabel(pyharm.pretty(var))
+        ax[a].grid(True)
+
+    ax[0].legend()
+    plt.subplots_adjust(wspace=0.4)
+    plt.savefig("radials_"+result.tag+".png", dpi=200)
+
+def radial_fluxes_window(result):
+    # Fluxes of conserved quantities by radius
+    ir = pyharm.util.i_of(result['r'], 50)
+    fig, _ = plt.subplots(1,3, figsize=(14,4))
+    ax = fig.get_axes()
+    for a,var in enumerate(('FM', 'FE', 'FL')):
+        for i in range(1,6):
+            # * result.grid['gdet'][Loci.CENT.value,:ir,0,0]
+            ax[a].loglog(result['r'][:ir], np.abs(np.mean(result['rt/{}_disk'.format(var)][i*1000:(i+1)*1000], axis=0))[:ir], label="{}M".format(i*1000*5))
+        ax[a].set_ylabel(pyharm.pretty(var))
+
+    ax[0].legend()
+    plt.subplots_adjust(wspace=0.4)
+    plt.savefig("radial_flow_"+result.tag+".png", dpi=200)
+
+@click.command()
+@click.argument('to_plot_str', nargs=1)
+@click.argument('paths', nargs=-1, type=click.Path(exists=True))
+@click.option('-r', '--result_fname', default="eht_out.h5", help="Filename (not full path) of each results file")
+def plot_results(to_plot_str, paths, result_fname):
+    """Plot a result or set of results in a standard form, usually the contents of one or more
+    analyses done by pyharm-analysis.
+
+    Usage: pyharm-plot-result  list,of,names folder1 [folder2]
+    """
+    to_plot = to_plot_str.split(",")
+
+    # Always load results
+    results = {}
+    for model in paths:
+        files = []
+        for inter in ("/*/*/*/", "/*/*/", "/*/", "/"):
+            if len(files) == 0:
+                files = glob.glob(model+inter+result_fname)
+
+        if len(files) > 0:
+            results[model] = pyharm.load_results(files[0], tag=model.replace("/","_"))
+
+    # Look through the functions we've defined for names
+    #functions = [(name,thing) for (name, thing) in locals().items() if callable(thing)]
+    for result in results.values():
+        # Hack to get the list of functions in current file,
+        # so we can call them based on runtime user-spec string
+        local_fns = inspect.getmembers(sys.modules[__name__], \
+                        predicate=lambda f: inspect.isfunction(f) and f.__module__ == __name__)
+        plotted_one = False
+        for fname,fn in local_fns:
+            if fname in to_plot:
+                fn(result)
+                plotted_one = True
+        
+        if not plotted_one:
+            raise ValueError("Plot {} is not defined!".format(to_plot))
+
+
+
+if __name__ == "__main__":
+    plot_results()
+

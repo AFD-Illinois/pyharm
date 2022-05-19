@@ -23,11 +23,11 @@ pretty_dict = {'rho': r"\rho",
             'b^th': r"b^{\theta}",
             'b_phi': r"b_{\phi}",
             'b^phi': r"b^{\phi}",
-            'FM': r"\mathrm{Number Flux} FM",
-            'FE':r"\mathrm{Energy Flux} FE_{\mathrm{tot}}",
-            'FE_EM': r"\mathrm{Electromagnetic Energy Flux} FE_{EM}",
-            'FE_Fl': r"\mathrm{Fluid Energy Flux} FE_{Fl}",
-            'FL':r"FL_{\mathrm{tot}}",
+            'FM': r"\mathrm{Number\;Flux}\;FM",
+            'FE':r"\mathrm{Energy\;Flux}\;FE_{\mathrm{tot}}",
+            'FE_EM': r"\mathrm{Electromagnetic\;Energy\;Flux}\;FE_{EM}",
+            'FE_Fl': r"\mathrm{Fluid\;Energy\;Flux}\;FE_{Fl}",
+            'FL':r"\mathrm{Angular\;Momentum\;Flux}\;FL_{\mathrm{tot}}",
             'FL_EM': r"FL_{\mathrm{EM}}",
             'FL_Fl': r"FL_{\mathrm{Fl}}",
             'Be_b': r"Be_{\mathrm{B}}",
@@ -37,7 +37,7 @@ pretty_dict = {'rho': r"\rho",
             'Pb': r"P_b",
             'Ptot': r"P_{\mathrm{tot}}",
             'beta': r"\beta",
-            'betainv': r"\beta^{-1}",
+            'inv_beta': r"\beta^{-1}",
             'jcov': r"j_{\mu}",
             'jsq': r"j^{2}",
             'current': r"J^{2}",
@@ -58,9 +58,13 @@ pretty_dict = {'rho': r"\rho",
             'Phi_b': r"\Phi_{BH}",
             'Edot': r"\dot{E}",
             'Ldot': r"\dot{L}",
-            'phi_b': r"\Phi_{BH} / \sqrt{\dot{M}}",
-            'edot': r"\dot{E} / \dot{M}",
-            'ldot': r"\dot{L} / \dot{M}",
+            'phi_b': r"\frac{\Phi_{BH}}{\sqrt{\langle \dot{M} \rangle}}",
+            'phi_b_per': r"\frac{\Phi_{BH}}{\sqrt{\dot{M}}}",
+            'edot': r"\frac{\dot{E}}{\langle \dot{M} \rangle}",
+            'edot_per': r"\frac{\dot{E}}{\dot{M}}",
+            'ldot': r"\frac{\dot{L}}{\langle \dot{M} \rangle}",
+            'ldot_per': r"\frac{\dot{L}}{\dot{M}}",
+            'eff': r"\frac{\left| \dot{E} - \dot{M} \right|}{\langle \dot{M} \rangle}",
             # Independent variables
             't': r"t \; \left( \frac{G M}{c^3} \right)",
             'x': r"x \; \left( \frac{G M}{c^2} \right)",
@@ -73,7 +77,11 @@ pretty_dict = {'rho': r"\rho",
 
 def pretty(var, segment=False):
     """Return a pretty LaTeX form of the named variable"""
+
     pretty_var = ""
+    if var[-5:] == "_post":
+        # Just strip this, pass other bits
+        return pretty(var[:-5], segment=segment)
     if var[:4] == "log_":
         return r"$\log_{10} \left( "+pretty(var[4:], segment=True)+r" \right)$"
     if var[:4] == "abs_":

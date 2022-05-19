@@ -136,6 +136,8 @@ class FluidDump:
             return np.log10(self[key[4:]])
         elif key[:3] == "ln_":
             return np.log(self[key[3:]])
+        elif key[:4] == "inv_":
+            return 1/self[key[4:]]
 
         # Return vector components
         elif key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3":

@@ -250,9 +250,9 @@ class KHARMAFile(DumpFile):
                 # Don't read blocks outside our domain
                 #print("Skipping block: ", b, " would be to location ", out_slc, " from portion ", fil_slc)
                 continue
-            # print("Reading block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
-            # print("{} {} {} {}".format(loc_slc[2].start, b[2].start, ng_fz, ng[2]))
-            # print(fil.Get(var, False).shape)
+            print("Reading block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
+            print("{} {} {} {}".format(loc_slc[2].start, b[2].start, ng_fz, ng[2]))
+            print(fil.Get(var, False).shape)
 
             if 'prims.rho' in fil.Variables:
                 # New file format. Read whatever

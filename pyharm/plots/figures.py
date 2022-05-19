@@ -32,16 +32,21 @@ def simplest(fig, dump, diag, plotrc, type="both", var='log_rho'):
         xz_slc = plt.subplot(1, 1, 1)
         xy_slc = plt.subplot(1, 1, 1)
     
+    if not 'plane' in plotrc or plotrc['plane'] is None:
+        plane = "both"
+    else:
+        plane = plotrc['plane']
+    
     if 'vmin' not in plotrc or plotrc['vmin'] is None:
         plotrc['vmin'] = -6
     if 'vmax' not in plotrc or plotrc['vmax'] is None:
         plotrc['vmax'] = 1
 
-    if type in ("poloidal", "both"):
+    if plane in ("poloidal", "both"):
         plot_xz(xz_slc, dump, var, label="",
                 xlabel=False, ylabel=False, xticks=[], yticks=[],
                 cbar=False, frame=False, **plotrc)
-    if type in ("toroidal", "both"):
+    if plane in ("toroidal", "both"):
         plotrc['vmin'] = plotrc['vmin'] + 0.15
         plotrc['vmax'] = plotrc['vmax'] + 0.15
         plot_xy(xy_slc, dump, var, label="",
@@ -197,7 +202,7 @@ def e_ratio_funnel(fig, dump, diag, plotrc):
                         label=r"$\log_{10}(U / \rho)$", **plotrc)
     plot_thphi(ax_slc(2), dump, 'log_sigma', r_i,
                         label=r"$\log_{10}(b^2 / \rho)$", **plotrc)
-    plot_thphi(ax_slc(3), dump, 'log_betainv', r_i,
+    plot_thphi(ax_slc(3), dump, 'log_inv_beta', r_i,
                         label=r"$\beta^{-1}$", **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20

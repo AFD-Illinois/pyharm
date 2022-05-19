@@ -41,13 +41,16 @@ class AnaResults(object):
     :mod:`pyharm.io.iharm3d_header`
     """
 
-    diag_fn_common = {'mdot_smooth': lambda diag: smoothed(diag['mdot']),
+    diag_fn_common = {# Standard names
+                    'mdot_smooth': lambda diag: smoothed(diag['mdot']),
                     'phi_b_per': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot']),
                     'phi_b': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot_smooth']),
                     'edot_per': lambda diag: diag['Edot'] / diag['mdot'],
                     'edot': lambda diag: diag['Edot'] / diag['mdot_smooth'],
                     'ldot_per': lambda diag: diag['Ldot'] / diag['mdot'],
                     'ldot': lambda diag: diag['Ldot'] / diag['mdot_smooth'],
+                    # Post-processing functions for fluxes
+                    'eff': lambda diag: np.abs(diag['Edot'] - diag['mdot']) / diag['mdot_smooth'],
                     }
     # How to load variables from a KHARMA .hst file dictionary
     diags_hst = {'t': lambda diag: diag['time'],
@@ -66,10 +69,26 @@ class AnaResults(object):
                  'Ldot': lambda diag: diag['t/Ldot'],
                 }
 
-    def __init__(self, fname):
+    def calculate_diag_var(self, ivar, var):
+        """Calculate a derived quantity 'var' of some shape by looking for its components
+        of the correct size.
+        """
+        if 'sigma_post' in var:
+            return (self.get_result(ivar, var.replace('sigma_post','bsq'))[1] /
+                    self.get_result(ivar, var.replace('sigma_post','rho'))[1])
+        if 'beta_post' in var:
+            return (2 * self.get_result(ivar, var.replace('beta_post','Pg'))[1] /
+                    self.get_result(ivar, var.replace('beta_post','bsq'))[1])
+        elif 'bsq' in var:
+            return np.pow(self.get_result(ivar, var.replace('bsq','b'))[1], 2)
+        else:
+            return None
+
+    def __init__(self, fname, tag=""):
         # When reading HDF5 files, just open the file
         # When reading diagnostic output, read the whole thing
         self.fname = fname
+        self.tag = tag
         if ".h5" in fname or ".hdf5" in fname:
             # Read analysis results
             self.file = h5py.File(fname, "r")
@@ -104,7 +123,6 @@ class AnaResults(object):
         #    return slice(i_of(self['t'], tstart), i_of(self['t'], tend))
 
     def __getitem__(self, key):
-        print("Getting result "+key)
         if key in self.file and key not in ('t', 'rt', 'tht', 'phit', 'rth'):
             return self.file[key][()]
         elif 'coord' in self.file and key in self.file['coord']:
@@ -133,14 +151,16 @@ class AnaResults(object):
         # Prefixes for a few common 1:1 math operations.
         # Most math should be done by reductions.py
         # Don't bother to cache these, they aren't intensive to calculate
-        elif key[:5] == "sqrt_":
-            return np.sqrt(self[key[5:]])
-        elif key[:4] == "abs_":
-            return np.abs(self[key[4:]])
-        elif key[:4] == "log_":
-            return np.log10(self[key[4:]])
-        elif key[:3] == "ln_":
-            return np.log(self[key[3:]])
+        elif "sqrt_" in key:
+            return np.sqrt(self[key.replace("sqrt_","")])
+        elif "abs_" in key:
+            return np.abs(self[key.replace("abs_","")])
+        elif "log_" in key:
+            return np.log10(self[key.replace("log_","")])
+        elif "ln_" in key:
+            return np.log(self[key.replace("ln_","")])
+        elif "inv_" in key:
+            return 1/(self[key.replace("inv_","")])
 
         elif key in fns_dict:
             return fns_dict[key](self)
@@ -149,10 +169,13 @@ class AnaResults(object):
         elif key[:2] == "t/" and self.diag_only:
             return self[key[2:]]
         elif '/' in key:
-            return self.get_result(*key.split("/"))
+            return self.get_result(*key.split("/"))[1]
         else:
-            # TODO except, try other independent vars.  Both?
-            return self.get_result('t', key)
+            try:
+                # Try it as a dependent variable first
+                return self.get_result('t', key)[1]
+            except IOError:
+                return self.get_ivar(key)
 
     def get_result(self, ivar, var, qui=False, only_nonzero=True, **kwargs):
         """Get the values of a variable, and of the independent variable against which to plot it.
@@ -160,7 +183,6 @@ class AnaResults(object):
         :param qui: Get only "quiescence" time, i.e. range over which time-averages were taken
         :param only_nonzero: Get only nonzero values
         """
-        print("Getting result ", ivar, var)
         ret_i = np.array(self.get_ivar(ivar, **kwargs))
         ivar_l = ivar.replace("log_","")
 
@@ -171,7 +193,10 @@ class AnaResults(object):
         elif var in self.diag_fns:
                 return ret_i, self.diag_fns[var](self)
         else:
-            raise IOError("Can't find variable: {} as a function of {}".format(var, ivar_l))
+            ret_v = self.calculate_diag_var(ivar, var)
+            # Translate "not found" to error
+            if ret_v is None:
+                raise IOError("Can't find variable: {} as a function of {}".format(var, ivar_l))
 
         if qui:
             if isinstance(ret_i, list):
@@ -197,7 +222,6 @@ class AnaResults(object):
         ret_i = []
 
         if ivar != 't':
-            print(ivar)
             G = self.grid
             if mesh:
                 native_coords = G.coord_all_mesh()

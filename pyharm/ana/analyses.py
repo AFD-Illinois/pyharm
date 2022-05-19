@@ -52,7 +52,7 @@ def basic(dump, out, **kwargs):
     out['t/Mdot'] *= -1
     out['t/Edot'] *= -1
 
-def r_profiles(dump, out, vars=('rho', 'Pg', 'u^r', 'u^3', 'u_3', 'b', 'betainv', 'Ptot', 'FE', 'FM', 'FL'), **kwargs):
+def r_profiles(dump, out, vars=('rho', 'Pg', 'u^r', 'u^3', 'u_3', 'b', 'inv_beta', 'Ptot'), **kwargs):
     """Calculate Radial profiles, by averaging over phi and some portion of theta.
     Separate averages over the comparison "disk" portion and the rest of the domain, marked "notdisk"
     """
@@ -68,11 +68,22 @@ def r_profiles(dump, out, vars=('rho', 'Pg', 'u^r', 'u^3', 'u_3', 'b', 'betainv'
 
 def r_profiles_cc(dump, out, **kwargs):
     """Radial profiles of everything used in the MAD Code Comparison, 2021/2"""
-    r_profiles(dump, out, ('rho', 'Pg', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'betainv', 'Ptot', 'FE', 'FM', 'FL'), **kwargs)
+    r_profiles(dump, out, ('rho', 'Pg', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'inv_beta', 'Ptot'), **kwargs)
+
+def r_flux_profiles(dump, out, vars=('FM', 'FE', 'FL'), **kwargs):
+    """Radial profiles of conserved mass, energy, angular momentum.
+    """
+    jmin, jmax = get_j_bounds(dump)
+    for var in vars:
+        out['rt/' + var + '_all'] = shell_sum(dump, var)
+        out['rt/' + var + '_disk'] = shell_sum(dump, var, j_slice=(jmin, jmax))
+        if get(kwargs, 'do_tavgs'):
+            out['r/' + var + '_all'] = out['rt/' + var + '_all']
+            out['r/' + var + '_disk'] = out['rt/' + var + '_disk']
 
 # TODO more rth profiles, gather those
 
-def th_profiles(dump, out, vars=('betainv', 'sigma'), **kwargs):
+def th_profiles(dump, out, vars=('inv_beta', 'sigma'), **kwargs):
     # TODO basic BZ rotation rate here
     if get(kwargs, 'do_tavgs'):
         rTh = get(kwargs, 'rTh')
@@ -82,7 +93,7 @@ def th_profiles(dump, out, vars=('betainv', 'sigma'), **kwargs):
 
 def diagnostics(dump, out, **kwargs):
     # Maxima (for gauging floors)
-    for var in ['sigma', 'betainv', 'Theta', 'U']:
+    for var in ['sigma', 'inv_beta', 'Theta', 'U']:
         out['t/' + var + '_max'] = np.max(dump[var])
     # Minima
     for var in ['rho', 'U']:
@@ -113,7 +124,7 @@ def madcc(dump, out, **kwargs):
                         shell_sum(dump, dump['rho']))
 
     if get(kwargs, 'do_tavgs'):
-        for var in ('rho', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'Pg', 'betainv', 'sigma'):
+        for var in ('rho', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'Pg', 'inv_beta', 'sigma'):
             out['rth/' + var] = dump[var].mean(axis=-1)
 
 def madcc_optional(dump, out, **kwargs):
@@ -127,7 +138,7 @@ def madcc_optional(dump, out, **kwargs):
                           shell_sum(dump, dump['rho']))
 
     # Correlation functions at specific radii
-    for var in ['rho', 'betainv']:
+    for var in ['rho', 'inv_beta']:
         out['phit/' + var + '_cf10'] = corr_midplane(dump[var], at_i1=i_of(dump['r1d'], 10))
         out['phit/' + var + '_cf20'] = corr_midplane(dump[var], at_i1=i_of(dump['r1d'], 20))
         out['phit/' + var + '_cf30'] = corr_midplane(dump[var], at_i1=i_of(dump['r1d'], 30))
@@ -149,7 +160,7 @@ def madcc_optional(dump, out, **kwargs):
 
     if get(kwargs, 'do_tavgs'):
         # Full midplane correlation function, time-averaged
-        for var in ['rho', 'betainv']:
+        for var in ['rho', 'inv_beta']:
             out['rphi/' + var + '_cf'] = corr_midplane(dump[var])
 
 
@@ -200,7 +211,7 @@ def jet_cut_lite(dump, out, **kwargs):
         out['rt/' + lum] = shell_sum(dump, flux, mask=is_jet)
     for lum, flux in [['Area_mag', '1']]:
         out['rt/' + lum] = shell_sum(dump, flux, mask=(dump['sigma'] > 1))
-    for var in ['rho', 'Pg', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'betainv', 'Ptot']:
+    for var in ['rho', 'Pg', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'inv_beta', 'Ptot']:
         out['rt/' + var + '_jet'] = shell_avg(dump, var, mask=is_jet)
     del is_jet
     
@@ -234,7 +245,7 @@ def outfluxes(dump, out, **kwargs):
             out['r/'+name] = out['rt/'+name]
 
 def pdfs(dump, out, **kwargs):
-    for var, pdf_range in [ ['betainv', [-3.5, 3.5]], ['rho', [-7, 1]] ]:
+    for var, pdf_range in [ ['inv_beta', [-3.5, 3.5]], ['rho', [-7, 1]] ]:
         # TODO handle negatives, pass on the range & bins
         var_tmp = np.log10(dump[var])
         out['pdft/' + var], _ = np.histogram(var_tmp, bins=get(kwargs, 'pdf_nbins'), range=pdf_range,

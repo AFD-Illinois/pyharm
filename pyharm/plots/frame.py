@@ -130,6 +130,8 @@ def frame(fname, diag, kwargs):
         if "_quarter" in movie_type:
             movie_type = movie_type.replace("_quarter","")
             plotrc['at'] = dump['n3']//4
+        if "_poloidal" in movie_type:
+            pass
 
         fig = plt.figure(figsize=(kwargs['fig_x'], kwargs['fig_y']))
 
@@ -218,7 +220,9 @@ def frame(fname, diag, kwargs):
                 print("divB max", divb_max, "at", np.unravel_index(divb_argmax, divb.shape))
             else:
                 # Title by time, otherwise number
-                fig.suptitle("t = {}".format(int(tdump)))
+                # TODO OPTION
+                #fig.suptitle("t = {}".format(int(tdump)))
+                pass
 
         # Save by name, clean up
         plt.savefig(frame_name, dpi=kwargs['fig_dpi'])
