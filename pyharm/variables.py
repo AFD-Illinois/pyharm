@@ -20,6 +20,7 @@ fns_dict = {# 4-vectors
             'ucov_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucov"], dump['dxdX']),
             'bcon_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcon"], dump['dXdx']),
             'bcov_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcov"], dump['dxdX']),
+            # TODO: More vectors
             # Miscallany!
             'bsq': lambda dump: dump.grid.dot(dump['bcov'], dump['bcon']),
             'sigma': lambda dump: dump['bsq'] / dump['RHO'],
@@ -126,6 +127,7 @@ def T_mixed(dump, i, j):
                 (gam - 1) * dump['UU'] + dump['bsq'] / 2 - dump['bcon'][i] * dump['bcov'][j])
 
 
+# "Sub-tensors" representing components of the energy, only used as mixed so far.
 def TEM_mixed(dump, i, j):
     if i != j:
         return dump['bsq'] * dump['ucon'][i] * dump['ucov'][j] - \
@@ -156,7 +158,7 @@ def TFl_mixed(dump, i, j):
         return (dump['RHO'] + gam * dump['UU']) * dump['ucon'][i] * dump['ucov'][j] + (gam - 1) * dump['UU']
 
 
-def Fcon(dump, i, j):
+def F_con(dump, i, j):
     """Return the i,j component of contravariant Maxwell tensor"""
 
     Fconij = np.zeros_like(dump['RHO'])
@@ -168,14 +170,16 @@ def Fcon(dump, i, j):
     return Fconij
 
 
-def Fcov(dump, i, j):
+def F_cov(dump, i, j):
     """Return the i,j component of covariant Maxwell tensor"""
     Fcovij = np.zeros_like(dump['RHO'])
     for mu in range(4):
         for nu in range(4):
-            Fcovij += Fcon(dump, mu, nu) * dump['gcov'][mu, i] * dump['gcov'][nu, j]
+            Fcovij += F_con(dump, mu, nu) * dump['gcov'][mu, i] * dump['gcov'][nu, j]
 
     return Fcovij
+
+# F_mixed?
 
 def bernoulli(dump, with_B=False):
     if with_B:

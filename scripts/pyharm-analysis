@@ -59,11 +59,11 @@ def analysis(ana_types, paths, **kwargs):
 
     \b
     ANA_TYPE is a comma-separated list containing one or more of:
-    * basic: EH fluxes vs time with accretion rate, magnetization, etc. Always enabled regardless of inclusion
+    * basic: EH fluxes vs time with accretion rate, magnetization, etc. Very fast, always enabled & run first
     * r_profiles: radial profiles of a basic set of variables
     * th_profiles: theta profiles of a couple variables at r=25M
     * diagnostic: energy ratio profiles, floor and inversion flag counts
-    The full list of analyses is available in pyharm/ana/analyses.py
+    * many more. The full list of analyses is available in pyharm/ana/analyses.py
 
     If run within an MPI job/allocation with mpi4py installed, pyharm-analysis will attempt to use all allocated nodes to generate
     frames.  YMMV wildly with MPI installations, with mpi4py installed via pip generally a better choice than through conda.
@@ -84,6 +84,7 @@ def analysis(ana_types, paths, **kwargs):
 
     base_path = os.getcwd()
     for path in path_dirs:
+        if do_out(): print("Running analyses {} on model {}".format(ana_types, path), file=sys.stderr)
         # If a path...
         if os.path.isdir(path):
             # change dir to path we want to image
@@ -207,7 +208,7 @@ def analysis(ana_types, paths, **kwargs):
 
 
 
-        if do_out(): print("Ran analysis {} on model {}".format(ana_types, path), file=sys.stderr)
+        if do_out(): print("Ran analyses {} on model {}".format(ana_types, path), file=sys.stderr)
         # Change back to wherever our root was, argument paths can be relative
         os.chdir(base_path)
 

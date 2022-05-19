@@ -226,7 +226,7 @@ def theta_profile(dump, var, start, zones_to_av=1, use_gdet=True, fold=True):
     :param use_gdet: whether or not to make averaging GR-aware
     :param fold: whether to consider the system as symmetric about the midplane and average hemispheres
     """
-    i_slice = slice(start, start+zones_to_av)
+    i_slice = (slice(start, start+zones_to_av), slice(None), slice(None))
 
     # Slices representing hemispheres starting from the poles
     j_top = slice(None, dump['n2']//2)

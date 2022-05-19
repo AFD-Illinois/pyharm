@@ -47,16 +47,17 @@ def basic(dump, out, **kwargs):
     # Radial profiles of Mdot and Edot, and their particular values
     # EHT code-comparison normalization has all these values positive
     for var, flux in [['Edot', 'FE'], ['Mdot', 'FM'], ['Ldot', 'FL']]:
-        out['t/'+var] = shell_sum(dump, flux, at_i=iF)
+        out['t/'+var] = shell_sum(dump, flux, at_i=iEH)
     # Mdot and Edot are defined inward/positive at EH
     out['t/Mdot'] *= -1
     out['t/Edot'] *= -1
 
 def r_profiles(dump, out, vars=('rho', 'Pg', 'u^r', 'u^3', 'u_3', 'b', 'inv_beta', 'Ptot'), **kwargs):
     """Calculate Radial profiles, by averaging over phi and some portion of theta.
-    Separate averages over the comparison "disk" portion and the rest of the domain, marked "notdisk"
+    Separate averages over the comparison "disk" portion and the rest of the domain, marked "notdisk".
+    Keeps time-dependent versions for averaging post-hoc.
     """
-    # 'u^th', 'u^3', 'b^r', 'b^th', 'b^3',
+    # sigma, bsq are derived afterward
     jmin, jmax = get_j_bounds(dump)
     for var in vars:
         out['rt/' + var + '_disk'] = shell_avg(dump, var, j_slice=(jmin, jmax))
@@ -84,14 +85,34 @@ def r_flux_profiles(dump, out, vars=('FM', 'FE', 'FL'), **kwargs):
 # TODO more rth profiles, gather those
 
 def th_profiles(dump, out, vars=('inv_beta', 'sigma'), **kwargs):
-    # TODO basic BZ rotation rate here
+    """Calculate any full-theta profiles: 5-zone radial averages starting from 'rTh' (also averaged in phi).
+    Keeps time-dependent versions for averaging post-hoc.
+    """
+    rTh = get(kwargs, 'rTh')
+    at_i = i_of(dump['r1d'], rTh)
+    for var in vars:
+        out['tht/' + var + '_' + str(int(rTh))] = theta_profile(dump, var, at_i, 5, fold=False)
+        if get(kwargs, 'do_tavgs'):
+            out['th/' + var + '_' + str(int(rTh))] = out['tht/' + var + '_' + str(int(rTh))]
+
+def omega_bz(dump, out, **kwargs):
+    # rTh = get(kwargs, 'rTh')
+    # at_i = i_of(dump['r1d'], rTh)
+    at_i = get(kwargs, 'iEH') # At event horizon
+    # Always do the 
+    out['htht/omega'] = theta_profile(dump, 'F_0_1', at_i, 5) / theta_profile(dump, 'F_1_3', at_i, 5)
+
     if get(kwargs, 'do_tavgs'):
-        rTh = get(kwargs, 'rTh')
-        at_i = i_of(dump['r1d'], rTh)
-        for var in vars:
-            out['th/' + var + '_' + str(int(rTh))] = theta_profile(dump, var, at_i, 5, fold=False)
+        out['hth/omega'] = out['htht/omega']
+
+def rth_profiles(dump, out, vars=('betainv', 'rho', 'sigma', 'Theta'), **kwargs):
+    for var in vars:
+        out['rtht/' + var] = np.mean(dump[var], axis=-1)
+        if get(kwargs, 'do_tavgs'):
+            out['rth/' + var] = out['rtht/' + var]
 
 def diagnostics(dump, out, **kwargs):
+    """Energy ratios on the grid to gauge floor effectiveness, along with total floor hit and inversion flags"""
     # Maxima (for gauging floors)
     for var in ['sigma', 'inv_beta', 'Theta', 'U']:
         out['t/' + var + '_max'] = np.max(dump[var])
@@ -101,10 +122,19 @@ def diagnostics(dump, out, **kwargs):
     out['rt/total_floors'] = np.sum(dump['floors'] > 0, axis=(1,2))
     out['rt/total_fails'] = np.sum(dump['fails'] > 0, axis=(1,2))
 
-def max_divb(dump, out, **kwargs):
-    out['t/MaxDivB'] = np.max(dump['divB'])
-    # Print if running this specifically
-    print("{} max div B: {}".format(dump.fname, out['t/MaxDivB']), file=sys.stderr)
+    # This isn't useful in single-precision
+    #out['t/MaxDivB'] = np.max(dump['divB'])
+
+def print_flags(dump, out, **kwargs):
+    """Just check divB. Used as a cursory check for run sanity"""
+    total_floors = np.sum(dump['floors'] > 0, axis=(1,2))
+    total_fails = np.sum(dump['fails'] > 0, axis=(1,2))
+    print("{} floors: {} failures: {}".format(dump.fname, total_floors, total_fails), file=sys.stderr)
+    # TODO some automated "bad" criterion
+
+def print_divb(dump, out, **kwargs):
+    """Just check divB. Used as a cursory check for restart file sanity"""
+    print("{} max div B: {}".format(dump.fname, p.max(dump['divB'])), file=sys.stderr)
 
 def r_profile_phi(dump, out, **kwargs):
     """Spherical and midplane magnetizations of radial shells, analogous to FM or FE for Phi_b.
@@ -253,12 +283,12 @@ def pdfs(dump, out, **kwargs):
                                               density=True)
         del var_tmp
 
-def omega_bz(dump, out, **kwargs):
+def omega_bz_advanced(dump, out, **kwargs):
     """A battery of different measurements of the Blandford-Znajek prediction of the B field rotation rate.
     """
     if get(kwargs, 'do_tavgs'):
-        Fcov01, Fcov13 = Fcov(dump, 0, 1), Fcov(dump, 1, 3)
-        Fcov02, Fcov23 = Fcov(dump, 0, 2), Fcov(dump, 2, 3)
+        Fcov01, Fcov13 = F_cov(dump, 0, 1), F_cov(dump, 1, 3)
+        Fcov02, Fcov23 = F_cov(dump, 0, 2), F_cov(dump, 2, 3)
         vr, vth, vphi = dump['u^1']/dump['u^0'], dump['u^2']/dump['u^0'], dump['u^3']/dump['u^0']
         out['rhth/omega'] = np.zeros((dump['n1'],dump['n2']//2))
         out['rhth/omega_alt_num'] = np.zeros((dump['n1'],dump['n2']//2))

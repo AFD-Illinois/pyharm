@@ -18,11 +18,11 @@ def write_ana_dict(out, out_full, n, n_dumps):
         tag = key.split('/')[0]
         if key not in out_full:
             # Add destination ndarray of the right size if not present
+            # Use single-precision, because we have rtht profiles that are entire movies!
             if tag == 't' or key == 'coord/t':
-                out_full[key] = np.zeros(n_dumps)
+                out_full[key] = np.zeros(n_dumps, dtype=np.float32)
             elif tag[-1:] == 't':
-                # TODO make sure this still produces 1xN if n_dumps==1
-                out_full[key] = np.zeros((n_dumps,)+out[key].shape)
+                out_full[key] = np.zeros((n_dumps,)+out[key].shape, dtype=np.float32)
             else:
                 out_full[key] = np.zeros_like(out[key])
 
@@ -40,8 +40,8 @@ def analyze(args):
     out = {}
     dump = FluidDump(fname)
     ana_types = kwargs['ana_types'].split(",")
-    if "basic" not in ana_types:
-        ana_types.append("basic")
+    # Always start with "basic" as it's got some things we'll need
+    ana_types.insert(0, "basic")
     for type in ana_types:
         analyses.__dict__[type](dump, out, **kwargs)
     return out

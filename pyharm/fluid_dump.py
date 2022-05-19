@@ -139,14 +139,44 @@ class FluidDump:
         elif key[:4] == "inv_":
             return 1/self[key[4:]]
 
-        # Return vector components
+        # Return MHD tensor components: don't cache
+        elif ((key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3")
+              and (key[-4:-2] == "_0" or key[-4:-2] == "_1" or key[-4:-2] == "_2" or key[-4:-2] == "_3")):
+            i, j = int(key[-3]), int(key[-1])
+            if key[-5:-4] == "T":
+                return variables.T_cov(self, i, j)
+            elif key[-5:-4] == "F":
+                return variables.F_cov(self, i, j)
+
+        elif ((key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3")
+              and (key[-4:-2] == "^0" or key[-4:-2] == "^1" or key[-4:-2] == "^2" or key[-4:-2] == "^3")):
+            i, j = int(key[-3]), int(key[-1])
+            if key[-5:-4] == "T":
+                return variables.T_mixed(self, i, j)
+            elif key[-7:-4] == "TEM":
+                return variables.TEM_mixed(self, i, j)
+            elif key[-9:-4] == "TPAKE":
+                return variables.TPAKE_mixed(self, i, j)
+            elif key[-7:-4] == "TEN":
+                return variables.TEN_mixed(self, i, j)
+            elif key[-7:-4] == "TFl":
+                return variables.TFl_mixed(self, i, j)
+
+        elif ((key[-2:] == "^0" or key[-2:] == "^1" or key[-2:] == "^2" or key[-2:] == "^3")
+              and (key[-4:-2] == "^0" or key[-4:-2] == "^1" or key[-4:-2] == "^2" or key[-4:-2] == "^3")):
+            i, j = int(key[-3]), int(key[-1])
+            if key[-5:-4] == "T":
+                return variables.T_con(self, i, j)
+            elif key[-5:-4] == "F":
+                return variables.F_con(self, i, j)
+
+        # Return vector components: do cache
         elif key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3":
             return self[key[:-2]+"cov"][int(key[-1])]
         elif key[-2:] == "^0" or key[-2:] == "^1" or key[-2:] == "^2" or key[-2:] == "^3":
             return self[key[:-2]+"con"][int(key[-1])]
 
         # Return transformed vector components
-        # TODO Currently only u,b. Support more vectors like this
         elif key[-2:] == "_t" or key[-2:] == "_r" or key[-3:] == "_th" or key[-4:] == "_phi":
             return self[key[0]+"cov_base"][["t", "r", "th", "phi"].index(key.split("_")[-1])]
         elif key[-2:] == "^t" or key[-2:] == "^r" or key[-3:] == "^th" or key[-4:] == "^phi":
