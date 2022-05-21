@@ -9,23 +9,28 @@ import matplotlib.pyplot as plt
 import pyharm
 from pyharm.defs import Loci
 
-def eh_fluxes(result):
+def eh_fluxes(result, fig=None):
     # Event horizon fluxes
-    fig, _ = plt.subplots(4,1, figsize=(7,7))
+    if fig is None:
+        fig, _ = plt.subplots(4,1, figsize=(7,7))
     ax = fig.get_axes()
     for a,var in enumerate(('mdot', 'phi_b', 'abs_ldot_per', 'eff')):
-        ax[a].plot(result['t'], result[var])
+        ax[a].plot(result['t'][5:], result[var][5:])
         ax[a].set_ylabel(pyharm.pretty(var), rotation=0, ha='right') #sep
         ax[a].grid(True)
+        ax[a].set_xlim(0, None)
 
-    fig.savefig("fluxes_"+result.tag+".png", dpi=200) 
+    return fig
 
-def radial_averages_window(result):
+def radial_averages_window(result, vars=('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post'), fig=None):
     # Radial profiles of variables
     ir = pyharm.util.i_of(result['r'], 50)
-    fig, _ = plt.subplots(2,4, figsize=(16,6))
+    nx = min(len(vars), 4)
+    ny = (len(vars)-1)//4+1
+    if fig is None:
+        fig, _ = plt.subplots(ny, nx, figsize=(4*nx,4*ny))
     ax = fig.get_axes()
-    for a,var in enumerate(('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post')):
+    for a,var in enumerate(vars):
         for i in range(1,6):
             ax[a].loglog(result['r'][:ir], np.mean(result['rt/{}_disk'.format(var)][i*1000:(i+1)*1000], axis=0)[:ir], label="{}M".format(i*1000*5))
         ax[a].set_ylabel(pyharm.pretty(var))
@@ -33,22 +38,31 @@ def radial_averages_window(result):
 
     ax[0].legend()
     plt.subplots_adjust(wspace=0.4)
-    plt.savefig("radials_"+result.tag+".png", dpi=200)
+    return fig
 
-def radial_fluxes_window(result):
+def radial_fluxes_window(result, fig=None):
     # Fluxes of conserved quantities by radius
     ir = pyharm.util.i_of(result['r'], 50)
-    fig, _ = plt.subplots(1,3, figsize=(14,4))
+    if fig is None:
+        fig, _ = plt.subplots(1,3, figsize=(14,4))
     ax = fig.get_axes()
     for a,var in enumerate(('FM', 'FE', 'FL')):
         for i in range(1,6):
-            # * result.grid['gdet'][Loci.CENT.value,:ir,0,0]
-            ax[a].loglog(result['r'][:ir], np.abs(np.mean(result['rt/{}_disk'.format(var)][i*1000:(i+1)*1000], axis=0))[:ir], label="{}M".format(i*1000*5))
+            ax[a].plot(result['r'][:ir], np.abs(np.mean(result['rt/{}_disk'.format(var)][i*1000:(i+1)*1000], axis=0))[:ir], label="{}M".format(i*1000*5))
         ax[a].set_ylabel(pyharm.pretty(var))
 
     ax[0].legend()
     plt.subplots_adjust(wspace=0.4)
-    plt.savefig("radial_flow_"+result.tag+".png", dpi=200)
+    return fig
+
+
+def disk_momentum(result):
+    return radial_averages_window(result, vars=("u_3",))
+
+
+# bare variables!
+# overplotting!
+# split figures into other files?
 
 @click.command()
 @click.argument('to_plot_str', nargs=1)
@@ -57,6 +71,8 @@ def radial_fluxes_window(result):
 def plot_results(to_plot_str, paths, result_fname):
     """Plot a result or set of results in a standard form, usually the contents of one or more
     analyses done by pyharm-analysis.
+
+    Current plots: eh_fluxes,radial_averages_window,radial_fluxes_window,disk_momentum
 
     Usage: pyharm-plot-result  list,of,names folder1 [folder2]
     """
@@ -71,7 +87,10 @@ def plot_results(to_plot_str, paths, result_fname):
                 files = glob.glob(model+inter+result_fname)
 
         if len(files) > 0:
-            results[model] = pyharm.load_results(files[0], tag=model.replace("/","_"))
+            try:
+                results[model] = pyharm.load_results(files[0], tag=model.replace("/","_"))
+            except:
+                print("Error loading file {}".format(files[0]))
 
     # Look through the functions we've defined for names
     #functions = [(name,thing) for (name, thing) in locals().items() if callable(thing)]
@@ -83,8 +102,10 @@ def plot_results(to_plot_str, paths, result_fname):
         plotted_one = False
         for fname,fn in local_fns:
             if fname in to_plot:
-                fn(result)
                 plotted_one = True
+                fig = fn(result)
+                fig.savefig(fname+"_"+result.tag+".png", dpi=200)
+                plt.close(fig)
         
         if not plotted_one:
             raise ValueError("Plot {} is not defined!".format(to_plot))

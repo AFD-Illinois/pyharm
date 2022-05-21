@@ -41,7 +41,8 @@ def analyze(args):
     dump = FluidDump(fname)
     ana_types = kwargs['ana_types'].split(",")
     # Always start with "basic" as it's got some things we'll need
-    ana_types.insert(0, "basic")
+    if ana_types[0] != "basic":
+        ana_types.insert(0, "basic")
     for type in ana_types:
         analyses.__dict__[type](dump, out, **kwargs)
     return out

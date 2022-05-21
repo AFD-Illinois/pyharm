@@ -79,9 +79,12 @@ def pretty(var, segment=False):
     """Return a pretty LaTeX form of the named variable"""
 
     pretty_var = ""
-    if var[-5:] == "_post":
-        # Just strip this, pass other bits
-        return pretty(var[:-5], segment=segment)
+    # Strip any flags that don't result in a different string
+    if "_post" in var:
+        return pretty(var.replace("_post",""), segment=segment)
+
+    # Break down the name and translate bits we know to Latex;
+    # keeps anything we don't understand as-is, no formatting
     if var[:4] == "log_":
         return r"$\log_{10} \left( "+pretty(var[4:], segment=True)+r" \right)$"
     if var[:4] == "abs_":

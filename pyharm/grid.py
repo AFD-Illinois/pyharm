@@ -296,17 +296,16 @@ class Grid:
                           np.arange(self.N[2]+1)+self.NG,
                           np.arange(self.N[3]+1)+self.NG, loc=Loci.CORN)
 
-    def coord_all(self, loc=Loci.CENT):
+    def coord_all(self, loc=Loci.CENT, mesh=False):
         """Like coord_bulk, but including ghost zones"""
-        return self.coord(np.arange(self.GN[1]),
-                          np.arange(self.GN[2]),
-                          np.arange(self.GN[3]), loc=loc)
-
-    def coord_all_mesh(self):
-        """Like coord_bulk_mesh, but including ghost zones"""
-        return self.coord(np.arange(self.GN[1]+1),
-                          np.arange(self.GN[2]+1),
-                          np.arange(self.GN[3]+1), loc=Loci.CORN)
+        if mesh:
+            return self.coord(np.arange(self.GN[1]+1),
+                            np.arange(self.GN[2]+1),
+                            np.arange(self.GN[3]+1), loc=Loci.CORN)
+        else:
+            return self.coord(np.arange(self.GN[1]),
+                            np.arange(self.GN[2]),
+                            np.arange(self.GN[3]), loc=loc)
 
     def coord_ij(self, at=0):
         """Get just a 2D meshgrid of locations, usually for plotting"""

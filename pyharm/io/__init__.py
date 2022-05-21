@@ -25,10 +25,15 @@ def get_fnames(path):
     while trying to avoid extraneous files caught in normal globs (e.g., grid.h5, other runs/filetypes)
     """
     # These are at best a touchy heuristic
+    # The idea is to prefer current directory, then KHARMA subdir, then iharm3d subdir;
+    # within the subdir, to prefer Parthenon strict-formatted filenames, then adjacent things, then iharm3d filenames, then harm2d
+    # and finally, to prefer KHARMA file 
+    # Specifically, we ant to absolutely exclude anything named grid.h5 and eht_out.h5, as well as other possible .h5 analysis files
+    # We also want to exclude anything named *final.{phdf,rhdf}, these are valid output but out of cadence & can lag real output
     for scheme in itertools.product((".","dumps_kharma","dumps"),
-                                    ("*out0*.phdf", "*out*.phdf", "*.phdf", "*out0*.h5", 
-                                    "dump_*.h5", "dump[0-9][0-9][0-9]")):
-        files = np.sort(glob(os.path.join(path, scheme[0], scheme[1])))
+                                    ("*.out0.[0-9][0-9][0-9][0-9][0-9]", "*.out[0-9].[0-9][0-9][0-9][0-9][0-9]", "dump_*", "dump[0-9][0-9][0-9]"),
+                                    (".phdf", ".h5", ".rhdf", "")):
+        files = np.sort(glob(os.path.join(path, scheme[0], scheme[1]+scheme[2])))
         if len(files) > 0:
             # Explicitly take out some common things in dump directories
             files = [f for f in files if ("grid" not in f) and ("eht_out" not in f)]

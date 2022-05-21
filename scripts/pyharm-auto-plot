@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import click
+import numpy as np
+import h5py
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+
+import pyharm
+from pyharm.plots.plot_utils import pcolormesh_symlog
+
+@click.command()
+@click.argument('fname', nargs=1, type=click.Path(exists=True)) # Multiple?
+def auto_plot(fname):
+    """Automatically plot everything stored to a given result file.
+    The plots are not pretty, and some are not in a digestible format, but the data's all there.
+    """
+    result = pyharm.load_results(fname)
+
+    dirpath = os.path.join(os.path.dirname(fname), "auto_plots_"+fname.replace(".h5",""))
+    if not os.path.exists(dirpath):
+        os.mkdir(dirpath)
+
+    for ivar in result.ivars_present():
+        # Split independent and dependent variable retrieval for efficiency
+        ivar_d = result.get_ivar(ivar)
+
+        for var in result.dvars_present(ivar):
+            try:
+                fname = "{}_{}.png".format(ivar, var)
+                print("Plotting {}".format(fname))
+
+                try:
+                    # A bunch of custom sizes here...
+                    fig, ax = plt.subplots(1, 1, figsize=(12,10))
+                    plt.grid(True)
+
+                    var_d = result.get_dvar(ivar, var)
+                    if len(ivar_d) == 1:
+                        ivar_1 = ivar_d[0]
+                        if np.all(var_d >= 0):
+                            if np.abs(np.max(var_d) - np.min(var_d)) < 100:
+                                plt.plot(ivar_1[np.nonzero(var_d)], var_d[np.nonzero(var_d)])
+                            else:
+                                plt.semilogy(ivar_1[np.nonzero(var_d)], var_d[np.nonzero(var_d)])
+                        else:
+                            plt.plot(ivar_1, var_d)
+                        # Labels & adjustments
+                        # If it's a big radial plot, zoom in
+                        if ivar == 'r' and ivar_1[-1] > 100:
+                                plt.xlim(0, 100)
+                        plt.xlabel(ivar)
+                        plt.ylabel(var)
+                    else:
+                        # Make the plot
+                        if np.min(var_d) >= 0:
+                            # Only plot variables with any nonzero elements (hard to log-scale 0->0)
+                            if np.any(var_d > 0):
+                                plt.grid(False)
+                                pcm = plt.pcolormesh(*ivar_d, var_d, cmap='jet')
+                                plt.colorbar(pcm)
+                        else:
+                            plt.grid(False)
+                            print("min ", np.min(var_d), "max ", np.max(var_d))
+                            pcm = pcolormesh_symlog(ax, *ivar_d, var_d)
+
+                        # Labels & adjustments
+                        if ivar[-1:] == 't':
+                            plt.xlabel('t')
+                            if len(ivar) > 1:
+                                plt.ylabel(ivar[:-1])
+                                plt.title(var)
+                                if 'r' in ivar and ivar_d[1][0, -1] > 100:
+                                    plt.ylim(0, 100)
+                            else:
+                                plt.ylabel(var)
+
+                        elif 'r' in ivar and ('phi' in ivar or 'th' in ivar):
+                            plt.xlabel('x')
+                            if 'phi' in ivar:
+                                plt.ylabel('y')
+                            elif 'th' in ivar:
+                                plt.ylabel('z')
+                                if not 'hth' in ivar:
+                                    fig.set_size_inches((10, 15))
+                            plt.title(var)
+
+                        elif ivar == 'thphi':
+                            plt.xlabel('th')
+                            plt.ylabel('phi')
+                            plt.title(var)
+                        else:
+                            plt.xlabel(ivar)
+                            plt.ylabel(var)
+                except ValueError as e:
+                    print("Could not plot {}: {}".format(fname, e))
+                except OverflowError as o:
+                    print("Could not plot {}: Overflow error".format(fname))
+
+                fpath = os.path.join(dirpath, fname)
+                plt.savefig(fpath, dpi=100)
+                plt.close(fig)
+            except OverflowError:
+                print("Could not plot {}: {}".format(fname, sys.exc_info()[0]))
+
+if __name__ == "__main__":
+    auto_plot()

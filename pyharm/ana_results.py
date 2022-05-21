@@ -12,18 +12,6 @@ from .variables import fns_dict
 from .io.iharm3d_header import read_hdr
 from .io import read_log
 
-"""
-Results are organized by remaining independent variable -- so, a phi- and time-average
-will be under 'rth' since these are its remaining independent variables.
-
-This is more logical than it sounds: this way, most quantity names contain all the info
-needed to plot them.  Also, multiple reductions of the same quantity can be stored with
-logical names, e.g. a phi,t average of rho in 'rth/rho' and a further average over th
-in 'r/rho'.
-
-For variables in th/phi in FMKS, one can specify a radius r to use.
-"""
-
 def smoothed(a, window_sz=101):
     """A potentially reasonably fast smoothing operation.
     Averages only available data, i.e. only half window-size at edges.
@@ -34,266 +22,275 @@ def smoothed(a, window_sz=101):
     return ret
 
 class AnaResults(object):
-    """
-    Tools for dealing with the results computed by scripts/analysis.py.
-    Output format documentation soon^TM but the upshot is independent variables are directories,
-    dependent variables are datasets, header is in iharm3d format as written by
-    :mod:`pyharm.io.iharm3d_header`
+    """Tools for dealing with the results computed by scripts/pyharm-analysis.
+
+    Results are organized by remaining independent variable -- so, a phi- and time-average
+    will be under 'rth' since these are its remaining independent variables.
+
+    This is more logical than it sounds: this way, most quantity names contain all the info
+    needed to plot them.  Also, multiple reductions of the same quantity can be stored with
+    logical names, e.g. a phi,t average of rho in 'rth/rho' and a further average over th
+    in 'r/rho'.  Basic EH fluxes are e.g. t/Mdot or t/phi_b. Suffix '_per' normalizes
+    dimensionless values to the un-smoothed accretion rate, which can increase their
+    variability.
+
+    When using __getitem__ (i.e. res[]), the name after the slash doesn't have to be something
+    directly present in the file -- it can include many of the 'key' features available in FluidDump,
+    notably unary operators (sqrt_, abs_, etc), but this is all separate functions so YMMV.
+    Time-dependent variables may also append '_smoothed' or '_smoothed_xx' to calculate a
+    running average over xx values (that is, samples, not simulation time units).
+
+    A few variables (beta, sigma, etc) should be suffixed '_post' if they should be calcuated
+    by AnaResults.  This is because versions calculated and averaged per-zone might also
+    be present in the reductions file.
+
+    For a little more control, you can call res.get_result() specifically, which takes a few
+    more arguments documented there.
     """
 
-    diag_fn_common = {# Standard names
-                    'mdot_smooth': lambda diag: smoothed(diag['mdot']),
+    diag_fn_common = {# Standard names for some EH fluxes
                     'phi_b_per': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot']),
-                    'phi_b': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot_smooth']),
+                    'phi_b': lambda diag: diag['Phi_b'] / np.sqrt(diag['smooth_mdot']),
                     'edot_per': lambda diag: diag['Edot'] / diag['mdot'],
-                    'edot': lambda diag: diag['Edot'] / diag['mdot_smooth'],
+                    'edot': lambda diag: diag['Edot'] / diag['smooth_mdot'],
                     'ldot_per': lambda diag: diag['Ldot'] / diag['mdot'],
-                    'ldot': lambda diag: diag['Ldot'] / diag['mdot_smooth'],
+                    'ldot': lambda diag: diag['Ldot'] / diag['smooth_mdot'],
                     # Post-processing functions for fluxes
-                    'eff': lambda diag: np.abs(diag['Edot'] - diag['mdot']) / diag['mdot_smooth'],
+                    'eff': lambda diag: np.abs(diag['Edot'] - diag['mdot']) / diag['smooth_mdot'],
                     }
     # How to load variables from a KHARMA .hst file dictionary
-    diags_hst = {'t': lambda diag: diag['time'],
-                 't_diag': lambda diag: diag['time'],
-                 'mdot': lambda diag: np.abs(diag['Mdot_EH_Flux']),
+    diags_hst = {'mdot': lambda diag: np.abs(diag['Mdot_EH_Flux']),
                  'Phi_b': lambda diag: diag['Phi_EH'],
                  'Edot': lambda diag: diag['Edot_EH'],
-                 'Ldot': lambda diag: diag['Ldot_EH'],
-                }
+                 'Ldot': lambda diag: diag['Ldot_EH']}
     # How to load from analysis results
-    diags_ana = {'t': lambda diag: diag['coord/t'],
-                 't_diag': lambda diag: diag['diag/time'],
-                 'mdot': lambda diag: np.abs(diag['t/Mdot']),
-                 'Phi_b': lambda diag: diag['t/Phi_b'],
-                 'Edot': lambda diag: diag['t/Edot'],
-                 'Ldot': lambda diag: diag['t/Ldot'],
-                }
-
-    def calculate_diag_var(self, ivar, var):
-        """Calculate a derived quantity 'var' of some shape by looking for its components
-        of the correct size.
-        """
-        if 'sigma_post' in var:
-            return (self.get_result(ivar, var.replace('sigma_post','bsq'))[1] /
-                    self.get_result(ivar, var.replace('sigma_post','rho'))[1])
-        if 'beta_post' in var:
-            return (2 * self.get_result(ivar, var.replace('beta_post','Pg'))[1] /
-                    self.get_result(ivar, var.replace('beta_post','bsq'))[1])
-        elif 'bsq' in var:
-            return np.pow(self.get_result(ivar, var.replace('bsq','b'))[1], 2)
-        else:
-            return None
+    diags_ana = {'mdot': lambda diag: np.abs(diag['Mdot'])}
 
     def __init__(self, fname, tag=""):
         # When reading HDF5 files, just open the file
         # When reading diagnostic output, read the whole thing
         self.fname = fname
         self.tag = tag
+        self.cache = {}
         if ".h5" in fname or ".hdf5" in fname:
             # Read analysis results
             self.file = h5py.File(fname, "r")
-            self.diag_only = False
+            self.ftype = "ana"
             self.diag_fns = {**self.diag_fn_common, **self.diags_ana}
             self.params = read_hdr(self.file['/header'])
             self.grid = Grid(self.params)
             if 'avg/start' in self.file: 
-                self.qui_ends = (self.file['avg/start'][()], self.file['avg/end'][()])
-                # TODO interaction of this with t/is_avg?
-                self.qui_slc = self.get_time_slice(*self.qui_ends)
-            if 'diag' in self.file:
-                self.has_diag = True
-                self.qui_diag = self.get_time_slice(*self.qui_ends, diag=True)
+                self.avg_ends = (self.file['avg/start'][()], self.file['avg/end'][()])
         else:
             # Read diagnostic output.  Much more limited functionality here,
             # mostly for applying diag_fns
             self.file = read_log(fname)
             self.diag_fns = {**self.diag_fn_common, **self.diags_hst}
-            self.diag_only = True
+            self.ftype = "hst"
             
 
     def __del__(self):
         if 'file' in self.__dict__ and not isinstance(self.file, dict):
             self.file.close()
 
-    def get_time_slice(self, tstart, tend, diag=False):
-        pass
-        #if diag or self.diag_only:
-        #    return slice(i_of(self['t_diag'], tstart), i_of(self['t_diag'], tend))
-        #else:
-        #    return slice(i_of(self['t'], tstart), i_of(self['t'], tend))
-
     def __getitem__(self, key):
-        if key in self.file and key not in ('t', 'rt', 'tht', 'phit', 'rth'):
-            return self.file[key][()]
-        elif 'coord' in self.file and key in self.file['coord']:
-            return self.file['coord'][key][()]
+        """This operates a bit differently from its analogue in FluidDump.
 
-        # Postfixes for options:
-        # 
-        elif key[-5:] =='_diag':
-            kname = key.replace('_diag','')
-            if 'diag' in self.file and kname in self.file['diag']:
-                return self.file['diag'][kname][()]
-            else:
-                return self[kname]
+        Variables in reductions are specified by remaining independent variable, e.g.
+        r/FM_disk for the mass flux in the "disk" region as a function of r (that is,
+        summed over th & phi and averaged over t).  See the class description for details.
 
-        elif '_smoothed' in key:
-            klist = key.split('_')
-            si = klist.index('smoothed')
-            try:
-                window = int(klist[si+1])
-                kname = '_'.join(klist[:si] + klist[si+2:])
-            except (IndexError, TypeError):
-                window=101
-                kname = '_'.join(klist[:si] + klist[si+1:])
-            return smoothed(self[kname], window_sz=window)
 
-        # Prefixes for a few common 1:1 math operations.
-        # Most math should be done by reductions.py
-        # Don't bother to cache these, they aren't intensive to calculate
-        elif "sqrt_" in key:
-            return np.sqrt(self[key.replace("sqrt_","")])
-        elif "abs_" in key:
-            return np.abs(self[key.replace("abs_","")])
-        elif "log_" in key:
-            return np.log10(self[key.replace("log_","")])
-        elif "ln_" in key:
-            return np.log(self[key.replace("ln_","")])
-        elif "inv_" in key:
-            return 1/(self[key.replace("inv_","")])
 
-        elif key in fns_dict:
-            return fns_dict[key](self)
-        elif key in self.diag_fns:
-            return self.diag_fns[key](self)
-        elif key[:2] == "t/" and self.diag_only:
-            return self[key[2:]]
-        elif '/' in key:
-            return self.get_result(*key.split("/"))[1]
+        Alternatively, you can specify independent variables alone to get them.
+        (you can also get such things directly from res.grid!).  AnaResult will
+        attempt to look for a dependent variable specified alone, but resolves any
+        ambiguities by returning whatever it finds first.
+        """
+        #print("item ", key)
+        if '/' in key:
+            return self.get_dvar(*key.split("/"))
         else:
             try:
-                # Try it as a dependent variable first
-                return self.get_result('t', key)[1]
-            except IOError:
-                return self.get_ivar(key)
+                # The only independent variable in diagnostic output is t
+                return self.get_dvar('t', key)
+            except (IOError, OSError):
+                if self.ftype == "ana":
+                    # Try to return it from anywhere & everywhere
+                    for ivar in self.ivars_present():
+                        try:
+                            return self.get_dvar(ivar, key)
+                        except (IOError, OSError):
+                            pass
+                ret_i = self.get_ivar(key)
+                if len(ret_i) == 1:
+                    return ret_i[0]
+                else:
+                    return ret_i
 
-    def get_result(self, ivar, var, qui=False, only_nonzero=True, **kwargs):
-        """Get the values of a variable, and of the independent variable against which to plot it.
-        Various common slicing options:
-        :param qui: Get only "quiescence" time, i.e. range over which time-averages were taken
-        :param only_nonzero: Get only nonzero values
+    def get_result(self, ivar, dvar, **kwargs):
+        return (*self.get_ivar(ivar, **kwargs), self.get_dvar(ivar, dvar))
+
+    def get_ivar(self, ivar, th_r=None, mesh=True):
+        """Get a list of grids of independent variable values.
+        'ivar' must be a string containing the desired combination of r, th or hth (half theta), phi, or t.
+        The list must always follow the above ordering and cannot contain >2 variables (use grid)
+
+        examples: 'rt', 't', 'hth', 'rth'
+
+        Always returns a list, e.g. the array of timestamps will be res.get_ivar('t')[0]
         """
-        ret_i = np.array(self.get_ivar(ivar, **kwargs))
-        ivar_l = ivar.replace("log_","")
+        #print("ivar ", ivar)
+        # Throw an error if we messed up
+        if ivar.replace('r','').replace('t','').replace('h','').replace('phi','') != '':
+            raise IOError("Bad ivar: {}. Must be an unseparated list of dimensions r,th,phi,t")
 
-        if ivar_l in self.file and var in self.file[ivar_l]:
-            ret_v = self.file[ivar_l][var][()]
-        elif var in fns_dict:
-            ret_v = fns_dict[var](self)
-        elif var in self.diag_fns:
-                return ret_i, self.diag_fns[var](self)
-        else:
-            ret_v = self.calculate_diag_var(ivar, var)
-            # Translate "not found" to error
-            if ret_v is None:
-                raise IOError("Can't find variable: {} as a function of {}".format(var, ivar_l))
+        # Only cache/read the default case
+        if th_r is None and mesh == True and ivar in self.cache:
+            return self.cache[ivar]
 
-        if qui:
-            if isinstance(ret_i, list):
-                ret_i = np.array([i[self.qui_slc] for i in ret_i])
-            else:
-                ret_i = ret_i[self.qui_slc]
-            ret_v = ret_v[self.qui_slc]
+        G = self.grid
 
-        if only_nonzero and len(ret_v.shape) == 1:
-            nz_slc = np.nonzero(ret_v)
-            if isinstance(ret_i, list):
-                ret_i = np.array([i[nz_slc] for i in ret_i])
-            else:
-                ret_i = ret_i[nz_slc]
-            ret_v = ret_v[nz_slc]
-
-        return ret_i, ret_v
-
-
-    def get_ivar(self, ivar, th_r=None, i_xy=False, mesh=True):
-        """Get a grid of independent variable values
-        """
-        ret_i = []
-
-        if ivar != 't':
-            G = self.grid
-            if mesh:
-                native_coords = G.coord_all_mesh()
-            else:
-                native_coords = G.coord_all()
-
-        if ivar[-1:] == 't':
-            if 'coord' in self.file:
-                t = self.file['coord']['t'][()]
-            else:
-                t = self.file['time']
-            if mesh:
-                t = np.append(t, t[-1] + (t[-1] - t[0]) / t.shape[0])
-            ret_i.append(t)
-        if 'r' in ivar:
-            ret_i.append(G.coords.r(native_coords)[:, 0, 0])
-        if 'th' in ivar:
-            r1d = G.coords.r(native_coords)[:, 0, 0]
+        # 2D space: get x,y from grid
+        # This ensures rth is correct & potentially is faster
+        if ivar == 'rth':
+            ret_grids = G.get_xz_locations(mesh=mesh, half_cut=True)
+        elif ivar == 'rphi':
+            ret_grids = G.get_xy_locations(mesh=mesh)
+        elif ivar == 'thphi':
             if th_r is not None:
-                th = G.coords.th(native_coords)[i_of(r1d, th_r), :, 0]
+                r1d = G.coords.r(G.coord_all(mesh=mesh)[:, :, 0, 0])
+                at = i_of(r1d, th_r)
             else:
-                #print("Guessing r for computing th!")
-                th = G.coords.th(native_coords)[-1, :, 0]
-            if 'hth' in ivar:
-                th = th[:len(th)//2]
-            ret_i.append(th)
-        if 'phi' in ivar:
-            ret_i.append(G.coords.phi(native_coords)[0, 0, :])
+                at = -1
+            ret_grids = G.get_thphi_locations(at, mesh=mesh) # Allow bottom & project?
+        else:
+            # Otherwise, add individual axes to a list & meshgrid them
+            ret_i = []
+            if ivar[-1:] == 't' or ivar == 'diag':
+                if self.ftype == "hst":
+                    t = self.file['time'][()]
+                else:
+                    if ivar == 'diag':
+                        t = self.file['diag/time'][()]
+                    else:
+                        t = self.file['coord/t'][()]
 
-        # TODO handle converting 'thphi' to x-y with at_r
-        # TODO handle th's r-dependence in 'rth'
-        # TODO think about how to treat slices this nicely
+                # Correct any mishaps with array ordering
+                self.t_perm = np.argsort(t)
+                t = t[self.t_perm]
 
-        # Make a meshgrid of
-        ret_grids = np.meshgrid(*reversed(ret_i))
-        ret_grids.reverse()
-        if i_xy and 'r' in ivar and 'th' in ivar:
-            # XZ plot
-            x = ret_grids[-2] * np.sin(ret_grids[-1])
-            z = ret_grids[-2] * np.cos(ret_grids[-1])
-            ret_grids[-2:] = x, z
-        elif i_xy and 'r' in ivar and 'phi' in ivar:
-            # XY plot
-            x = ret_grids[-2] * np.cos(ret_grids[-1])
-            y = ret_grids[-2] * np.sin(ret_grids[-1])
-            ret_grids[-2:] = x, y
+                # For 2D r vs t plots or similar.  ONLY 2D though
+                if mesh and ivar != 't' and ivar != 'diag':
+                    t = np.append(t, t[-1] + (t[-1] - t[0]) / t.shape[0])
 
-        # Squash single-variable lists for convenience
-        if len(ret_grids) == 1:
-            ret_grids = ret_grids[0]
-            if mesh:
-                # Probably no one actually wants a 1D mesh
-                ret_grids = ret_grids[:-1]
+                ret_i.append(t)
+                ivar = ivar[:-1]
+            else:
+                # This is the case of 1D spatial variable, which will never
+                # need to be a mesh
+                mesh = False
 
+            if ivar != '':
+                # 1D space: use spherical coordinates directly
+                native_coords = G.coord_all(mesh=mesh)
+                if ivar == 'r':
+                    ret_i.append(G.coords.r(native_coords[:, :, 0, 0]))
+                elif ivar in ('th', 'hth'):
+                    if th_r is not None:
+                        r1d = G.coords.r(native_coords[:, :, 0, 0])
+                        th = G.coords.th(native_coords[:, i_of(r1d, th_r), :, 0])
+                    else:
+                        th = G.coords.th(native_coords[:, -1, :, 0])
+                    if ivar == 'hth':
+                        th = th[:len(th)//2]
+                    ret_i.append(th)
+                elif ivar == 'phi':
+                    ret_i.append(G.coords.phi(native_coords[:, 0, 0, :]))
+
+            ret_grids = np.meshgrid(*reversed(ret_i))
+            ret_grids.reverse()
+
+        if th_r is None and mesh == True:
+            self.cache[ivar] = ret_grids
         return ret_grids
 
+    def get_dvar(self, ivar, dvar):
+        """This is the closest analog to FluidDump's __getitem__ function.
+        It takes an independent and dependent variable name, and attempts to read or derive
+        the appropriate reduction of the dependent variable.
+        """
+        #print("dvar ", dvar)
 
-    def get_diag(self, var, only_nonzero=True, qui=False, **kwargs):
-        if self.diag and var in self.file['diag']:
-            ret_i, ret_v = self.file['diag']['t'][()], self.file['diag'][var][()]
+        # Cache based on *both* variables to avoid collisions e.g. t/Mdot vs rt/Mdot or something
+        vname = ivar+"/"+dvar
+        if vname in self.cache:
+            return self.cache[vname]
 
-            if only_nonzero:
-                slc = np.nonzero(ret_v)
-                ret_i, ret_v = ret_i[slc], ret_v[slc]
-
-            if qui:
-                qui_slc = self.get_quiescence(diag=True, **kwargs)
-                ret_i, ret_v = ret_i[qui_slc], ret_v[qui_slc]
-
-            return ret_i, ret_v
-        elif var[:4] == 'log_':
-            ret_i, ret_v = self.get_diag(var[4:], only_nonzero=only_nonzero, qui=qui, **kwargs)
-            return ret_i, np.log10(ret_v)
+        # Grab from the file first no matter what it's named
+        if ivar in self.file and dvar in self.file[ivar]:
+            ret_v = self.file[ivar][dvar][()]
+            if 't' in ivar:
+                # Ensure time-ordering is computed
+                self.get_ivar('t')
+                # Apply ordered-time permutation on read and never after
+                ret_v = ret_v[self.t_perm]
+        # Prefixes for a few common 1:1 math operations
+        elif dvar[:5] == "sqrt_":
+            ret_v = np.sqrt(self.get_dvar(ivar, dvar[5:]))
+        elif dvar[:7] == "square_":
+            ret_v = self.get_dvar(ivar, dvar[7:])**2
+        elif dvar[:4] == "abs_":
+            ret_v = np.abs(self.get_dvar(ivar, dvar[4:]))
+        elif dvar[:4] == "log_":
+            ret_v = np.log10(self.get_dvar(ivar, dvar[4:]))
+        elif dvar[:3] == "ln_":
+            ret_v = np.log(self.get_dvar(ivar, dvar[3:]))
+        elif dvar[:4] == "inv_":
+            ret_v = 1/self.get_dvar(ivar, dvar[4:])
+        elif dvar[:6] == "smooth": # smooth_ or e.g. smooth101_
+            dvarl = dvar.split('_')
+            op = dvarl[0]
+            try:
+                # Parse argument
+                window = int(op[6:])
+            except (ValueError):
+                # Default
+                window = 101
+            ret_v = smoothed(self.get_dvar(ivar, '_'.join(dvarl[1:])), window_sz=window)
+        elif 'sigma_post' in dvar:
+            ret_v = (self.get_dvar(ivar, dvar.replace('sigma_post','bsq')) /
+                    self.get_dvar(ivar, dvar.replace('sigma_post','rho')))
+        elif 'beta_post' in dvar:
+            ret_v = (2 * self.get_dvar(ivar, dvar.replace('beta_post','Pg')) /
+                    self.get_dvar(ivar, dvar.replace('beta_post','bsq')))
+        elif 'bsq' in dvar:
+            ret_v = self.get_dvar(ivar, dvar.replace('bsq','b'))**2
+        elif dvar in self.diag_fns:
+            ret_v = self.diag_fns[dvar](self)
         else:
-            return None, None
+            raise IOError("Can't find variable: {} as a function of {}".format(dvar, ivar))
+        
+        self.cache[vname] = ret_v
+        return ret_v
+
+    def ivars_present(self):
+        if self.ftype == "ana":
+            return [key for key in self.file.keys() if key not in ['avg', 'coord', 'extras', 'header', 'pdf', 'pdft']]
+        elif self.ftype == "hst":
+            return self.file.keys()
+
+    def dvars_present(self, ivar=None):
+        if self.ftype == "ana":
+            if ivar is not None:
+                return self.file[ivar].keys()
+            else:
+                keys = []
+                for ivar in self.ivars_present():
+                    keys.extend(self.file[ivar].keys())
+                return keys
+
+        elif self.ftype == "hst":
+            return self.file.keys()
+    
+
