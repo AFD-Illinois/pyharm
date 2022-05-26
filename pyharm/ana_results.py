@@ -94,13 +94,11 @@ class AnaResults(object):
             self.file.close()
 
     def __getitem__(self, key):
-        """This operates a bit differently from its analogue in FluidDump.
+        """This operates a bit differently from its analog in FluidDump.
 
         Variables in reductions are specified by remaining independent variable, e.g.
         r/FM_disk for the mass flux in the "disk" region as a function of r (that is,
         summed over th & phi and averaged over t).  See the class description for details.
-
-
 
         Alternatively, you can specify independent variables alone to get them.
         (you can also get such things directly from res.grid!).  AnaResult will
@@ -108,7 +106,17 @@ class AnaResults(object):
         ambiguities by returning whatever it finds first.
         """
         #print("item ", key)
-        if '/' in key:
+        # Selection of independent variables, catch-all is below
+        # Mostly trying to avoid parameters dict stepping on common letter combinations
+        if key in ('r', 'th', 'phi', 't', 'rth', 'thphi', 'rphi', 'rt', 'tht', 'phit', 'rtht', 'rphit'):
+            ret_i = self.get_ivar(key)
+            if len(ret_i) == 1:
+                return ret_i[0]
+            else:
+                return ret_i
+        if key in self.params:
+            return self.params[key]
+        elif '/' in key:
             return self.get_dvar(*key.split("/"))
         else:
             try:
@@ -143,7 +151,7 @@ class AnaResults(object):
         #print("ivar ", ivar)
         # Throw an error if we messed up
         if ivar.replace('r','').replace('t','').replace('h','').replace('phi','') != '':
-            raise IOError("Bad ivar: {}. Must be an unseparated list of dimensions r,th,phi,t")
+            raise IOError("Bad ivar: {}. Must be an unseparated list of dimensions r,th,phi,t".format(ivar))
 
         # Only cache/read the default case
         if th_r is None and mesh == True and ivar in self.cache:
@@ -216,9 +224,12 @@ class AnaResults(object):
         return ret_grids
 
     def get_dvar(self, ivar, dvar):
-        """This is the closest analog to FluidDump's __getitem__ function.
-        It takes an independent and dependent variable name, and attempts to read or derive
+        """Takes an independent and dependent variable name, and attempts to read or derive
         the appropriate reduction of the dependent variable.
+        Usually, this is called from __getitem__.
+
+        In implementation, this is the closest analog to FluidDump's __getitem__ function -- it's the
+        place to add any complex new tags/operations/whatever.
         """
         #print("dvar ", dvar)
 
@@ -266,6 +277,9 @@ class AnaResults(object):
                     self.get_dvar(ivar, dvar.replace('beta_post','bsq')))
         elif 'bsq' in dvar:
             ret_v = self.get_dvar(ivar, dvar.replace('bsq','b'))**2
+        elif 'Theta_post' in dvar:
+            ret_v = (self.get_dvar(ivar, dvar.replace('Theta_post','Pg')) /
+                    self.get_dvar(ivar, dvar.replace('Theta_post','rho')))
         elif dvar in self.diag_fns:
             ret_v = self.diag_fns[dvar](self)
         else:
@@ -293,4 +307,19 @@ class AnaResults(object):
         elif self.ftype == "hst":
             return self.file.keys()
     
+    def get_time_slice(self, tmin, tmax=0):
+        """Get the indices in the (correct, potentially reordered) timeline
+        corresponding to stated tmin, tmax.
+        Allows negative tmin to specify a slice to the end of the run
+        """
+        tmin = float(tmin)
+        tmax = float(tmax)
+        if tmin > 0 and tmax > 0:
+            i_begin = i_of(self['t'], tmin)
+            i_end = i_of(self['t'], tmax)
+        elif tmin < 0:
+            i_begin = i_of(self['t'], self['t'][-1] + tmin)
+            i_end = None
+
+        return slice(i_begin, i_end)
 

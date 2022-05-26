@@ -1,3 +1,4 @@
+from argparse import ArgumentError
 import sys
 import glob
 import click
@@ -9,66 +10,218 @@ import matplotlib.pyplot as plt
 import pyharm
 from pyharm.defs import Loci
 
-def eh_fluxes(result, fig=None):
-    # Event horizon fluxes
-    if fig is None:
-        fig, _ = plt.subplots(4,1, figsize=(7,7))
-    ax = fig.get_axes()
-    for a,var in enumerate(('mdot', 'phi_b', 'abs_ldot_per', 'eff')):
-        ax[a].plot(result['t'][5:], result[var][5:])
-        ax[a].set_ylabel(pyharm.pretty(var), rotation=0, ha='right') #sep
-        ax[a].grid(True)
-        ax[a].set_xlim(0, None)
+def _savefig(fig, tag, kwargs):
+    # Any other closing/format stuff. PDF format, etc, etc
+    for ax in fig.get_axes():
+        ax.set_xlim(kwargs['xmin'],  kwargs['xmax'])
+        ax.set_ylim(kwargs['ymin'],  kwargs['ymax'])
+    plt.subplots_adjust(wspace=0.4)
+    # Underscore-separate things
+    if kwargs['tag'] != "": kwargs['tag'] += "_"
+    # User tag, then fn, then extension
+    plt.savefig(kwargs['tag']+tag+".png", dpi=200)
+    plt.close(fig)
 
-    return fig
+def _get_t_slice(result, kwargs):
+    if kwargs['avg_min'] is not None:
+        # get_time_slice doesn't require this but we print it
+        if kwargs['avg_max'] is None:
+            kwargs['avg_max'] = result['t'][-1]
+        avg_slice = result.get_time_slice(kwargs['avg_min'], kwargs['avg_max'])
+        return False, avg_slice
+    else:
+        return True, slice(None)
 
-def radial_averages_window(result, vars=('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post'), fig=None):
-    # Radial profiles of variables
-    ir = pyharm.util.i_of(result['r'], 50)
+def _get_r_slice(result, kwargs, default):
+    if kwargs['xmax'] is None:
+        kwargs['xmax'] == default
+    else:
+        kwargs['xmax'] = float(kwargs['xmax'])
+    return pyharm.util.i_of(result['r'], kwargs['xmax'])
+
+def initial_conditions_overplot(results, kwargs):
+    return initial_conditions(results, kwargs, overplot=True)
+
+def initial_conditions(results, kwargs, overplot=False): # TODO radial_averages_at
+    """
+    """
+    if kwargs['varlist'] is None:
+        vars=('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post')
+
     nx = min(len(vars), 4)
     ny = (len(vars)-1)//4+1
-    if fig is None:
+    if overplot:
         fig, _ = plt.subplots(ny, nx, figsize=(4*nx,4*ny))
-    ax = fig.get_axes()
-    for a,var in enumerate(vars):
-        for i in range(1,6):
-            ax[a].loglog(result['r'][:ir], np.mean(result['rt/{}_disk'.format(var)][i*1000:(i+1)*1000], axis=0)[:ir], label="{}M".format(i*1000*5))
-        ax[a].set_ylabel(pyharm.pretty(var))
+        ax = fig.get_axes()
+
+    for result in results.values():
+        # Event horizon fluxes
+        ir = pyharm.util.i_of(result['r'], 500)
+        if not overplot:
+            fig, _ = plt.subplots(ny, nx, figsize=(4*nx,4*ny))
+            ax = fig.get_axes()
+        for a,var in enumerate(vars):
+            ax[a].plot(result['r'][:ir], result['rt/{}_disk'.format(var)][0, :ir], label=result.tag)
+            ax[a].set_ylabel(pyharm.pretty(var), rotation=0, ha='right') #sep
+            ax[a].grid(True)
+            ax[a].set_xlim(2, 1000)
+            ax[a].set_yscale('log')
+            ax[a].set_xscale('log')
+        if not overplot:
+            _savefig(fig, "initial_conditions_"+result.tag, kwargs)
+
+    if overplot:
+        ax[0].legend()
+        _savefig(fig, "initial_conditions", kwargs)
+
+def plot_eh_fluxes(ax, result):
+    for a,var in enumerate(('mdot', 'phi_b', 'abs_ldot_per', 'eff')):
+        ax[a].plot(result['t'], result['t/{}'.format(var)], label=result.tag)
+        ax[a].set_ylabel(pyharm.pretty(var), rotation=0, ha='right')
         ax[a].grid(True)
 
+def eh_fluxes(results, kwargs):
+    for result in results.values():
+        # Event horizon fluxes
+        fig, _ = plt.subplots(4,1, figsize=(7,7))
+        axes = fig.get_axes()
+        plot_eh_fluxes(axes, result)
+        plt.subplots_adjust(wspace=0.4)
+        _savefig(fig, "eh_fluxes_"+result.tag, kwargs)
+
+def overplot_eh_fluxes(results, kwargs):
+    fig, _ = plt.subplots(4,1, figsize=(7,7))
+    ax = fig.get_axes()
+    for result in results.values():
+        plot_eh_fluxes(ax, result)
+
     ax[0].legend()
     plt.subplots_adjust(wspace=0.4)
-    return fig
+    _savefig(fig, "eh_fluxes_compare", kwargs)
 
-def radial_fluxes_window(result, fig=None):
-    # Fluxes of conserved quantities by radius
-    ir = pyharm.util.i_of(result['r'], 50)
-    if fig is None:
-        fig, _ = plt.subplots(1,3, figsize=(14,4))
-    ax = fig.get_axes()
+def plot_radial_averages(ax, result, kwargs, default_r=50):
+    window, avg_slice = _get_t_slice(result, kwargs)
+    ir = _get_r_slice(result, kwargs, default=default_r)
+
     for a,var in enumerate(('FM', 'FE', 'FL')):
-        for i in range(1,6):
-            ax[a].plot(result['r'][:ir], np.abs(np.mean(result['rt/{}_disk'.format(var)][i*1000:(i+1)*1000], axis=0))[:ir], label="{}M".format(i*1000*5))
+        if window:
+            for i in range(1,6):
+                slc = result.get_time_slice(i*5000, (i+1)*5000)
+                ax[a].plot(result['r'][:ir], np.mean(result['rt/{}_disk'.format(var)][slc, :ir], axis=0), label=r"{}-{} $\frac{{r_g}}{{c^2}}$".format(i*5000, (i+1)*5000))
+        else:
+            ax[a].plot(result['r'][:ir], np.mean(result['rt/{}_disk'.format(var)][avg_slice, :ir], axis=0), label=r"{}-{} $\frac{{r_g}}{{c^2}}$".format(int(kwargs['avg_min']), int(kwargs['avg_max'])))
         ax[a].set_ylabel(pyharm.pretty(var))
 
     ax[0].legend()
     plt.subplots_adjust(wspace=0.4)
-    return fig
+    return window
+
+def radial_averages(results, kwargs):
+    if kwargs['vars'] is None:
+        vars = ('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post')
+    else:
+        vars = kwargs['vars']
+
+    for result in results.values():
+        # Radial profiles of variables
+        nx = min(len(vars), 4)
+        ny = (len(vars)-1)//4+1
+        fig, _ = plt.subplots(ny, nx, figsize=(4*nx,4*ny))
+        ax = fig.get_axes()
+
+        window = plot_radial_averages(ax, results, kwargs, default_r=50)
+
+        if window:
+            _savefig(fig, "radial_averages_by_window_"+result.tag, kwargs)
+        else:
+            _savefig(fig, "radial_averages_"+result.tag, kwargs)
+        
+
+def radial_fluxes(results, kwargs):
+    for result in results.values():
+        fig, _ = plt.subplots(1,3, figsize=(14,4))
+        ax = fig.get_axes()
+        window = plot_radial_averages(ax, results, kwargs, default_r=20)
+        if window:
+            _savefig(fig, "radial_fluxes_by_window_"+result.tag, kwargs)
+        else:
+            _savefig(fig, "radial_fluxes_"+result.tag, kwargs)
 
 
-def disk_momentum(result):
-    return radial_averages_window(result, vars=("u_3",))
+def disk_momentum(results, kwargs):
+    kwargs['vars'] = "u_3"
+    return radial_averages(results, kwargs)
 
+def _model_pretty(folder):
+    model = folder.split("/")
+    if len(model) >= 2:
+        return model[-2].upper()+r" $"+model[-1]+r"^\circ$"
+    else:
+        return folder
 
-# bare variables!
-# overplotting!
-# split figures into other files?
+def plot_avg_vs_spin(results, ax, kwargs):
+    """Average of a scalar time-dependent flux vs spin for any model combination"""
+    var = kwargs['varlist'][0]
+
+    model_spins = {}
+    model_vals = {}
+    # Run through the files and suck up everything
+    for result in results.values():
+        model = " ".join(result.tag.split(" ")[:-1])
+        spin = float(result.tag.split(" ")[-1])
+        if model not in model_spins:
+            model_spins[model] = []
+            model_vals[model] = []
+        model_spins[model].append(spin)
+
+        window, avg_slice = _get_t_slice(result, kwargs)
+        if window:
+            raise ValueError("Cannot compute an average without a range!")
+
+        val = np.mean(result['t/'+var][avg_slice])
+        model_vals[model].append(val)
+    
+    # Then plot each model
+    for model in model_spins.keys():
+        spins, var_vs_spin = zip(*sorted(zip(model_spins[model], model_vals[model]), key=lambda x: x[0]))
+        ax.plot(spins, var_vs_spin, '.--', label=_model_pretty(model))
+
+def avg_vs_spin(results, kwargs):
+    fig, _ = plt.subplots(1, 1, figsize=(7,7))
+    axis = fig.get_axes()[0]
+
+    plot_avg_vs_spin(results, axis, kwargs)
+
+    axis.grid(True)
+
+    plt.xlim(-1,1)
+    plt.xlabel(r"Spin $a_*$")
+
+    if kwargs['ymin'] is not None:
+        kwargs['ymin'] = float(kwargs['ymin'])
+    if kwargs['ymax'] is not None:
+        kwargs['ymax'] = float(kwargs['ymax'])
+    plt.ylim(kwargs['ymin'], kwargs['ymax'])
+    plt.ylabel(pyharm.pretty(kwargs['varlist'][0]))
+
+    plt.legend()
+    _savefig(fig, "avg_vs_spin_"+kwargs['varlist'][0], kwargs)
 
 @click.command()
 @click.argument('to_plot_str', nargs=1)
 @click.argument('paths', nargs=-1, type=click.Path(exists=True))
 @click.option('-r', '--result_fname', default="eht_out.h5", help="Filename (not full path) of each results file")
-def plot_results(to_plot_str, paths, result_fname):
+@click.option('-v', '--varlist', default=None, help="Comma-separated list of variables to use")
+@click.option('--tag', default="", help="String to add to output plot names")
+# Bounds
+@click.option('--xmax', default=None, help="X-axis maximum")
+@click.option('--xmin', default=None, help="X-axis minimum")
+@click.option('--ymax', default=None, help="Y-axis maximum")
+@click.option('--ymin', default=None, help="Y-axis minimum")
+# 
+@click.option('--avg_min', default=None, help="Time-average minimum. Negative value counts backward from end of run")
+@click.option('--avg_max', default=None, help="Time-average maximum")
+def plot_results(to_plot_str, paths, **kwargs):
     """Plot a result or set of results in a standard form, usually the contents of one or more
     analyses done by pyharm-analysis.
 
@@ -77,6 +230,8 @@ def plot_results(to_plot_str, paths, result_fname):
     Usage: pyharm-plot-result  list,of,names folder1 [folder2]
     """
     to_plot = to_plot_str.split(",")
+    if kwargs['varlist'] is not None:
+        kwargs['varlist'] = kwargs['varlist'].split(",")
 
     # Always load results
     results = {}
@@ -84,33 +239,28 @@ def plot_results(to_plot_str, paths, result_fname):
         files = []
         for inter in ("/*/*/*/", "/*/*/", "/*/", "/"):
             if len(files) == 0:
-                files = glob.glob(model+inter+result_fname)
+                files = glob.glob(model+inter+kwargs['result_fname'])
 
         if len(files) > 0:
             try:
-                results[model] = pyharm.load_results(files[0], tag=model.replace("/","_"))
+                results[model] = pyharm.load_results(files[0], tag=model.replace("/a", " ").replace("/"," ").upper())
             except:
                 print("Error loading file {}".format(files[0]))
 
-    # Look through the functions we've defined for names
-    #functions = [(name,thing) for (name, thing) in locals().items() if callable(thing)]
-    for result in results.values():
-        # Hack to get the list of functions in current file,
-        # so we can call them based on runtime user-spec string
-        local_fns = inspect.getmembers(sys.modules[__name__], \
-                        predicate=lambda f: inspect.isfunction(f) and f.__module__ == __name__)
-        plotted_one = False
-        for fname,fn in local_fns:
-            if fname in to_plot:
-                plotted_one = True
-                fig = fn(result)
-                fig.savefig(fname+"_"+result.tag+".png", dpi=200)
-                plt.close(fig)
+    # Hack to get the list of functions in current file,
+    # so we can call them based on runtime user-spec string
+    local_fn_list = inspect.getmembers(sys.modules[__name__], \
+                    predicate=lambda f: inspect.isfunction(f) and f.__module__ == __name__)
+    local_fns = {}
+    for fnname, fn in local_fn_list:
+        local_fns[fnname] = fn
+
+    # Iterate over individual plots
+    for plotname in to_plot:
+        # If this is a local single-result function, just plot it for everything
+        if plotname in local_fns.keys():
+            local_fns[plotname](results, kwargs=kwargs)
         
-        if not plotted_one:
-            raise ValueError("Plot {} is not defined!".format(to_plot))
-
-
 
 if __name__ == "__main__":
     plot_results()
