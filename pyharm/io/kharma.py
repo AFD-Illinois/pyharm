@@ -1,4 +1,5 @@
 
+import glob
 import numpy as np
 import pandas
 import h5py
@@ -11,6 +12,7 @@ from .interface import DumpFile
 
 # This is where we drop in the Parthenon reader
 from .phdf import phdf
+from .phdf_old import phdf as phdf_old
 
 def read_log(fname):
     with open(fname) as inf:
@@ -105,13 +107,28 @@ class KHARMAFile(DumpFile):
     def read_params(self):
         # TODO if reading very old output, fall back to text .par file in dumps folder
         # TODO there's likely a nice way to get all this from phdf
-        fil = phdf(self.fname)
+        try:
+            fil = phdf(self.fname)
+        except:
+            fil = phdf_old(self.fname)
+
+        params = None
         if 'Input' in fil.fid:
             par_string = fil.fid['Input'].attrs['File']
             if type(par_string) != str:
                 par_string = par_string.decode("UTF-8")
             params = parameters.parse_parthenon_dat(par_string)
         else:
+            # Read from the closest parameter file
+            fnames = glob.glob("/".join(self.fname.split("/")[:-1])+"/*.par")
+            if len(fnames) == 0:
+                fnames = glob.glob("/".join(self.fname.split("/")[:-2])+"/*.par")
+
+            #print("Reading parameters from {}".format(fnames[-1]))
+            with open(fnames[-1], 'r') as parfile:
+                params = parameters.parse_parthenon_dat(parfile.read())
+
+        if params is None:
             raise RuntimeError("No parameters could be found in KHARMA dump {}".format(self.fname))
 
         # Use Parthenon's reader for the file-specific stuff
@@ -149,7 +166,10 @@ class KHARMAFile(DumpFile):
                 return self.cache[var]
 
         # Open file
-        fil = phdf(self.fname, **self.params['phdf_aux'])
+        try:
+            fil = phdf(self.fname, **self.params['phdf_aux'])
+        except:
+            fil = phdf_old(self.fname)
 
         # All primitives/conserved. We added this to iharm3d, special case it here
         if var == "prims":
@@ -180,15 +200,19 @@ class KHARMAFile(DumpFile):
             return self.cache["cons"]
 
         if var not in fil.Variables and self.index_of(var) is None:
+            # Try getting it by an index
+            if self.index_of(var.replace("prims.", "")) is not None:
+                var = var.replace("prims.", "")
             # Try to get it from conserved version (e.g. KHARMA restarts lack prims.B)
-            if "cons" not in var:
+            elif "cons" not in var:
                 var_con = "cons"+var.replace("prims", "")
                 if "B" in var_con and var_con in fil.Variables:
                     grid = Grid(self.params)
                     return self.read_var(var_con, astype=astype, slc=slc) / \
                             grid['gdet'][Loci.CENT.value][grid.slices.geom_slc(slc)]
-            # If we can't find it at all:
-            raise IOError("Cannot find variable "+var+" in dump "+self.fname+". Should it have been calculated?")
+            else:
+                # If we can't find it at all:
+                raise IOError("Cannot find variable "+var+" in dump "+self.fname+". Should it have been calculated?")
 
         params = self.params
         # Recall ng=0 if ghost_zones is False.  Thus this says:

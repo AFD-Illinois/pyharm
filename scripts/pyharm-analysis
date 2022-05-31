@@ -43,6 +43,7 @@ except ImportError:
 @click.option('-ae', '--average_end', default=None, help="End time for time-averages")
 @click.option('-a', '--append', is_flag=True, help="Append to existing results file, rather than starting fresh")
 @click.option('-f', '--filename', default="eht_out.h5", help="Name of each result file")
+@click.option('--prefer_iharm3d', is_flag=True, help="Prefer iharm3d-format files if available alongside KHARMA output")
 # Extras
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
 @click.option('-d', '--debug', is_flag=True, default=False, help="Serial operation for debugging")
@@ -91,7 +92,7 @@ def analysis(ana_types, paths, **kwargs):
             os.chdir(path)
             # Try to load known filenames
             if not kwargs['paths_are_files']:
-                files = pyharm.io.get_fnames(".")
+                files = pyharm.io.get_fnames(".", prefer_iharm3d=kwargs['prefer_iharm3d'])
             else:
                 files = paths
         else:

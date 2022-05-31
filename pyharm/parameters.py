@@ -78,14 +78,7 @@ def parse_parthenon_dat(string):
         if (pair[0] in params):
             params[pair[1]] = params[pair[0]]
 
-    if 'x1min' in params:
-        # KHARMA inputs will never have these: they are calculated internally
-        params['r_in'] = np.exp(params['x1min'])
-        params['r_out'] = np.exp(params['x1max'])
-        params['dx1'] = (params['x1max'] - params['x1min'])/params['nx1']
-        params['dx2'] = (params['x2max'] - params['x2min'])/params['nx2']
-        params['dx3'] = (params['x3max'] - params['x3min'])/params['nx3']
-
+    # Translate coordinate naming scheme
     if "cartesian" in params['base']:
         params['coordinates'] = "cartesian"
     elif "fmks" in params['transform'] or "funky" in params['transform']:
@@ -156,5 +149,42 @@ def fix(params):
         if 'poly_norm' not in params:
             params['poly_norm'] = 0.5 * np.pi * 1. / (1. + 1. / (params['poly_alpha'] + 1.) *
                                         1. / np.power(params['poly_xt'], params['poly_alpha']))
+
+    # If we must guess r_in and/or set coordinate stuff, do it last
+    if 'r_in' not in params:
+        if 'x1min' not in params:
+            params['r_in'] = np.exp((params['n1tot'] * np.log(params['r_eh']) / 5.5 - np.log(params['r_out'])) /
+                                    (-1. + params['n1tot'] / 5.5))
+        else:
+            params['r_in'] = np.exp(params['x1min'])
+
+    if 'x1min' not in params:
+        params['x1min'] = np.log(params['r_in'])
+        params['x1max'] = np.log(params['r_out'])
+
+    if 'x2min' not in params:
+        params['x2min'] = 0.
+        if params['coordinates'] in ('fmks', 'mks', 'cartesian',):
+            params['x2max'] = 1.0
+        else:
+            params['x2max'] = np.pi
+
+    if 'x3min' not in params:
+        params['x3min'] = 0.
+        if params['coordinates'] in ('cartesian',):
+            params['x3max'] = 1.0
+        else:
+            params['x3max'] = 2*np.pi
+
+    if 'dx1' not in params:
+        params['dx1'] = (params['x1max'] - params['x1min']) / params['nx1']
+        params['dx2'] = (params['x2max'] - params['x2min']) / params['nx2']
+        params['dx3'] = (params['x3max'] - params['x3min']) / params['nx3']
+
+    # Translate anything we added -> iharm3d again
+    # TODO pick one form geez
+    for pair in (('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3')):
+        if (pair[0] in params):
+            params[pair[1]] = params[pair[0]]    
 
     return params

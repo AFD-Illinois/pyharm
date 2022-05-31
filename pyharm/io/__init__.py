@@ -20,7 +20,7 @@ from .koral import KORALFile
 # i/o for other filetypes not tied to one code
 from . import gridfile
 
-def get_fnames(path):
+def get_fnames(path, prefer_iharm3d=False):
     """Return what should be the list of fluid dump files in a directory 'path',
     while trying to avoid extraneous files caught in normal globs (e.g., grid.h5, other runs/filetypes)
     """
@@ -30,9 +30,14 @@ def get_fnames(path):
     # and finally, to prefer KHARMA file 
     # Specifically, we ant to absolutely exclude anything named grid.h5 and eht_out.h5, as well as other possible .h5 analysis files
     # We also want to exclude anything named *final.{phdf,rhdf}, these are valid output but out of cadence & can lag real output
-    for scheme in itertools.product((".","dumps_kharma","dumps"),
-                                    ("*.out0.[0-9][0-9][0-9][0-9][0-9]", "*.out[0-9].[0-9][0-9][0-9][0-9][0-9]", "dump_*", "dump[0-9][0-9][0-9]"),
-                                    (".phdf", ".h5", ".rhdf", "")):
+    folders = ("dumps_kharma", "dumps", ".")
+    fnames = ("*.out0.[0-9][0-9][0-9][0-9][0-9]", "*.out[0-9].[0-9][0-9][0-9][0-9][0-9]", "dump_*", "dump[0-9][0-9][0-9]")
+    exts = (".phdf", ".h5", ".rhdf", "")
+    if prefer_iharm3d:
+        # Just prefer a "dumps" folder over "dumps_kharma."
+        folders = ("dumps", "dumps_kharma", ".")
+
+    for scheme in itertools.product(folders, fnames, exts):
         files = np.sort(glob(os.path.join(path, scheme[0], scheme[1]+scheme[2])))
         if len(files) > 0:
             # Explicitly take out some common things in dump directories

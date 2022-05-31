@@ -59,6 +59,7 @@ except ImportError:
 @click.option('--ymax', default=None, help="Window Y maximum.")
 @click.option('--overlay_field', is_flag=True, help="Overlay field lines.")
 @click.option('--no_grid_cache', is_flag=True, help="Don't cache geometry.  For plotting large Cartesian simulations.")
+@click.option('--prefer_iharm3d', is_flag=True, help="Prefer iharm3d-format files if available alongside KHARMA output")
 # Extras
 @click.option('-a', '--accurate_fnames', is_flag=True, help="Name frames by 1/100M, for short runs.")
 @click.option('-r', '--resume', is_flag=True, help="Continue a previous run, by skipping existing frames")
@@ -93,7 +94,7 @@ def movie(movie_types, paths, **kwargs):
             # change dir to path we want to image
             os.chdir(path)
             # Try to load known filenames
-            files = pyharm.io.get_fnames(".")
+            files = pyharm.io.get_fnames(".", prefer_iharm3d=kwargs['prefer_iharm3d'])
         else:
             files = [path]
 

@@ -15,6 +15,15 @@
 # '-i' argument is for interactive shell to allow running 'conda' 
 # Remove if you have a jacked .bashrc and get worse errors than job warnings
 
+# Choose an appropriate number of processes. TODO more intelligence
+# We use spread-job below to make sure this actually results in fewer procs/node
+if [[ "$*" == *"448"* ]]
+then
+  NPROC=16
+else
+  NPROC=32
+fi
+
 # Reloading the 'python' module messes with anaconda environment,
 # just have it loaded before submitting/as a default module.
 #module load python
@@ -32,7 +41,7 @@ export OMP_NUM_THREADS=8
 # if this proves efficient for simple stuff.
 if [[ "$*" != *"-d "* ]]
 then
-  srun -n $(($SLURM_JOB_NUM_NODES * 32)) --cpu-bind=no pyharm-analysis "${@}"
+  srun -n $(($SLURM_JOB_NUM_NODES * $NPROC)) --cpu-bind=no --spread-job pyharm-analysis "${@}"
 else
   pyharm-analysis "${@}"
 fi
