@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -i
 
 #SBATCH -J encode_movies
 #SBATCH -A ast171
@@ -15,6 +15,9 @@ FPS=24
 
 # Trap on sigterm/int and kill everything we've spawned
 trap "srun killall ffmpeg python python2 launcher" SIGTERM SIGINT
+
+# Used -i above for environment w/ffmpeg, see andes_movie.sb
+conda activate pyharm
 
 # Work around Andes weirdness
 export HOSTNAME=$(hostname) 
@@ -49,7 +52,7 @@ do
             if [ -d $folder ]
             then
                 # Include full paths for other nodes' benefit
-                echo "ffmpeg -y -r ${FPS} -threads ${NTHREADS} -f image2 -pattern_type glob -i \"${PWD}/${folder}/*.png\" -vcodec libx264 -crf 22 -pix_fmt yuv420p ${PWD}/${folder#*_}.mp4" >> $JOBFILE
+                echo "echo Encoding ${PWD}; ffmpeg -hide_banner -loglevel error -y -r ${FPS} -threads ${NTHREADS} -f image2 -pattern_type glob -i \"${PWD}/${folder}/*.png\" -vcodec libx264 -crf 22 -pix_fmt yuv420p ${PWD}/${run//\//_}_${folder#*_}.mp4" >> $JOBFILE
             fi
         done
         cd "$BASE_DIR"
