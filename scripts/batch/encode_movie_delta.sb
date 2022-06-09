@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# Admin stuff
+#SBATCH -J encode_movies
+#SBATCH --account=bbhr-delta-cpu
+#SBATCH -t 12:00:00
+#SBATCH -N 1
+#SBATCH -p cpu
+#SBATCH -o "out-%j.txt"
+
+# Nodes we want
+#SBATCH --tasks-per-node=128
+#SBATCH --cpus-per-task=1
+# ALWAYS reserve full nodes to mitigate memory leaks
+#SBATCH --exclusive
+#SBATCH --mem=0
+
+# Encode movie(s) as a launcher job on Delta.
+# Experimenting still to be done with tasks per node
+
+FPS=24
+
+# Trap on sigterm/int and kill everything we've spawned
+trap "srun killall ffmpeg python python2 launcher" SIGTERM SIGINT
+
+# Work around Andes weirdness
+#export HOSTNAME=$(hostname)
+# Launcher vars. Adjust LAUNCHER_DIR with installation dir
+export LAUNCHER_DIR=$HOME/libs/launcher
+export LAUNCHER_PLUGIN_DIR=$LAUNCHER_DIR/plugins
+export LAUNCHER_RMI=SLURM
+export LAUNCHER_WORKDIR=$SCRATCH/launcher_workdir
+export LAUNCHER_JOB_FILE=$LAUNCHER_WORKDIR/jobs_list.$(date +%s)
+# Control procs per node with *launcher*, not slurm
+export LAUNCHER_PPN=16
+export NTHREADS=$((128 / $LAUNCHER_PPN))
+# We don't want binding or static scheduling
+export LAUNCHER_BIND=1
+export LAUNCHER_BIND_HT=0
+#export LAUNCHER_SCHED=
+
+mkdir -p $LAUNCHER_WORKDIR
+
+echo Using $NTHREADS threads
+
+# Iterate through directories recording movies to make
+JOBFILE=$LAUNCHER_JOB_FILE
+>$JOBFILE
+BASE_DIR="$(pwd)"
+for run in * */* */*/*
+do
+    if [ -d "$run" ]; then
+        cd "$run"
+        for folder in frames_*
+        do
+            if [ -d $folder ]
+            then
+                # Include full paths for other nodes' benefit
+                echo "bash -i -c 'module load anaconda3; conda activate pyharm; echo Encoding ${PWD}; ffmpeg -hide_banner -loglevel error -y -r ${FPS} -threads ${NTHREADS} -f image2 -pattern_type glob -i \"${PWD}/${folder}/*.png\" -vcodec libx264 -crf 22 -pix_fmt yuv420p ${PWD}/${run//\//_}_${folder#*_}.mp4'" >> $JOBFILE
+            fi
+        done
+        cd "$BASE_DIR"
+    fi
+done
+
+# Process the list
+$LAUNCHER_DIR/paramrun

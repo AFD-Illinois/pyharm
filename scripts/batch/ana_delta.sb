@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Admin stuff
+#SBATCH -J pyharm_ana
+#SBATCH --account=bbhr-delta-cpu
+#SBATCH -t 12:00:00
+#SBATCH -N 1
+#SBATCH -p cpu
+#SBATCH -o "out-%j.txt"
+
+# Nodes we want
+#SBATCH --tasks-per-node=32
+#SBATCH --cpus-per-task=4
+# ALWAYS reserve full nodes to mitigate memory leaks
+#SBATCH --exclusive
+#SBATCH --mem=0
+
+# Run analysis as an MPI job on Delta.
+# See pyharm-analysis docs/help for options, test on a few dumps
+# before committing to big jobs.
+
+# Better to oversubscribe CPU than serialize as there are
+# relatively few numpy ops
+export MKL_NUM_THREADS=8
+export OMP_NUM_THREADS=8
+
+# Start 1 task/cpu by default. -O option allows more tasks,
+# if this proves efficient for simple stuff.
+if [[ "$*" != *"-d "* ]]
+then
+  srun -n $(($SLURM_JOB_NUM_NODES * 32)) --cpu-bind=no pyharm-analysis "${@}"
+else
+  pyharm-analysis "${@}"
+fi

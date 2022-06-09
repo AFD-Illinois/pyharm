@@ -14,7 +14,7 @@ def convert_file(fname, outfname, double=False, restart=False):
     dump = pyharm.load_dump(fname, grid_cache=False)
     if restart:
         # Default in double
-        pyharm.io.iharm3d.write_restart(dump, outfname)
+        pyharm.io.iharm3d_restart.write_restart(dump, outfname)
     else:
         pyharm.io.iharm3d.write_dump(dump, outfname, astype=(np.float32, np.float64)[double])
 
