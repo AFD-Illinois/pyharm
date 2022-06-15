@@ -51,6 +51,8 @@ class AnaResults(object):
     diag_fn_common = {# Standard names for some EH fluxes
                     'phi_b_per': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot']),
                     'phi_b': lambda diag: diag['Phi_b'] / np.sqrt(diag['smooth_mdot']),
+                    'phi_b_upper': lambda diag: diag['Phi_b_upper'] / np.sqrt(diag['smooth_mdot']),
+                    'phi_b_lower': lambda diag: diag['Phi_b_lower'] / np.sqrt(diag['smooth_mdot']),
                     'edot_per': lambda diag: diag['Edot'] / diag['mdot'],
                     'edot': lambda diag: diag['Edot'] / diag['smooth_mdot'],
                     'ldot_per': lambda diag: diag['Ldot'] / diag['mdot'],

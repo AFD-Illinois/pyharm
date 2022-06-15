@@ -306,7 +306,10 @@ def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=Fa
     # TODO optional line cutoff by setting NaN according to a second condition
     # TODO these few functions could just optionally use np.mean
     x, z = dump.grid.get_xz_locations(native=native, half_cut=half_cut)
-    var = flatten_xz(dump, var, at, average) / dump['n3'] # Arg to flatten_xz is "sum", so we divide
+    if average:
+        var = flatten_xz(dump, var, at, True) / dump['n3'] # Arg to flatten_xz is "sum", so we divide
+    else:
+        var = flatten_xz(dump, var, at, False)
     if use_contourf:
         return ax.contourf(x, z, var, levels=levels, colors=color, **kwargs)
     else:

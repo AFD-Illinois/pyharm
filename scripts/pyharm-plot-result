@@ -23,6 +23,8 @@ def _savefig(fig, tag, kwargs):
     plt.close(fig)
 
 def _get_t_slice(result, kwargs):
+    # Returns a boolean along with the slice.
+    # If true, indicates no slice was taken, i.e. caller should (split by window and) plot all time
     if kwargs['avg_min'] is not None:
         # get_time_slice doesn't require this but we print it
         if kwargs['avg_max'] is None:
@@ -33,6 +35,7 @@ def _get_t_slice(result, kwargs):
         return True, slice(None)
 
 def _get_r_slice(result, kwargs, default):
+    # Plotting only the necessary radial range makes auto-scaling of the y-axis work
     if kwargs['xmax'] is None:
         kwargs['xmax'] == default
     else:
@@ -80,6 +83,12 @@ def plot_eh_fluxes(ax, result):
         ax[a].set_ylabel(pyharm.pretty(var), rotation=0, ha='right')
         ax[a].grid(True)
 
+def plot_eh_phi_versions(ax, result):
+    for a,var in enumerate(('phi_b', 'phi_b_upper', 'phi_b_lower')):
+        ax[a].plot(result['t'], result['t/{}'.format(var)], label=result.tag)
+        ax[a].set_ylabel(pyharm.pretty(var), rotation=0, ha='right')
+        ax[a].grid(True)
+
 def eh_fluxes(results, kwargs):
     for result in results.values():
         # Event horizon fluxes
@@ -88,6 +97,15 @@ def eh_fluxes(results, kwargs):
         plot_eh_fluxes(axes, result)
         plt.subplots_adjust(wspace=0.4)
         _savefig(fig, "eh_fluxes_"+result.tag, kwargs)
+
+def eh_phi_versions(results, kwargs):
+    for result in results.values():
+        # Event horizon fluxes
+        fig, _ = plt.subplots(3,1, figsize=(7,7))
+        axes = fig.get_axes()
+        plot_eh_phi_versions(axes, result)
+        plt.subplots_adjust(wspace=0.4)
+        _savefig(fig, "eh_phi_versions_"+result.tag, kwargs)
 
 def overplot_eh_fluxes(results, kwargs):
     fig, _ = plt.subplots(4,1, figsize=(7,7))
