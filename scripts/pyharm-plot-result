@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from argparse import ArgumentError
 import sys
 import glob
@@ -173,6 +175,8 @@ def disk_momentum(results, kwargs):
 def _model_pretty(folder):
     model = folder.split("/")
     if len(model) >= 2:
+        if "_" in model[-1]:
+            return model[-3]
         return model[-2].upper()+r" $"+model[-1]+r"^\circ$"
     else:
         return folder

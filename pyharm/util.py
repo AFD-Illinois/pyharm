@@ -108,8 +108,6 @@ def slice_to_index(current_start, current_stop, slc):
 
     return new_start, new_stop
 
-# Convenience for finding zone containing a given value,
-# in coordinate/monotonic-increase variables
 def i_of(var, val, behind=True, fail=False):
     """Convenience for finding zone containing a given value,
     in coordinate/monotonic-increase variables
