@@ -1,4 +1,5 @@
 
+import sys
 import glob
 import numpy as np
 import pandas
@@ -82,6 +83,15 @@ class KHARMAFile(DumpFile):
 
         return var, ind
 
+    def index_of(self, var):
+        """Override & call through to the DumpFile version, as KHARMA can have some *very* short versions
+        of names that we don't always want to respect.
+        """
+        if var in self.prim_names_ordered:
+            return self.prim_names_ordered.index(var)
+        else:
+            return DumpFile.index_of(var)
+
     def __init__(self, filename, ghost_zones=False, params=None):
         """Create an Iharm3DFile object -- note that the file handle will stay
         open as long as the object
@@ -120,9 +130,17 @@ class KHARMAFile(DumpFile):
             params = parameters.parse_parthenon_dat(par_string)
         else:
             # Read from the closest parameter file
-            fnames = glob.glob("/".join(self.fname.split("/")[:-1])+"/*.par")
+            path1 = "/".join(self.fname.split("/")[:-1])+"/*.par"
+            #print("Trying to find parameter files w/glob: {}".format(path1))
+            fnames = glob.glob(path1)
             if len(fnames) == 0:
-                fnames = glob.glob("/".join(self.fname.split("/")[:-2])+"/*.par")
+                path2 = "/".join(self.fname.split("/")[:-2])+"/*.par"
+                #print("Trying to find parameter files w/glob: {}".format(path2))
+                fnames = glob.glob(path2)
+            if len(fnames) == 0:
+                path3 = "/".join(self.fname.split("/")[:-1])+"*.par"
+                #print("Trying to find parameter files w/glob: {}".format(path3))
+                fnames = glob.glob(path3)
 
             #print("Reading parameters from {}".format(fnames[-1]))
             with open(fnames[-1], 'r') as parfile:
@@ -296,10 +314,11 @@ class KHARMAFile(DumpFile):
                     if i is None:
                         # We're not grabbing anything except primitives from old KHARMA files.
                         raise IOError("Cannot find variable "+var+" in file "+self.fname+"!")
-                    elif type(i) == int:
-                        out[out_slc] = fil.Get('c.c.bulk.prims', False)[fil_slc + (i,)].T
                     else:
-                        out[Ellipsis, out_slc] = fil.Get('c.c.bulk.prims', False)[fil_slc + (i,)].T
+                        # Both the int & slice cases require the same line: first 3 indices of file -> last 3 indices of output
+                        # print(fil_slc + (i,), file=sys.stderr)
+                        # print((Ellipsis,) + out_slc, file=sys.stderr)
+                        out[(Ellipsis,) + out_slc] = fil.Get('c.c.bulk.prims', False)[fil_slc + (i,)].T
         # Close
         fil.fid.close()
         del fil

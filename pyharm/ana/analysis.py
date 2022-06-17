@@ -1,4 +1,5 @@
 
+import sys
 import numpy as np
 
 from ..fluid_dump import FluidDump
@@ -50,5 +51,8 @@ def analyze(args):
 def analyze_catch_err(args):
     try:
         return analyze(args)
-    except:
+    except Exception as e:
+        # Make sure we still surface errors when running under MPI,
+        # but don't crash the run on a bad file read.
+        print(e, file=sys.stderr)
         return None
