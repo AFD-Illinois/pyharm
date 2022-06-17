@@ -39,6 +39,7 @@ except ImportError:
 @click.option('-s', '--tstart', default=0., help="Start time.")
 @click.option('-e', '--tend', default=1e7, help="End time.")
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
+@click.option('-o', '--output_dir', default=".", help="Base directory for outputs. Any folder structure of models will be preserved.")
 # Plotting options
 @click.option('--fig_x', default=16.0, help="Figure width in inches.")
 @click.option('--fig_y', default=9.0, help="Figure height in inches.")
@@ -87,7 +88,10 @@ def movie(movie_types, paths, **kwargs):
         # Single file argument, pass this
         path_dirs = paths
     if do_out(): print("Generating ",len(path_dirs)*len(movie_types.split(","))," movie(s)", file=sys.stderr)
+
     base_path = os.getcwd()
+    out_path = os.path.abspath(kwargs['output_dir'])
+
     for path in path_dirs:
         # If a path...
         if os.path.isdir(path):
@@ -101,9 +105,12 @@ def movie(movie_types, paths, **kwargs):
         # Add these so we can pass on just the args
         kwargs['movie_types'] = movie_types
         kwargs['path'] = path
+        # Including where to output: what to replace from cwd, and what with
+        kwargs['base_path'] = base_path
+        kwargs['out_path'] = out_path
 
         for movie_type in movie_types.split(","):
-            frame_dir = "frames_" + movie_type
+            frame_dir = os.path.join(os.getcwd().replace(base_path, out_path), "frames_"+movie_type)
             os.makedirs(frame_dir, exist_ok=True)
 
         try:

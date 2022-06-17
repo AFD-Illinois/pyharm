@@ -38,10 +38,11 @@ def frame(fname, diag, kwargs):
     movie_types = []
     ghost_zones = False
     for movie_type in kwargs['movie_types'].split(","):
+        frame_folder = os.path.join(os.getcwd().replace(kwargs['base_path'], kwargs['out_path']), "frames_"+movie_type)
         if 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
-            frame_name = os.path.join("frames_"+movie_type, "frame_t%03.2f.png" % tdump)
+            frame_name = os.path.join(frame_folder, "frame_t%03.2f.png" % tdump)
         else:
-            frame_name = os.path.join("frames_"+movie_type, "frame_t%08d.png" % int(tdump))
+            frame_name = os.path.join(frame_folder, "frame_t%08d.png" % int(tdump))
 
         if 'resume' in kwargs and kwargs['resume'] and os.path.exists(frame_name):
             continue

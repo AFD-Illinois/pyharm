@@ -43,6 +43,7 @@ except ImportError:
 @click.option('-ae', '--average_end', default=None, help="End time for time-averages")
 @click.option('-a', '--append', is_flag=True, help="Append to existing results file, rather than starting fresh")
 @click.option('-f', '--filename', default="eht_out.h5", help="Name of each result file")
+@click.option('-o', '--output_dir', default=".", help="Base directory for outputs. Any folder structure of models will be preserved.")
 @click.option('--prefer_iharm3d', is_flag=True, help="Prefer iharm3d-format files if available alongside KHARMA output")
 # Extras
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
@@ -83,7 +84,11 @@ def analysis(ana_types, paths, **kwargs):
         if do_out(): print("Analyzing {} files as a set".format(len(paths)), file=sys.stderr)
         path_dirs = "."
 
+    # We stay in the *current* folder structure with our targets.
+    # But we'll open *outputs* under the desired output_dir if different
     base_path = os.getcwd()
+    out_path = os.path.abspath(kwargs['output_dir'])
+
     for path in path_dirs:
         if do_out(): print("Running analyses {} on model {}".format(ana_types, path), file=sys.stderr)
         # If a path...
@@ -115,11 +120,15 @@ def analysis(ana_types, paths, **kwargs):
             kwargs['t_avg_end'] = tend
 
         if do_out():
-            # Initialize the file
+            # Initialize the file, creating parent dir if not present
+            parent_path = os.getcwd().replace(base_path, out_path)
+            file_path = os.path.join(parent_path, kwargs['filename'])
             if kwargs['append']:
-                outfile = h5py.File(kwargs['filename'], 'a')
+                outfile = h5py.File(file_path, 'a')
             else:
-                outfile = h5py.File(kwargs['filename'], 'w')
+                if not os.path.exists(parent_path):
+                    os.makedirs(parent_path)
+                outfile = h5py.File(file_path, 'w')
             # Copy in the header, either as-is or converted
             is_ilhdf = False
             with h5py.File(files[0],'r') as inf:

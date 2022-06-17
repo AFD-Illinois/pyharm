@@ -13,13 +13,17 @@ from pyharm.plots.plot_utils import pcolormesh_symlog
 
 @click.command()
 @click.argument('fname', nargs=1, type=click.Path(exists=True)) # Multiple?
-def auto_plot(fname):
+@click.option('-o', '--output_dir', default=".", help="Base directory for outputs. Any folder structure of models will be preserved.")
+def auto_plot(fname, **kwargs):
     """Automatically plot everything stored to a given result file.
     The plots are not pretty, and some are not in a digestible format, but the data's all there.
     """
     result = pyharm.load_results(fname)
 
-    dirpath = os.path.join(os.path.dirname(fname), "auto_plots_"+fname.replace(".h5",""))
+    base_path = os.getcwd()
+    out_path = os.path.abspath(kwargs['output_dir'])
+
+    dirpath = os.path.join(os.path.dirname(fname).replace(base_path, out_path), "auto_plots_"+fname.replace(".h5",""))
     if not os.path.exists(dirpath):
         os.mkdir(dirpath)
 
