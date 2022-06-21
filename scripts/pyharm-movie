@@ -89,8 +89,15 @@ def movie(movie_types, paths, **kwargs):
         path_dirs = paths
     if do_out(): print("Generating ",len(path_dirs)*len(movie_types.split(","))," movie(s)", file=sys.stderr)
 
-    base_path = os.getcwd()
-    out_path = os.path.abspath(kwargs['output_dir'])
+    if 'PYHARM_DUMPS_DIR' in os.environ:
+        base_path = os.path.abspath(os.environ['PYHARM_DUMPS_DIR'])
+    else:
+        base_path = os.path.abspath(os.getcwd())
+    if 'PYHARM_OUTPUT_DIR' in os.environ and kwargs['output_dir'] == ".":
+        out_path = os.path.abspath(os.environ['PYHARM_OUTPUT_DIR'])
+    else:
+        # Defaults to current dir
+        out_path = os.path.abspath(kwargs['output_dir'])
 
     for path in path_dirs:
         # If a path...

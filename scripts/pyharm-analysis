@@ -86,8 +86,15 @@ def analysis(ana_types, paths, **kwargs):
 
     # We stay in the *current* folder structure with our targets.
     # But we'll open *outputs* under the desired output_dir if different
-    base_path = os.getcwd()
-    out_path = os.path.abspath(kwargs['output_dir'])
+    if 'PYHARM_DUMPS_DIR' in os.environ:
+        base_path = os.path.abspath(os.environ['PYHARM_DUMPS_DIR'])
+    else:
+        base_path = os.path.abspath(os.getcwd())
+    if 'PYHARM_OUTPUT_DIR' in os.environ and kwargs['output_dir'] == ".":
+        out_path = os.path.abspath(os.environ['PYHARM_OUTPUT_DIR'])
+    else:
+        # Defaults to current dir
+        out_path = os.path.abspath(kwargs['output_dir'])
 
     for path in path_dirs:
         if do_out(): print("Running analyses {} on model {}".format(ana_types, path), file=sys.stderr)

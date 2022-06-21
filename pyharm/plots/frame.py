@@ -96,10 +96,8 @@ def frame(fname, diag, kwargs):
             else:
                 # Mediocre heuristic for "enough" of domain.
                 # Users should specify
-                if dump['r_out'] >= 500:
-                    sz = dump['r_out']/10
-                elif dump['r_out'] >= 100:
-                    sz = dump['r_out']/3
+                if dump['r_out'] >= 60:
+                    sz = 60
                 else:
                     sz = dump['r_out']
 
@@ -163,6 +161,13 @@ def frame(fname, diag, kwargs):
                             'xticks': [], 'yticks': [],
                             'cbar': False, 'frame': False})
                 movie_type = movie_type.replace("_simple","")
+
+            # Set "rho" movies to have a consistent colorbar
+            if "log_rho" in movie_type:
+                if plotrc['vmin'] is None:
+                    plotrc['vmin'] = -4
+                if plotrc['vmax'] is None:
+                    plotrc['vmax'] = 1.5
 
             # Various options 
             if "_poloidal" in movie_type or "_2d" in movie_type:
