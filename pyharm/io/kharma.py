@@ -200,7 +200,7 @@ class KHARMAFile(DumpFile):
                         # Reshape to 4D if needed to append
                         new_prim = new_prim[np.newaxis, Ellipsis]
                     prims = np.append(prims, new_prim, axis=0)
-                except (IOError, OSError):
+                except (IOError, OSError, TypeError):
                     # Not every file will have all prims
                     pass
             # Save the result
