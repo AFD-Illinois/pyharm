@@ -89,10 +89,11 @@ def movie(movie_types, paths, **kwargs):
         path_dirs = paths
     if do_out(): print("Generating ",len(path_dirs)*len(movie_types.split(","))," movie(s)", file=sys.stderr)
 
+    start_path = os.path.abspath(os.getcwd())
     if 'PYHARM_DUMPS_DIR' in os.environ:
         base_path = os.path.abspath(os.environ['PYHARM_DUMPS_DIR'])
     else:
-        base_path = os.path.abspath(os.getcwd())
+        base_path = start_path
     if 'PYHARM_OUTPUT_DIR' in os.environ and kwargs['output_dir'] == ".":
         out_path = os.path.abspath(os.environ['PYHARM_OUTPUT_DIR'])
     else:
@@ -186,7 +187,7 @@ def movie(movie_types, paths, **kwargs):
         if do_out(): print("Imaged model {} with movie(s) {}".format(path, movie_types), file=sys.stderr)
 
         # Change back to wherever our root was, argument paths can be relative
-        os.chdir(base_path)
+        os.chdir(start_path)
 
 if __name__ == "__main__":
     movie()
