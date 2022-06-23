@@ -434,22 +434,25 @@ class Grid:
         
         return x, y
 
-    def get_thphi_locations(self, at, mesh=False, native=False, bottom=False, project=True):
+    def get_thphi_locations(self, at, mesh=False, native=False, bottom=False, projection='mercator'):
         """Get the mesh locations x_ij and y_ij needed for plotting a th-phi slice.
         This can be done in a bunch of ways controlled with options
 
         :param mesh: get mesh corners rather than centers, for flat shading
         :param native: get native X1/X3 coordinates rather than Cartesian x,z locations
         :param bottom: take the view from -z axis instead of +z axis
-        :param project: If True, foreshorten radius in plot as r*sin(th).
-                        If False, use th as radius & plot a circle of diameter pi/2
+        :param projection:
+            | "mercator": default, project theta on Y-axis and phi on X-axis. Differs from 'native' due to midplane compression.
+            | "polar": view down from +z.  Or with 'bottom', view up from -Z.
+            | "flattened_polar": reinterpret as polar coordinates, theta -> r, phi -> phi
         """
-        if native:
-            j_slice = slice(None)
-        elif bottom:
-            j_slice = slice(self.NTOT[2]//2, None)
-        else:
-            j_slice = slice(None, self.NTOT[2]//2)
+
+        j_slice = slice(None)
+        if projection in ('polar', 'flattened_polar'):
+            if bottom:
+                j_slice = slice(self.NTOT[2]//2, None)
+            else:
+                j_slice = slice(None, self.NTOT[2]//2)
 
         if mesh:
             m = self.coord_jk_mesh(at=at)[j_slice]
@@ -461,10 +464,13 @@ class Grid:
             # which is much more understandable for movies
             x = m[3]
             y = m[2]
-        elif project:
+        elif projection == 'mercator':
+            x = self.coords.phi(m)
+            y = self.coords.th(m)
+        elif projection == 'polar':
             x = self.coords.cart_x(m)
             y = self.coords.cart_y(m)
-        else:
+        elif projection == 'flattened_polar':
             x = self.coords.th(m) * np.cos(self.coords.phi(m))
             y = self.coords.th(m) * np.sin(self.coords.phi(m))
         

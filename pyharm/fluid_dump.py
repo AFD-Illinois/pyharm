@@ -99,7 +99,7 @@ class FluidDump:
             out = FluidDump(self.fname, add_grid=False, params=self.params)
             #out = copy.deepcopy(self) # In case this proves faster
             for c in self.cache:
-                out.cache[c] = self.cache[c][slc]
+                out.cache[c] = self.cache[c][(Ellipsis,) + slc]
             out.grid = self.grid[slc]
             out.slice = slc
             return out
@@ -138,6 +138,8 @@ class FluidDump:
             return np.log(self[key[3:]])
         elif key[:4] == "inv_":
             return 1/self[key[4:]]
+        elif key[:4] == "neg_":
+            return -self[key[4:]]
 
         # Return MHD tensor components: don't cache
         elif ((key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3")

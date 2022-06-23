@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
-from matplotlib import colors, ticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import numpy as np
 from scipy.integrate import trapz
 
 from ..ana.reductions import flatten_xy, flatten_xz, wrap
+from ..util import i_of
 from .plot_utils import *
 from .pretty import pretty
 
@@ -205,8 +205,8 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
         else:
-            ax.set_xlim(window[:2]) # TODO TODO
-            ax.set_ylim(window[2:])
+            # TODO guess this?
+            pass
         ax.set_aspect('equal')
 
     # Set up arguments for decorating plot
@@ -224,14 +224,31 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
     return mesh
 
 
-def plot_thphi(ax, dump, var, at, cmap='jet', vmin=None, vmax=None, window=None,
-               xlabel=True, ylabel=True, native=False, log=False, sum=False, average=False,
-               project=False, shading='gouraud', **kwargs):
+def plot_thphi(ax, dump, var, at_r=None, at_i=None, cmap='jet', vmin=None, vmax=None, window=None,
+               xlabel=True, ylabel=True, native=False, log=False,
+               projection='mercator', shading='gouraud', **kwargs):
     """Plot a theta-phi slice at index at_i
-    DO NOT USE YET, DEAD
+    Note this function also accepts all keyword arguments to _decorate_plot()
+
+    :param ax: Axes object to paint on
+    :param dump: fluid state object
+    :param vmin, vmax: colorbar minimum and maximum, 'None' auto-detects
+    :param window: view window in X,Z coordinates, measured in r_g/c^2, 0 in BH center.
+    :param xlabel, ylabel: whether to mark X/Y labels with reasonable titles
+    :param native: Plot in native coordinates X1/X2 as plot X/Y axes respectively
+    :param log: plot a signed quantity in logspace with symlog() above
+    :param projection:
+        | "mercator": default, project theta on Y-axis and phi on X-axis. Differs from 'native' due to midplane compression.
+        | "polar": view down from +z.  Or with 'bottom', view up from -Z.
+        | "flattened_polar": reinterpret as polar coordinates, theta -> r, phi -> phi
+    :param shading: 
     """
-    if len(var.shape) == 3:
-        var = var[at, :, :]
+    if at_i is not None:
+        at = at_i
+    elif at_r is not None:
+        at = i_of(dump['r1d'], at_r)
+    else:
+        raise ValueError("Must specify radial location for solid-angle plot!")
 
     vname = None
     if isinstance(var, str):
@@ -239,16 +256,17 @@ def plot_thphi(ax, dump, var, at, cmap='jet', vmin=None, vmax=None, window=None,
             log = True
             var = var.replace("symlog_","")
         vname = var
+        var = dump[at, :, :][var]
+    else:
+        var = var[at, :, :]
 
-    x, y = dump.grid.get_thphi_locations(mesh=(shading == 'flat'), native=native, at=at)
-    var = flatten_thphi(dump, var, at, sum or average)
-    if average:
-        var /= dump['n1']
-    if shading != 'flat':
+    x, y = dump.grid.get_thphi_locations(mesh=(shading == 'flat'), native=native, at=at, projection=projection)
+    if (shading != 'flat') and (projection != 'mercator'):
         x = wrap(x)
         y = wrap(y)
         var = wrap(var)
 
+    print(var.shape)
     mesh = ax.pcolormesh(x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
                          shading=shading)
 
@@ -262,16 +280,11 @@ def plot_thphi(ax, dump, var, at, cmap='jet', vmin=None, vmax=None, window=None,
             ax.set_xlim([x[0,0], x[-1,-1]])
             ax.set_ylim([y[0,0], y[-1,-1]])
     else:
-        if xlabel: ax.set_xlabel(r"x ($r_g$)")  # or \frac{G M}{c^2}
-        if ylabel: ax.set_ylabel(r"y ($r_g$)")
+        if xlabel: ax.set_xlabel(r"$\phi$")
+        if ylabel: ax.set_ylabel(r"$\theta$")
         if window is not None:
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
-        elif project:
-            radius = dump.grid.coords.r(dump.grid.coord(at, 0, 0))
-            window = [-radius, radius, -radius, radius]
-        else:
-            window = [-1.6, 1.6, -1.6, 1.6]
         ax.set_aspect('equal')
 
     # Restore "var" to string for labelling plots
@@ -307,9 +320,9 @@ def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=Fa
     # TODO these few functions could just optionally use np.mean
     x, z = dump.grid.get_xz_locations(native=native, half_cut=half_cut)
     if average:
-        var = flatten_xz(dump, var, at, True) / dump['n3'] # Arg to flatten_xz is "sum", so we divide
+        var = np.squeeze(flatten_xz(dump, var, at, True) / dump['n3']) # Arg to flatten_xz is "sum", so we divide
     else:
-        var = flatten_xz(dump, var, at, False)
+        var = np.squeeze(flatten_xz(dump, var, at, False))
     if use_contourf:
         return ax.contourf(x, z, var, levels=levels, colors=color, **kwargs)
     else:
