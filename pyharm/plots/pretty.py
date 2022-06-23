@@ -85,18 +85,19 @@ def pretty(var, segment=False):
 
     # Break down the name and translate bits we know to Latex;
     # keeps anything we don't understand as-is, no formatting
+    ret = var
     if var[:4] == "log_":
-        return r"$\log_{10} \left( "+pretty(var[4:], segment=True)+r" \right)$"
+        ret = r"\log_{10} \left( "+pretty(var[4:], segment=True)+r" \right)"
     if var[:4] == "abs_":
-        if segment:
-            return r"\left| "+pretty(var[4:], segment=True)+r" \right|"
-        else:
-            return r"$\left| "+pretty(var[4:], segment=True)+r" \right|$"
-    elif var in pretty_dict:
-        if segment:
-            return pretty_dict[var]
-        else:
-            return r"$"+pretty_dict[var]+r"$"
+        ret = r"\left| "+pretty(var[4:], segment=True)+r" \right|"
+    if var[:4] == "neg_":
+        ret = r"-" + pretty(var[4:], segment=True)
+    if var[:4] == "inv_":
+        ret = r"1 / " + pretty(var[4:], segment=True)
+    if var in pretty_dict:
+        ret = pretty_dict[var]
+    
+    if segment:
+        return ret
     else:
-        # Give up
-        return var
+        return r"$" + ret + r"$"

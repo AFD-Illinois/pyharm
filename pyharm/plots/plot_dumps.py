@@ -266,7 +266,6 @@ def plot_thphi(ax, dump, var, at_r=None, at_i=None, cmap='jet', vmin=None, vmax=
         y = wrap(y)
         var = wrap(var)
 
-    print(var.shape)
     mesh = ax.pcolormesh(x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
                          shading=shading)
 
