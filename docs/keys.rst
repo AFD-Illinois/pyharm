@@ -17,6 +17,8 @@ All the fluid primitives in HARM-like schemes are supported, of course: ``rho, u
 
 The contravariant and covariant 4-vectors ``ucon, ucov, bcon, bcov`` and dot product ``bsq`` are supported, as well as any individual component of either vector in any coordinate system: native 1,2,3 coordinates ``u^{1,2,3}``, KS coordinates ``u^{r,th,phi}``, or (soon) Cartesian ``u^{x,y,z}``.
 
+The contravariant, covariant, and mixed stress-energy and Maxwell tensors ``T`` and ``F`` are supported -- that is, ``T^mu_nu``, ``F^mu^nu``, etc, where ``mu`` and ``nu`` can be any of ``{1,2,3}`` (no automatic coordinate system conversions for tensors yet).  The mixed forms of several portions of ``T`` can be requested separately, notably ``TFl^mu_nu`` for the fluid stress-energy tensor alone, and ``TEM^mu_nu`` for the electromagnetic stress-energy tensor.
+
 Pressures are denoted ``Pg`` for ideal gas pressure, ``Pb`` for magnetic pressure, ``Ptot`` for both summed.  For dumps including output of the 4-current (& eventually for others, via a full step calculation), we additionally define ``jcon, jcov, jsq, Jsq`` -- the lower-case option denotes the 4-current magnitude squared, and the latter the 3-current.
 
 There are a number of specialized or particular definitions more easily defined than described, see :mod:`pyharm.ana.variables` for definitions.  The patterns in that file should be straightforward if/when you want to add your own variables.
