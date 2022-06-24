@@ -7,6 +7,8 @@ import psutil
 import multiprocessing
 import warnings
 import h5py
+import inspect
+import textwrap
 
 import pyharm
 from pyharm import io
@@ -31,8 +33,25 @@ except ImportError:
     def do_out():
         return True
 
+# This extends the help message to print valid movies
+class ExtensibleCmd(click.Command):
+    def format_help(self, ctx, formatter):
+        click.Command.format_help(self, ctx, formatter)
 
-@click.command()
+        figure_list = inspect.getmembers(pyharm.ana.analyses, \
+                predicate=lambda f: inspect.isfunction(f) and f.__module__ == pyharm.ana.analyses.__name__)
+
+        formatter.write("\nValid analyses:\n")
+        for fnname, fn in figure_list:
+            if fnname[0] != "_":
+                formatter.write("  "+fnname+":\n")
+                if pyharm.ana.analyses.__dict__[fnname].__doc__ is not None:
+                    # Take out all whitespace from the docstring
+                    docstring = textwrap.shorten(pyharm.ana.analyses.__dict__[fnname].__doc__, 1e6).replace("\n"," ")
+                    # Reflow and indent
+                    formatter.write(textwrap.indent(textwrap.fill(docstring), "    ") + "\n\n")
+
+@click.command(cls=ExtensibleCmd)
 @click.argument('ana_types', nargs=1)
 @click.argument('paths', nargs=-1, type=click.Path(exists=True))
 @click.option('--paths_are_files', is_flag=True, help="Paths are single files, treat as a single set")
@@ -53,19 +72,14 @@ def analysis(ana_types, paths, **kwargs):
     """Analyze the simulation output at each of PATHS with the function/combo specified by ANA_TYPES
 
     This script is designed for large time-average and time-domain operations, where scripts treating individual
-    dump files or analyses are too slow.  Analysis output is batched together in the form of an HDF5 summary file,
-    in a format readable with 'ana_results.py', specified in the commends in that file.
+    dump files or analyses one at a time are too slow.  Analysis output is batched together in the form of an HDF5
+    summary file in a simple format.  This can be read with ana_results.py or your own plotting scripts.
 
     Each PATH can contain dump files in any format readable by pyharm, either in the given directory or a subdirectory
     named "dumps", "dumps_kharma" or similar.
 
-    \b
-    ANA_TYPE is a comma-separated list containing one or more of:
-    * basic: EH fluxes vs time with accretion rate, magnetization, etc. Very fast, always enabled & run first
-    * r_profiles: radial profiles of a basic set of variables
-    * th_profiles: theta profiles of a couple variables at r=25M
-    * diagnostic: energy ratio profiles, floor and inversion flag counts
-    * many more. The full list of analyses is available in pyharm/ana/analyses.py
+    ANA_TYPE is a comma-separated list containing one or more of the valid analysis types listed after the arguments.  The
+    'basic' analysis is always run, as it pulls data used in subsequent analyses (and is very quick).
 
     If run within an MPI job/allocation with mpi4py installed, pyharm-analysis will attempt to use all allocated nodes to generate
     frames.  YMMV wildly with MPI installations, with mpi4py installed via pip generally a better choice than through conda.

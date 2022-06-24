@@ -14,20 +14,21 @@ when computing new variables.
 Variables are organized by remaining independent variable, as described in ana_results.py
 """
 
-defaults = {'iEH': 5, 'rF': 40, 'do_tavgs': False}
+defaults = {'iEH': 5, 'rF': 40, 'do_tavgs': False, 'rTh': 40}
 
-def get(kwargs, par_name):
+def _get(kwargs, par_name):
     if par_name in kwargs:
         return kwargs[par_name]
     else:
         return defaults[par_name]
 
 def basic(dump, out, **kwargs):
-    """Calculate anything necessary for basic analysis"""
+    """Anything necessary for other functions: t, EH fluxes, whether to average
+    """
 
     # We have r_eh from the dump, but sometimes we want to calculate
     # at a particular location
-    iEH = get(kwargs, 'iEH')
+    iEH = _get(kwargs, 'iEH')
 
     # Record dump time. TODO fallbacks?
     out['coord/t'] = dump['t']
@@ -50,9 +51,11 @@ def basic(dump, out, **kwargs):
     out['t/Edot'] *= -1
 
 def dynamo(dump, out, **kwargs):
+    """Compare magnetization in the upper and lower hemisphere of EH, and at 5 r_g
+    """
     # We have r_eh from the dump, but sometimes we want to calculate
     # at a particular location
-    iEH = get(kwargs, 'iEH')
+    iEH = _get(kwargs, 'iEH')
 
     # FIELD STRENGTHS
     # The HARM B_unit is sqrt(4pi)*c*sqrt(rho), and this is standard for EHT comparisons
@@ -66,7 +69,7 @@ def dynamo(dump, out, **kwargs):
 def r_profiles(dump, out, vars=('rho', 'Pg', 'u^r', 'u^3', 'u_3', 'b', 'inv_beta', 'Ptot'), **kwargs):
     """Calculate Radial profiles, by averaging over phi and some portion of theta.
     Separate averages over the comparison "disk" portion and the rest of the domain, marked "notdisk".
-    Keeps time-dependent versions for averaging post-hoc.
+    Keeps time-dependent versions for averaging post-hoc
     """
     # sigma, bsq are derived afterward
     jmin, jmax = get_j_bounds(dump)
@@ -74,22 +77,23 @@ def r_profiles(dump, out, vars=('rho', 'Pg', 'u^r', 'u^3', 'u_3', 'b', 'inv_beta
         out['rt/' + var + '_disk'] = shell_avg(dump, var, j_slice=(jmin, jmax))
         out['rt/' + var + '_notdisk'] = (shell_avg(dump, var, j_slice=(0, jmin)) + 
                                          shell_avg(dump, var, j_slice=(jmax, dump['n2']))) / 2
-        if get(kwargs, 'do_tavgs'):
+        if _get(kwargs, 'do_tavgs'):
             out['r/' + var + '_disk'] = out['rt/' + var + '_disk']
             out['r/' + var + '_notdisk'] = out['rt/' + var + '_notdisk']
 
 def r_profiles_cc(dump, out, **kwargs):
-    """Radial profiles of everything used in the MAD Code Comparison, 2021/2"""
+    """Radial profiles of everything used in the MAD Code Comparison '22
+    """
     r_profiles(dump, out, ('rho', 'Pg', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'inv_beta', 'Ptot'), **kwargs)
 
 def r_flux_profiles(dump, out, vars=('FM', 'FE', 'FL'), **kwargs):
-    """Radial profiles of conserved mass, energy, angular momentum.
+    """Radial profiles of conserved mass, energy, angular momentum
     """
     jmin, jmax = get_j_bounds(dump)
     for var in vars:
         out['rt/' + var + '_all'] = shell_sum(dump, var)
         out['rt/' + var + '_disk'] = shell_sum(dump, var, j_slice=(jmin, jmax))
-        if get(kwargs, 'do_tavgs'):
+        if _get(kwargs, 'do_tavgs'):
             out['r/' + var + '_all'] = out['rt/' + var + '_all']
             out['r/' + var + '_disk'] = out['rt/' + var + '_disk']
 
@@ -97,33 +101,38 @@ def r_flux_profiles(dump, out, vars=('FM', 'FE', 'FL'), **kwargs):
 
 def th_profiles(dump, out, vars=('inv_beta', 'sigma'), **kwargs):
     """Calculate any full-theta profiles: 5-zone radial averages starting from 'rTh' (also averaged in phi).
-    Keeps time-dependent versions for averaging post-hoc.
+    Keeps time-dependent versions for averaging post-hoc
     """
-    rTh = get(kwargs, 'rTh')
+    rTh = _get(kwargs, 'rTh')
     at_i = i_of(dump['r1d'], rTh)
     for var in vars:
         out['tht/' + var + '_' + str(int(rTh))] = theta_profile(dump, var, at_i, 5, fold=False)
-        if get(kwargs, 'do_tavgs'):
+        if _get(kwargs, 'do_tavgs'):
             out['th/' + var + '_' + str(int(rTh))] = out['tht/' + var + '_' + str(int(rTh))]
 
 def omega_bz(dump, out, **kwargs):
-    # rTh = get(kwargs, 'rTh')
+    """Field rotation rate, for comparison against Blandford-Znajek prediction
+    """
+    # rTh = _get(kwargs, 'rTh')
     # at_i = i_of(dump['r1d'], rTh)
-    at_i = get(kwargs, 'iEH') # At event horizon
+    at_i = _get(kwargs, 'iEH') # At event horizon
     # Always do the 
     out['htht/omega'] = theta_profile(dump, 'F_0_1', at_i, 5) / theta_profile(dump, 'F_1_3', at_i, 5)
 
-    if get(kwargs, 'do_tavgs'):
+    if _get(kwargs, 'do_tavgs'):
         out['hth/omega'] = out['htht/omega']
 
 def rth_profiles(dump, out, vars=('betainv', 'rho', 'sigma', 'Theta'), **kwargs):
+    """2D profiles in r/th, time-averaged.  Default betainv, rho, sigma, Theta
+    """
     for var in vars:
         out['rtht/' + var] = np.mean(dump[var], axis=-1)
-        if get(kwargs, 'do_tavgs'):
+        if _get(kwargs, 'do_tavgs'):
             out['rth/' + var] = out['rtht/' + var]
 
 def diagnostics(dump, out, **kwargs):
-    """Energy ratios on the grid to gauge floor effectiveness, along with total floor hit and inversion flags"""
+    """Energy ratios on the grid to gauge floor effectiveness, along with total floor hit and inversion flags
+    """
     # Maxima (for gauging floors)
     for var in ['sigma', 'inv_beta', 'Theta', 'U']:
         out['t/' + var + '_max'] = np.max(dump[var])
@@ -137,19 +146,20 @@ def diagnostics(dump, out, **kwargs):
     #out['t/MaxDivB'] = np.max(dump['divB'])
 
 def print_flags(dump, out, **kwargs):
-    """Just check divB. Used as a cursory check for run sanity"""
+    """Just check floor and failure flags. Used as a cursory check for run sanity
+    """
     total_floors = np.sum(dump['floors'] > 0, axis=(1,2))
     total_fails = np.sum(dump['fails'] > 0, axis=(1,2))
     print("{} floors: {} failures: {}".format(dump.fname, total_floors, total_fails), file=sys.stderr)
     # TODO some automated "bad" criterion
 
 def print_divb(dump, out, **kwargs):
-    """Just check divB. Used as a cursory check for restart file sanity"""
-    print("{} max div B: {}".format(dump.fname, p.max(dump['divB'])), file=sys.stderr)
+    """Just check divB. Used as a cursory check for restart file sanity
+    """
+    print("{} max div B: {}".format(dump.fname, np.max(dump['divB'])), file=sys.stderr)
 
 def r_profile_phi(dump, out, **kwargs):
-    """Spherical and midplane magnetizations of radial shells, analogous to FM or FE for Phi_b.
-    Separated as the manual iteration in r is very slow.
+    """Spherical and midplane magnetizations of radial shells, analogous to FM or FE for Phi_b
     """
     out['rt/Phi_b_sph'] = 0.5 * shell_sum(dump, 'abs_B1')
     out['rt/Phi_b_mid'] = np.zeros_like(out['rt/Phi_b_sph'])
@@ -157,20 +167,17 @@ def r_profile_phi(dump, out, **kwargs):
         out['rt/Phi_b_mid'][i] = midplane_sum(dump, -dump['B2'], r_slice=(0,i))
 
 def madcc(dump, out, **kwargs):
-    """Functions for MAD Code Comparison '22, nontrivial mandatory diagnostics.
-    See that paper/doc for full descriptions.
-    Note the CC also requests more radial profiles than computed by default.
+    """Functions for MAD Code Comparison '22, nontrivial mandatory diagnostics. See that paper/doc for full descriptions
     """
     out['rt/thrho'] = (shell_sum(dump, dump['rho']*np.abs(np.pi/2 - dump['th'])) /
                         shell_sum(dump, dump['rho']))
 
-    if get(kwargs, 'do_tavgs'):
+    if _get(kwargs, 'do_tavgs'):
         for var in ('rho', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'Pg', 'inv_beta', 'sigma'):
             out['rth/' + var] = dump[var].mean(axis=-1)
 
 def madcc_optional(dump, out, **kwargs):
-    """Functions for MAD Code Comparison '22, optional diagnostics.
-    See that paper/doc for full descriptions.
+    """Functions for MAD Code Comparison '22, optional diagnostics
     """
     jmin, jmax = get_j_bounds(dump)
 
@@ -199,7 +206,7 @@ def madcc_optional(dump, out, **kwargs):
             out['t/Ixy_'+w_pole+'_'+str(w_r)] = shell_sum(dump, (dump['x'] - X) * (dump['y'] - Y) * dump['jet_psi'] * np.cos(dump['th']), j_slice=w_slice, at_r=w_r)
             del M, X, Y
 
-    if get(kwargs, 'do_tavgs'):
+    if _get(kwargs, 'do_tavgs'):
         # Full midplane correlation function, time-averaged
         for var in ['rho', 'inv_beta']:
             out['rphi/' + var + '_cf'] = corr_midplane(dump[var])
@@ -207,18 +214,20 @@ def madcc_optional(dump, out, **kwargs):
 
 # Polar profiles of different fluxes and variables
 def jet_profile(dump, out, **kwargs):
-    rBZ = get(kwargs, 'rBZ')
+    """Theta profiles of many (many) different variables at some particular radius. Used to gauge what is/isn't jet and where it wanders
+    """
+    rBZ = _get(kwargs, 'rBZ')
     iBZ = i_of(dump['r1d'], rBZ)
     s_dump = dump[iBZ]
     for var in ['rho', 'bsq', 'b^r', 'b^th', 'b^3', 'u^r', 'u^th', 'u^3', 'FM', 'FE', 'FE_EM', 'FE_Fl', 'FL', 'FL_EM', 'FL_Fl', 'betagamma', 'Be_nob', 'Be_b']:
         out['tht/' + var + '_' + str(int(rBZ))] = np.sum(s_dump[var], axis=-1)
-        if get(kwargs, 'do_tavgs'):
+        if _get(kwargs, 'do_tavgs'):
             out['th/' + var + '_' + str(int(rBZ))] = out['tht/' + var + '_']
             out['thphi/' + var + '_' + str(int(rBZ))] = s_dump[var]
 
-# Blandford-Znajek Luminosity L_BZ
-# This is a lot of luminosities!
 def jet_cuts(dump, out, **kwargs):
+    """Blandford-Znajek Luminosity L_BZ, calculated with a sampling of different cuts floated for EHTC V '19
+    """
     # TODO cut on phi/t averages? -- needs 2-pass cut...
     cuts = {'sigma1': lambda dump: (dump['sigma'] > 1),
             'Be_b0': lambda dump: (dump['Be_b'] > 0.02),
@@ -230,7 +239,7 @@ def jet_cuts(dump, out, **kwargs):
             'bg05': lambda dump: (dump['betagamma'] > 0.5),
             'allp': lambda dump: (dump['FE'] > 0),
             'morep': lambda dump: (np.logical_and(dump['FE_norho'] > 0,
-                                                np.logical_or(dump['th'] < 1, dump['th'] > np.pi - 1)))}
+                                    np.logical_or(dump['th'] < 1, dump['th'] > np.pi - 1)))}
 
     # Terminology:
     # LBZ = E&M energy only, any cut
@@ -240,12 +249,12 @@ def jet_cuts(dump, out, **kwargs):
         for cut in cuts.keys():
             out['rt/' + lum + '_' + cut] = shell_sum(dump, flux, mask=cuts[cut](dump))
             out['t/' + lum + '_' + cut] = out['rt/' + lum + '_' + cut][iBZ]
-            if get(kwargs, 'do_tavgs'):
+            if _get(kwargs, 'do_tavgs'):
                 out['r/' + lum + '_' + cut] = out['rt/' + lum + '_' + cut]
 
 def jet_cut_lite(dump, out, **kwargs):
-    """Compute jet powers with just the default cut from Paper V.
-    These are the powers for the Paper V table and MAD Code Comparison
+    """Compute jet powers with just the default cut from EHTC Paper V '19.
+    These are the powers used in the table in that paper and the MAD Code Comparison '22
     """
     is_jet = dump['Be_b'] > 1
     for lum, flux in [['Mdot_jet', 'FM'], ['P_jet', 'FE'], ['P_EM_jet', 'FE_EM'], ['P_PAKE_jet', 'FE_PAKE'], ['P_EN_jet', 'FE_EN'], ['Area_jet', '1']]:
@@ -258,6 +267,8 @@ def jet_cut_lite(dump, out, **kwargs):
     
 
 def lumproxy(dump, out, **kwargs):
+    """Luminosity proxy from GRMHD code comparison '19
+    """
     jmin, jmax = get_j_slice(dump)
     rho, Pg, B = dump['rho'], dump['Pg'], dump['b']
     # See EHT code comparison paper
@@ -265,31 +276,36 @@ def lumproxy(dump, out, **kwargs):
     out['rt/Lum'] = shell_sum(dump, j, j_slice=(jmin, jmax))
 
 def gridtotals(dump, out):
-    """Total energy and current, summed by shells to allow cuts on radius"""
+    """Total energy and current, summed by shells to allow any cut on radius
+    """
     for tot_name, var_name in [['Etot', 'JE0'], ['Jsq_inv', 'jsq'], ['Jsq_loc', 'current']]:
         out['rt/'+tot_name] = shell_sum(dump, var_name)
 
 def efluxes(dump, out, **kwargs):
-    """Total energy fluxes, recorded so that ~div-free steady state flux can be computed."""
+    """Total energy fluxes, recorded so that ~div-free steady state flux can be computed
+    """
     for var in ['JE0', 'JE1', 'JE2']:
         out['rt/'+var] = shell_sum(dump, var)
-        if get(kwargs, 'do_tavgs'):
+        if _get(kwargs, 'do_tavgs'):
             out['rth/' + var] = dump[var].mean(axis=-1)
 
 # Total outflowing portions of variables
 def outfluxes(dump, out, **kwargs):
-    """Outflowing portions of fluxes."""
+    """Outflowing portions of fluxes
+    """
     for name, var in [['outflow', 'FM'], ['outEflow', 'FE']]:
         var_tmp = dump[var]
         out['rt/'+name] = shell_sum(dump, var_tmp, mask=(var_tmp > 0))
-        if get(kwargs, 'do_tavgs'):
+        if _get(kwargs, 'do_tavgs'):
             out['r/'+name] = out['rt/'+name]
 
 def pdfs(dump, out, **kwargs):
+    """Probability density functions for certain variables. Even more likely than most analyses to be broken
+    """
     for var, pdf_range in [ ['inv_beta', [-3.5, 3.5]], ['rho', [-7, 1]] ]:
         # TODO handle negatives, pass on the range & bins
         var_tmp = np.log10(dump[var])
-        out['pdft/' + var], _ = np.histogram(var_tmp, bins=get(kwargs, 'pdf_nbins'), range=pdf_range,
+        out['pdft/' + var], _ = np.histogram(var_tmp, bins=_get(kwargs, 'pdf_nbins'), range=pdf_range,
                                               weights=np.repeat(dump['gdet'], var_tmp.shape[2]).reshape(var_tmp.shape),
                                               density=True)
         del var_tmp
@@ -297,7 +313,7 @@ def pdfs(dump, out, **kwargs):
 def omega_bz_advanced(dump, out, **kwargs):
     """A battery of different measurements of the Blandford-Znajek prediction of the B field rotation rate.
     """
-    if get(kwargs, 'do_tavgs'):
+    if _get(kwargs, 'do_tavgs'):
         Fcov01, Fcov13 = F_cov(dump, 0, 1), F_cov(dump, 1, 3)
         Fcov02, Fcov23 = F_cov(dump, 0, 2), F_cov(dump, 2, 3)
         vr, vth, vphi = dump['u^1']/dump['u^0'], dump['u^2']/dump['u^0'], dump['u^3']/dump['u^0']

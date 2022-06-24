@@ -134,6 +134,7 @@ def frame(fname, diag, kwargs):
 
         fig = plt.figure(figsize=(kwargs['fig_x'], kwargs['fig_y']))
 
+        # PLOT
         if movie_type in figures.__dict__:
             # Named movie frame figures in figures.py
             fig = figures.__dict__[movie_type](fig, dump, diag, plotrc)
@@ -141,15 +142,6 @@ def frame(fname, diag, kwargs):
             if 'overlay_field' in kwargs and kwargs['overlay_field']:
                 nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
                 overlay_field(ax, dump, **plotrc)
-            # TODO contours
-
-            # If the figure code didn't set the title
-            # I cannot be bothered to flag this for myself
-            if fig._suptitle is None or fig._suptitle.get_text() == "":
-                if "divB" in movie_type:
-                    # Special title for diagnostic divB
-                    fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(np.max(np.abs(dump['divB']))))
-
         else:
             # Try to make a simple movie of just the stated variable
 
@@ -204,14 +196,18 @@ def frame(fname, diag, kwargs):
             else:
                 fig.subplots_adjust(left=0.03, right=0.97)
 
-            if 'overlay_field' in kwargs and kwargs['overlay_field'] and not plotrc['native']:
-                nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
-                overlay_field(ax, dump, nlines=nlines)
-            # TODO contours
+        # OVERLAYS
+        if 'overlay_field' in kwargs and kwargs['overlay_field'] and not plotrc['native']:
+            nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
+            overlay_field(ax, dump, nlines=nlines)
+        # TODO contours
 
-        # If the figure code didn't set the title
-        # I cannot be bothered to flag this for myself
-        if (fig._suptitle is None or fig._suptitle.get_text() == "") and not plotrc['no_title']:
+        # TITLE
+        # Always quash title when set. figures can set this too
+        if plotrc['no_title']:
+            fig.suptitle("")
+        elif (fig._suptitle is None or fig._suptitle.get_text() == ""):
+            # If the figure didn't set a title and we should...
             if "divB" in movie_type:
                 # Special title for diagnostic divB
                 if "con" in movie_type:
@@ -225,10 +221,8 @@ def frame(fname, diag, kwargs):
                 fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(divb_max))
                 print("divB max", divb_max, "at", np.unravel_index(divb_argmax, divb.shape))
             else:
-                # Title by time, otherwise number
-                # TODO OPTION
-                #fig.suptitle("t = {}".format(int(tdump)))
-                pass
+                # Title by tdump, which is time if available, else dump number
+                fig.suptitle("t = {}".format(int(tdump)))
 
         # Save by name, clean up
         plt.savefig(frame_name, dpi=kwargs['fig_dpi'])

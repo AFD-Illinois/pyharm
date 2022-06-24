@@ -6,6 +6,8 @@ import glob
 import psutil
 import multiprocessing
 import warnings
+import inspect
+import textwrap
 
 # Make sure we use Agg
 import matplotlib
@@ -32,7 +34,26 @@ except ImportError:
     def do_out():
         return True
 
-@click.command()
+# This extends the help message to print valid movies
+class ExtensibleCmd(click.Command):
+    def format_help(self, ctx, formatter):
+        click.Command.format_help(self, ctx, formatter)
+
+        figure_list = inspect.getmembers(pyharm.plots.figures, \
+                predicate=lambda f: inspect.isfunction(f) and f.__module__ == pyharm.plots.figures.__name__)
+
+        formatter.write("\nValid movies:\n")
+        for fnname, fn in figure_list:
+            if fnname[0] != "_":
+                formatter.write("  "+fnname+":\n")
+                if pyharm.plots.figures.__dict__[fnname].__doc__ is not None:
+                    # Take out all whitespace from the docstring
+                    docstring = textwrap.shorten(pyharm.plots.figures.__dict__[fnname].__doc__, 1e6).replace("\n"," ")
+                    # Reflow and indent
+                    formatter.write(textwrap.indent(textwrap.fill(docstring), "    ") + "\n\n")
+        formatter.write("\n...or any valid key consisting of a variable and any operations.\n")
+
+@click.command(cls=ExtensibleCmd)
 @click.argument('movie_types', nargs=1)
 @click.argument('paths', nargs=-1, type=click.Path(exists=True))
 # Common options
@@ -76,9 +97,9 @@ def movie(movie_types, paths, **kwargs):
     Each PATH can contain dump files in any format readable by pyharm, either in the given directory or a subdirectory
     named "dumps", "dumps_kharma" or similar.
 
-    MOVIE_TYPE can be any variable known to pyharm (see README, variables.py) or any "figure" function in figures.py.  A common
-    first movie is 'log_rho', for example, which will plot phi=0 toroidal and midplane poloidal slices of the log base 10 of the
-    density. The MOVIE_TYPE can be a comma-separated list without spaces, e.g. 'log_rho,traditional'
+    MOVIE_TYPE can be any variable known to pyharm (see README, variables.py) or any "figure" function in figures.py, listed below.
+    A common first movie is 'log_rho', for example, which will plot phi=0 toroidal and midplane poloidal slices of the log base 10
+    of the density. You can create mutiple movies using a comma-separated list without spaces, e.g. 'log_rho,traditional'.
 
     If run within an MPI job/allocation with mpi4py installed, movie.py will attempt to use all allocated nodes to generate
     frames.  YMMV wildly with MPI installations, with mpi4py installed via pip generally a better choice than through conda.
