@@ -59,6 +59,7 @@ class AnaResults(object):
                     'ldot': lambda diag: diag['Ldot'] / diag['smooth_mdot'],
                     # Post-processing functions for fluxes
                     'eff': lambda diag: np.abs(diag['Edot'] - diag['mdot']) / diag['smooth_mdot'],
+                    'eff_per': lambda diag: np.abs(diag['Edot'] - diag['mdot']) / diag['mdot'],
                     }
     # How to load variables from a KHARMA .hst file dictionary
     diags_hst = {'mdot': lambda diag: np.abs(diag['Mdot_EH_Flux']),
@@ -69,26 +70,35 @@ class AnaResults(object):
     diags_ana = {'mdot': lambda diag: np.abs(diag['Mdot'])}
 
     def __init__(self, fname, tag=""):
-        # When reading HDF5 files, just open the file
-        # When reading diagnostic output, read the whole thing
-        self.fname = fname
         self.tag = tag
         self.cache = {}
-        if ".h5" in fname or ".hdf5" in fname:
-            # Read analysis results
-            self.file = h5py.File(fname, "r")
-            self.ftype = "ana"
-            self.diag_fns = {**self.diag_fn_common, **self.diags_ana}
-            self.params = read_hdr(self.file['/header'])
-            self.grid = Grid(self.params)
-            if 'avg/start' in self.file: 
-                self.avg_ends = (self.file['avg/start'][()], self.file['avg/end'][()])
+        if isinstance(fname, str):
+            # When reading HDF5 files, just open the file
+            # When reading diagnostic output, read the whole thing
+            self.fname = fname
+            if ".h5" in fname or ".hdf5" in fname:
+                # Read analysis results
+                self.file = h5py.File(fname, "r")
+                self.ftype = "ana"
+                self.diag_fns = {**self.diag_fn_common, **self.diags_ana}
+                self.params = read_hdr(self.file['/header'])
+                self.grid = Grid(self.params)
+                if 'avg/start' in self.file: 
+                    self.avg_ends = (self.file['avg/start'][()], self.file['avg/end'][()])
+            else:
+                # Read diagnostic output.  Much more limited functionality here,
+                # mostly for applying diag_fns
+                self.file = read_log(fname)
+                self.diag_fns = {**self.diag_fn_common, **self.diags_hst}
+                self.ftype = "hst"
+                self.params = {}
         else:
-            # Read diagnostic output.  Much more limited functionality here,
-            # mostly for applying diag_fns
-            self.file = read_log(fname)
+            # Build an object around existing data dict, passed as "fname"
+            self.fname = ""
+            self.file = fname
             self.diag_fns = {**self.diag_fn_common, **self.diags_hst}
             self.ftype = "hst"
+            self.params = {}
             
 
     def __del__(self):
@@ -123,6 +133,7 @@ class AnaResults(object):
         else:
             try:
                 # The only independent variable in diagnostic output is t
+                print("Getting t ",key)
                 return self.get_dvar('t', key)
             except (IOError, OSError):
                 if self.ftype == "ana":
@@ -159,7 +170,9 @@ class AnaResults(object):
         if th_r is None and mesh == True and ivar in self.cache:
             return self.cache[ivar]
 
-        G = self.grid
+        if ivar not in ('t', 'time'):
+            # Don't cache grid for e.g. fluxes
+            G = self.grid
 
         # 2D space: get x,y from grid
         # This ensures rth is correct & potentially is faster
@@ -248,6 +261,8 @@ class AnaResults(object):
                 self.get_ivar('t')
                 # Apply ordered-time permutation on read and never after
                 ret_v = ret_v[self.t_perm]
+        elif self.ftype == "hst" and dvar in self.file:
+            ret_v = self.file[dvar]
         # Prefixes for a few common 1:1 math operations
         elif dvar[:5] == "sqrt_":
             ret_v = np.sqrt(self.get_dvar(ivar, dvar[5:]))

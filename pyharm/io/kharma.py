@@ -323,8 +323,8 @@ class KHARMAFile(DumpFile):
         fil.fid.close()
         del fil
 
-        # We keep 3 indices for file reads, but if we should lose one, do it
-        self.cache[var] = np.squeeze(out)
+        # ALWAYS keep 3 indices.  Better to keep than to squeeze and accidentally broadcast
+        self.cache[var] = out
         if ind is not None:
             return self.cache[var][ind]
         else:

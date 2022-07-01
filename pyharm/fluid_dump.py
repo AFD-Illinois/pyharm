@@ -86,15 +86,20 @@ class FluidDump:
         if type(key) in (list, tuple):
             slc = key
             # TODO handle further slicing after this is a 2D object?
-            relevant_0 = isinstance(slc[0], int) or isinstance(slc[0], np.int32) or isinstance(slc[0], np.int64) \
-                         or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)
-            relevant_1 = isinstance(slc[1], int) or isinstance(slc[1], np.int32) or isinstance(slc[1], np.int64) \
-                         or isinstance(slc[1].start, int) or isinstance(slc[1].stop, int)
-            relevant_2 = isinstance(slc[2], int) or isinstance(slc[2], np.int32) or isinstance(slc[2], np.int64) \
-                         or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
-            if not (relevant_0 or relevant_1 or relevant_2):
+            relevant = [False, False, False]
+            new_slc = list(slc)
+            for i in range(3):
+                if isinstance(slc[i], int) or isinstance(slc[i], np.int32) or isinstance(slc[i], np.int64):
+                    new_slc[i] = slice(slc[i], slc[i]+1)
+                else:
+                    new_slc[i] = slc[i]
+                relevant[i] = (isinstance(new_slc[i].start, int) or isinstance(new_slc[i].stop, int))
+
+            if not (relevant[0] or relevant[1] or relevant[2]):
                 return self
+
             # TODO somehow proper copy constructor
+            slc = tuple(new_slc)
             #print("FluidDump slice copy: ", self.cache, key)
             out = FluidDump(self.fname, add_grid=False, params=self.params)
             #out = copy.deepcopy(self) # In case this proves faster

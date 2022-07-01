@@ -44,9 +44,9 @@ def flatten_xz(dump, var, at=None, sum=False, half_cut=False):
             at = 0
         if isinstance(var, str):
             if half_cut:
-                return dump[:, :, at][var]
+                return np.squeeze(dump[:, :, at][var])
             else:
-                return np.append(dump[:, :, at][var], np.flip(dump[:, :, at + dump['n3']//2][var], 1), 1)
+                return np.append(np.squeeze(dump[:, :, at][var]), np.flip(np.squeeze(dump[:, :, at + dump['n3']//2][var]), 1), 1)
         else:
             if half_cut:
                 if len(var.shape) == 3:
@@ -70,7 +70,7 @@ def flatten_xy(dump, var, at=None, sum=False):
         if at is None:
             at = dump['n2']//2
         if isinstance(var, str):
-            return dump[:, at, :][var]
+            return np.squeeze(dump[:, at, :][var])
         else:
             return var[:, at, :]
 
@@ -95,7 +95,7 @@ def flatten_thphi(dump, var, at=5, sum=False):
         return var.sum(0)
     else:
         if isinstance(var, str):
-            return dump[at][var]
+            return np.squeeze(dump[at][var])
         else:
             return var[at]
 
@@ -335,7 +335,6 @@ def corr_length_phi(R, interpolate=True):
 
 ## Power Spectra ##
 
-
 def pspec(var, dt=5, window=0.33, half_overlap=False, bin="fib"):
     """Power spectrum of a 1D timeseries, with various windows/binning.
     Currently only supports equally spaced times dt.
@@ -392,7 +391,7 @@ def pspec(var, dt=5, window=0.33, half_overlap=False, bin="fib"):
     out /= nsamples
     out_freq = freqs
 
-    return out, out_freq
+    return out_freq, out
 
 
 def _fib_bin(data, freqs):

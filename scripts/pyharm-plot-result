@@ -28,10 +28,13 @@ def _get_t_slice(result, kwargs):
     # Returns a boolean along with the slice.
     # If true, indicates no slice was taken, i.e. caller should (split by window and) plot all time
     if kwargs['avg_min'] is not None:
-        # get_time_slice doesn't require this but we print it
-        if kwargs['avg_max'] is None:
-            kwargs['avg_max'] = result['t'][-1]
-        avg_slice = result.get_time_slice(kwargs['avg_min'], kwargs['avg_max'])
+        try:
+            # get_time_slice doesn't require this but we print it
+            if kwargs['avg_max'] is None:
+                kwargs['avg_max'] = result['t'][-1]
+            avg_slice = result.get_time_slice(kwargs['avg_min'], kwargs['avg_max'])
+        except KeyError:
+            return False, None
         return False, avg_slice
     else:
         return True, slice(None)
@@ -79,8 +82,13 @@ def initial_conditions(results, kwargs, overplot=False): # TODO radial_averages_
         ax[0].legend()
         _savefig(fig, "initial_conditions", kwargs)
 
-def plot_eh_fluxes(ax, result):
-    for a,var in enumerate(('mdot', 'phi_b', 'abs_ldot_per', 'eff')):
+def plot_eh_fluxes(ax, result, per=False):
+    if per:
+        tag = '_per'
+    else:
+        tag = ''
+    for a,var in enumerate(('mdot', 'phi_b'+tag, 'abs_ldot'+tag, 'eff'+tag)):
+        print(result['t'].shape, result['t/{}'.format(var)].shape)
         ax[a].plot(result['t'], result['t/{}'.format(var)], label=result.tag)
         ax[a].set_ylabel(pyharm.pretty(var), rotation=0, ha='right')
         ax[a].grid(True)
@@ -90,6 +98,8 @@ def plot_eh_phi_versions(ax, result):
         ax[a].plot(result['t'], result['t/{}'.format(var)], label=result.tag)
         ax[a].set_ylabel(pyharm.pretty(var), rotation=0, ha='right')
         ax[a].grid(True)
+    # Additionally plot
+    ax[0].plot(result['t'], np.abs(result['t/phi_b_upper'])+np.abs(result['t/phi_b_lower']), label=result.tag+" hemispheres")
 
 def eh_fluxes(results, kwargs):
     for result in results.values():
@@ -100,7 +110,26 @@ def eh_fluxes(results, kwargs):
         plt.subplots_adjust(wspace=0.4)
         _savefig(fig, "eh_fluxes_"+result.tag, kwargs)
 
+def eh_fluxes_per(results, kwargs):
+    for result in results.values():
+        print(result.fname)
+        # Event horizon fluxes
+        fig, _ = plt.subplots(4,1, figsize=(7,7))
+        axes = fig.get_axes()
+        plot_eh_fluxes(axes, result, per=True)
+        plt.subplots_adjust(wspace=0.4)
+        _savefig(fig, "eh_fluxes_per_"+result.tag, kwargs)
+
 def eh_phi_versions(results, kwargs):
+    for result in results.values():
+        # Event horizon fluxes
+        fig, _ = plt.subplots(3,1, figsize=(7,7))
+        axes = fig.get_axes()
+        plot_eh_phi_versions(axes, result)
+        plt.subplots_adjust(wspace=0.4)
+        _savefig(fig, "eh_phi_versions_"+result.tag, kwargs)
+
+def overplot_eh_phi_versions(results, kwargs):
     for result in results.values():
         # Event horizon fluxes
         fig, _ = plt.subplots(3,1, figsize=(7,7))
@@ -181,7 +210,41 @@ def _model_pretty(folder):
     else:
         return folder
 
-def plot_avg_vs_spin(results, ax, kwargs):
+def plot_val_vs_res(results, ax, kwargs, to_plot):
+    """Average of a scalar time-dependent flux vs resolution for any model combination"""
+    var = kwargs['varlist'][0]
+
+    model_res = {}
+    model_vals = {}
+    # Run through the files and suck up everything
+    for result in results.values():
+        # If this thing is even readable...
+        window, avg_slice = _get_t_slice(result, kwargs)
+        if window:
+            raise ValueError("Cannot compute an average without a range!")
+        if avg_slice is None:
+            print("Skipping {}".format(result.tag))
+            continue
+
+        model = " ".join(result.tag.split(" ")[:-1])
+        res = int(result.tag.split(" ")[-1].split("X")[0])
+        if model not in model_res:
+            model_res[model] = []
+            model_vals[model] = []
+        model_res[model].append(res)
+
+        if to_plot == 'avg':
+            val = np.mean(result['t/'+var][avg_slice])
+        elif to_plot == 'std':
+            val = np.std(result['t/'+var][avg_slice])
+        model_vals[model].append(val)
+    
+    # Then plot each model
+    for model in model_res.keys():
+        spins, var_vs_spin = zip(*sorted(zip(model_res[model], model_vals[model]), key=lambda x: x[0]))
+        ax.plot(spins, var_vs_spin, '.--', label=_model_pretty(model))
+
+def plot_val_vs_spin(results, ax, kwargs, to_plot):
     """Average of a scalar time-dependent flux vs spin for any model combination"""
     var = kwargs['varlist'][0]
 
@@ -200,7 +263,10 @@ def plot_avg_vs_spin(results, ax, kwargs):
         if window:
             raise ValueError("Cannot compute an average without a range!")
 
-        val = np.mean(result['t/'+var][avg_slice])
+        if to_plot == 'avg':
+            val = np.mean(result['t/'+var][avg_slice])
+        elif to_plot == 'std':
+            val = np.std(result['t/'+var][avg_slice])
         model_vals[model].append(val)
     
     # Then plot each model
@@ -208,16 +274,22 @@ def plot_avg_vs_spin(results, ax, kwargs):
         spins, var_vs_spin = zip(*sorted(zip(model_spins[model], model_vals[model]), key=lambda x: x[0]))
         ax.plot(spins, var_vs_spin, '.--', label=_model_pretty(model))
 
-def avg_vs_spin(results, kwargs):
+def _point_per_run(results, kwargs, to_plot, plot_vs):
     fig, _ = plt.subplots(1, 1, figsize=(7,7))
     axis = fig.get_axes()[0]
 
-    plot_avg_vs_spin(results, axis, kwargs)
+    if plot_vs == 'spin':
+        plot_val_vs_spin(results, axis, kwargs, to_plot=to_plot)
+    elif plot_vs == 'res':
+        plot_val_vs_res(results, axis, kwargs, to_plot=to_plot)
 
     axis.grid(True)
 
-    plt.xlim(-1,1)
-    plt.xlabel(r"Spin $a_*$")
+    if plot_vs == 'spin':
+        plt.xlim(-1,1)
+        plt.xlabel(r"Spin $a_*$")
+    elif plot_vs == 'res':
+        plt.xlabel(r"Radial resolution")
 
     if kwargs['ymin'] is not None:
         kwargs['ymin'] = float(kwargs['ymin'])
@@ -227,7 +299,22 @@ def avg_vs_spin(results, kwargs):
     plt.ylabel(pyharm.pretty(kwargs['varlist'][0]))
 
     plt.legend()
+    return fig
+
+# TODO add avg/std bars as needed
+def std_vs_spin(results, kwargs):
+    fig = _point_per_run(results, kwargs, 'std', 'spin')
+    _savefig(fig, "std_vs_spin_"+kwargs['varlist'][0], kwargs)
+def avg_vs_spin(results, kwargs):
+    fig = _point_per_run(results, kwargs, 'avg', 'spin')
     _savefig(fig, "avg_vs_spin_"+kwargs['varlist'][0], kwargs)
+def std_vs_res(results, kwargs):
+    fig = _point_per_run(results, kwargs, 'std', 'res')
+    _savefig(fig, "std_vs_res_"+kwargs['varlist'][0], kwargs)
+def avg_vs_res(results, kwargs):
+    fig = _point_per_run(results, kwargs, 'avg', 'res')
+    _savefig(fig, "avg_vs_res_"+kwargs['varlist'][0], kwargs)
+
 
 @click.command()
 @click.argument('to_plot_str', nargs=1)
@@ -243,6 +330,7 @@ def avg_vs_spin(results, kwargs):
 # 
 @click.option('--avg_min', default=None, help="Time-average minimum. Negative value counts backward from end of run")
 @click.option('--avg_max', default=None, help="Time-average maximum")
+@click.option('--by_window', default=False, help="Plot a point or line for each window of a series")
 def plot_results(to_plot_str, paths, **kwargs):
     """Plot a result or set of results in a standard form, usually the contents of one or more
     analyses done by pyharm-analysis.
@@ -259,7 +347,7 @@ def plot_results(to_plot_str, paths, **kwargs):
     results = {}
     for model in paths:
         files = []
-        for inter in ("/*/*/*/", "/*/*/", "/*/", "/"):
+        for inter in ("/", "/*/", "/*/*/", "/*/*/*/"):
             if len(files) == 0:
                 files = glob.glob(model+inter+kwargs['result_fname'])
 
@@ -268,6 +356,8 @@ def plot_results(to_plot_str, paths, **kwargs):
                 results[model] = pyharm.load_results(files[0], tag=model.replace("/a", " ").replace("/"," ").upper())
             except:
                 print("Error loading file {}".format(files[0]))
+
+    print("Results len", len(results))
 
     # Hack to get the list of functions in current file,
     # so we can call them based on runtime user-spec string

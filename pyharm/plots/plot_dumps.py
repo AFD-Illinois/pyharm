@@ -256,7 +256,7 @@ def plot_thphi(ax, dump, var, at_r=None, at_i=None, cmap='jet', vmin=None, vmax=
             log = True
             var = var.replace("symlog_","")
         vname = var
-        var = dump[at, :, :][var]
+        var = np.squeeze(dump[at, :, :][var])
     else:
         var = var[at, :, :]
 

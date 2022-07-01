@@ -342,7 +342,9 @@ class Grid:
 
     def dot(self, ucon, ucov):
         """Inner product along first index. Exists to make other code OpenCL-agnostic"""
-        return np.einsum("i...,i...", ucon, ucov)
+        ret = np.einsum("i...,i...", ucon, ucov)
+        print(ret.shape)
+        return ret
 
     def dt_light(self):
         """Returns the light crossing time of the smallest zone in the grid"""
@@ -538,10 +540,15 @@ class Grid:
                 if cache in self.__dict__:
                     # Slice over all locations in 1st index
                     out.__dict__[cache] = self.__dict__[cache][(slice(None),) + out.slice]
+                    if len(out.__dict__[cache].shape) < 4:
+                        out.__dict__[cache] = out.__dict__[cache][Ellipsis, np.newaxis]
             for cache in ('gcon', 'gcov', 'conn'):
                 if cache in self.__dict__:
                     # Slice over all loc + 2 indices in gcon/gcov, 3 indices in conn
                     out.__dict__[cache] = self.__dict__[cache][(slice(None), slice(None), slice(None)) + out.slice]
+                    if len(out.__dict__[cache].shape) < 6:
+                        out.__dict__[cache] = out.__dict__[cache][Ellipsis, np.newaxis]
+
             return out
 
         elif key in self.cache:

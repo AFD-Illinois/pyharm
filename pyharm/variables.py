@@ -69,7 +69,7 @@ fns_dict = {# 4-vectors
 def lorentz_calc(dump, loc=Loci.CENT):
     """Find relativistic gamma-factor w.r.t. normal observer"""
     if 'ucon' in dump.cache:
-        return dump['ucon'][0] * dump['lapse'][loc.value]
+        return dump['ucon'][0] * dump['lapse']
     else:
         G = dump.grid
         return np.sqrt(1 + (G.gcov[loc.value, 1, 1] * dump['U1'] ** 2 +
@@ -83,9 +83,9 @@ def ucon_calc(dump, loc=Loci.CENT):
     """Find contravariant fluid four-velocity"""
     G = dump.grid
     ucon = np.zeros((4, *dump['U1'].shape))
-    ucon[0] = dump['Gamma'] / G.lapse[loc.value]
+    ucon[0] = dump['Gamma'] / dump['lapse']
     for mu in range(1, 4):
-        ucon[mu] = dump['uvec'][mu-1] - dump['Gamma'] * G.lapse[loc.value] * G.gcon[loc.value, 0, mu]
+        ucon[mu] = dump['uvec'][mu-1] - dump['Gamma'] * dump['lapse'] * G.gcon[loc.value, 0, mu]
 
     return ucon
 

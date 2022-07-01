@@ -148,7 +148,7 @@ class CoordinateSystem(object):
             gcov_t = gcov.transpose((2, 3, 4, 0, 1))
             return la.inv(gcov_t).transpose((3, 4, 0, 1, 2))
         else:
-            raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2".format(gcov.shape))
+            raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2 or 4x4xN1xN2xN3".format(gcov.shape))
 
     def gdet(self, gcov):
         r"""Return the negative root determinant of the metric :math:`\sqrt{-g}`, given the covariant form."""

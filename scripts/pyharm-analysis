@@ -141,6 +141,10 @@ def analysis(ana_types, paths, **kwargs):
         else:
             kwargs['t_avg_end'] = tend
 
+        # Set filename from analysis if doing one
+        if (kwargs['filename'] == 'eht_out.h5') and not (',' in kwargs['ana_types']):
+            kwargs['filename'] = kwargs['ana_types']+"_out.h5"
+
         if do_out():
             # Initialize the file, creating parent dir if not present
             parent_path = os.getcwd().replace(base_path, out_path)
