@@ -7,6 +7,7 @@ from ..ana_results import AnaResults
 from .pretty import pretty
 
 def plot_hst(ax, diag, var, tline=None, xticklabels=None, xlabel=None, **kwargs):
+    """Plot a scalar vs t, optionally marking with a red line representing current time"""
 
     ax.plot(*diag.get_result('t', var), label=pretty(var), **kwargs)
 

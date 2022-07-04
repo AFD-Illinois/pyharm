@@ -6,7 +6,7 @@ import pandas
 import h5py
 
 from .. import parameters
-from ..util import slice_to_index
+from ..util import slice_to_index, i_of
 from ..defs import Loci
 from ..grid import Grid
 from .interface import DumpFile
@@ -24,13 +24,34 @@ def read_log(fname):
     for name in header:
         out[name] = np.array(tab[name])
 
-    # Files can contain multiple runs. Find the most recent zero time
     if not 'time' in out:
         print("Not loading KHARMA log file: header not present!")
         return None
+    
+    # Files can contain multiple runs and restarts
+    # First, start at the most recent zero (argmin returns all in order)
     start = len(out['time']) - np.argmin(out['time'][::-1]) - 1
     for name in header:
         out[name] = out[name][start:]
+
+    # Then run forward, look for jumps back, and take the more recent run
+    # The indices will all shift, so repeat from zero as necessary
+    caught_up = False
+    while not caught_up:
+        t_last = -1
+        caught_up = True
+        for i,t in enumerate(out['time']):
+            # This heuristic asks "did we jump back, and can we more or less refill the gap?"
+            if t < t_last and i_of(out['time'][i:], t_last) > i - i_of(out['time'], t) - 100:
+                # i_of returns only first occurrence
+                i_start = i_of(out['time'], t)
+                # i_of returns the index *before* current time
+                i_end = i
+                for name in header:
+                    out[name] = np.append(out[name][:i_start], out[name][i_end:])
+                caught_up = False
+                break
+            t_last = t
 
     return out
 

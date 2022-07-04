@@ -133,7 +133,7 @@ class AnaResults(object):
         else:
             try:
                 # The only independent variable in diagnostic output is t
-                print("Getting t ",key)
+                #print("Getting t ",key)
                 return self.get_dvar('t', key)
             except (IOError, OSError):
                 if self.ftype == "ana":

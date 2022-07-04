@@ -40,7 +40,8 @@ def _get_t_slice(result, kwargs):
         return True, slice(None)
 
 def _get_r_slice(result, kwargs, default):
-    # Plotting only the necessary radial range makes auto-scaling of the y-axis work
+    """Get a slice of radial zones matching the plot window.
+    Plotting only the necessary radial range makes auto-scaling of the y-axis work"""
     if kwargs['xmax'] is None:
         kwargs['xmax'] == default
     else:
@@ -88,7 +89,6 @@ def plot_eh_fluxes(ax, result, per=False):
     else:
         tag = ''
     for a,var in enumerate(('mdot', 'phi_b'+tag, 'abs_ldot'+tag, 'eff'+tag)):
-        print(result['t'].shape, result['t/{}'.format(var)].shape)
         ax[a].plot(result['t'], result['t/{}'.format(var)], label=result.tag)
         ax[a].set_ylabel(pyharm.pretty(var), rotation=0, ha='right')
         ax[a].grid(True)
@@ -253,7 +253,7 @@ def plot_val_vs_spin(results, ax, kwargs, to_plot):
     # Run through the files and suck up everything
     for result in results.values():
         model = " ".join(result.tag.split(" ")[:-1])
-        spin = float(result.tag.split(" ")[-1])
+        spin = float(result.tag.split(" ")[-1].lstrip("A"))
         if model not in model_spins:
             model_spins[model] = []
             model_vals[model] = []
@@ -319,7 +319,7 @@ def avg_vs_res(results, kwargs):
 @click.command()
 @click.argument('to_plot_str', nargs=1)
 @click.argument('paths', nargs=-1, type=click.Path(exists=True))
-@click.option('-r', '--result_fname', default="eht_out.h5", help="Filename (not full path) of each results file")
+@click.option('-f', '--result_fname', default="eht_out.h5", help="Filename (not full path) of each results file")
 @click.option('-v', '--varlist', default=None, help="Comma-separated list of variables to use")
 @click.option('--tag', default="", help="String to add to output plot names")
 # Bounds
