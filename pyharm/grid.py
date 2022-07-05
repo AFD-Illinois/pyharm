@@ -341,10 +341,8 @@ class Grid:
         return np.einsum("ij...,j...->i...", self.gcon[loc.value], vcov)
 
     def dot(self, ucon, ucov):
-        """Inner product along first index. Exists to make other code OpenCL-agnostic"""
-        ret = np.einsum("i...,i...", ucon, ucov)
-        print(ret.shape)
-        return ret
+        """Inner product along first index."""
+        return np.einsum("i...,i...", ucon, ucov)
 
     def dt_light(self):
         """Returns the light crossing time of the smallest zone in the grid"""

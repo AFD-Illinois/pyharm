@@ -3,6 +3,7 @@
 import os
 import numpy as np
 import h5py
+import glob
 
 from .grid import Grid
 from .util import i_of
@@ -11,6 +12,45 @@ from .variables import fns_dict
 # Specifically for reading the header as copied/output to result files
 from .io.iharm3d_header import read_hdr
 from .io import read_log
+
+def load_results(fname, **kwargs):
+    """Wrapper to read diagnostic output or results of reductions
+    """
+    return AnaResults(fname, **kwargs)
+
+def load_result(fname, **kwargs):
+    """Wrapper to read diagnostic output or results of reductions
+    """
+    return AnaResults(fname, **kwargs)
+
+def load_results_glob(paths, fname):
+    """Load results from a path/glob/list of paths/globs,
+    add appropriate tags, and return as a dictionary.
+    """
+    if not (isinstance(paths, list) or isinstance(paths, tuple)):
+        paths = (paths,)
+
+    # The shell does this for us, but within python...
+    models = []
+    for path in paths:
+        models.extend(glob.glob(path))
+
+    results = {}
+    for model in models:
+        files = []
+        for inter in ("/", "/*/", "/*/*/", "/*/*/*/"):
+            if len(files) == 0:
+                files = glob.glob(model+inter+fname)
+
+        if len(files) > 0:
+            try:
+                results[model] = AnaResults(files[0], tag=model.replace("/a", " ").replace("/"," ").strip().upper())
+            except:
+                print("Error loading file {}".format(files[0]))
+    if len(results) == 0:
+        raise IOError("No files found at paths: ".format(models))
+    else:
+        return results
 
 def smoothed(a, window_sz=101):
     """A potentially reasonably fast smoothing operation.

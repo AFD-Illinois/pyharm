@@ -82,6 +82,8 @@ def pretty(var, segment=False):
     # Strip any flags that don't result in a different string
     if "_post" in var:
         return pretty(var.replace("_post",""), segment=segment)
+    if "_disk" in var:
+        return pretty(var.replace("_disk",""), segment=segment) + " (disk-average)"
 
     # Break down the name and translate bits we know to Latex;
     # keeps anything we don't understand as-is, no formatting

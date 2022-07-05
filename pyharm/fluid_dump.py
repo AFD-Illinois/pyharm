@@ -89,11 +89,11 @@ class FluidDump:
             relevant = [False, False, False]
             new_slc = list(slc)
             for i in range(3):
-                if isinstance(slc[i], int) or isinstance(slc[i], np.int32) or isinstance(slc[i], np.int64):
-                    new_slc[i] = slice(slc[i], slc[i]+1)
-                else:
+                if isinstance(slc[i], slice):
                     new_slc[i] = slc[i]
-                relevant[i] = (isinstance(new_slc[i].start, int) or isinstance(new_slc[i].stop, int))
+                else:
+                    new_slc[i] = slice(slc[i], slc[i]+1) # For gauging relevance later
+                relevant[i] = ((new_slc[i].start is not None) or (new_slc[i].stop is not None))
 
             if not (relevant[0] or relevant[1] or relevant[2]):
                 return self
@@ -104,6 +104,7 @@ class FluidDump:
             out = FluidDump(self.fname, add_grid=False, params=self.params)
             #out = copy.deepcopy(self) # In case this proves faster
             for c in self.cache:
+                print("Slicing {} to shape {}".format(c, slc))
                 out.cache[c] = self.cache[c][(Ellipsis,) + slc]
             out.grid = self.grid[slc]
             out.slice = slc

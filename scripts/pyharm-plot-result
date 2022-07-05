@@ -5,12 +5,31 @@ import sys
 import glob
 import click
 import inspect
+import textwrap
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 import pyharm
 from pyharm.defs import Loci
+
+# This extends the help message to print valid plots
+class ExtensibleCmd(click.Command):
+    def format_help(self, ctx, formatter):
+        click.Command.format_help(self, ctx, formatter)
+
+        figure_list = inspect.getmembers(pyharm.ana.analyses, \
+                predicate=lambda f: inspect.isfunction(f) and f.__module__ == pyharm.ana.analyses.__name__)
+
+        formatter.write("\nValid analyses:\n")
+        for fnname, fn in figure_list:
+            if fnname[0] != "_":
+                formatter.write("  "+fnname+":\n")
+                if pyharm.ana.analyses.__dict__[fnname].__doc__ is not None:
+                    # Take out all whitespace from the docstring
+                    docstring = textwrap.shorten(pyharm.ana.analyses.__dict__[fnname].__doc__, 1e6).replace("\n"," ")
+                    # Reflow and indent
+                    formatter.write(textwrap.indent(textwrap.fill(docstring), "    ") + "\n\n")
 
 def _savefig(fig, tag, kwargs):
     # Any other closing/format stuff. PDF format, etc, etc
@@ -156,9 +175,11 @@ def plot_radial_averages(ax, result, kwargs, default_r=50):
         if window:
             for i in range(1,6):
                 slc = result.get_time_slice(i*5000, (i+1)*5000)
-                ax[a].plot(result['r'][:ir], np.mean(result['rt/{}_disk'.format(var)][slc, :ir], axis=0), label=r"{}-{} $\frac{{r_g}}{{c^2}}$".format(i*5000, (i+1)*5000))
+                ax[a].plot(result['r'][:ir], np.mean(result['rt/{}_disk'.format(var)][slc, :ir], axis=0),
+                            label=r"{}-{} $\frac{{r_g}}{{c^2}}$".format(i*5000, (i+1)*5000))
         else:
-            ax[a].plot(result['r'][:ir], np.mean(result['rt/{}_disk'.format(var)][avg_slice, :ir], axis=0), label=r"{}-{} $\frac{{r_g}}{{c^2}}$".format(int(kwargs['avg_min']), int(kwargs['avg_max'])))
+            ax[a].plot(result['r'][:ir], np.mean(result['rt/{}_disk'.format(var)][avg_slice, :ir], axis=0),
+                        label=r"{}-{} $\frac{{r_g}}{{c^2}}$".format(int(kwargs['avg_min']), int(kwargs['avg_max'])))
         ax[a].set_ylabel(pyharm.pretty(var))
 
     ax[0].legend()
@@ -252,6 +273,7 @@ def plot_val_vs_spin(results, ax, kwargs, to_plot):
     model_vals = {}
     # Run through the files and suck up everything
     for result in results.values():
+        print("Plotting result {}".format(result.tag))
         model = " ".join(result.tag.split(" ")[:-1])
         spin = float(result.tag.split(" ")[-1].lstrip("A"))
         if model not in model_spins:
@@ -344,20 +366,9 @@ def plot_results(to_plot_str, paths, **kwargs):
         kwargs['varlist'] = kwargs['varlist'].split(",")
 
     # Always load results
-    results = {}
-    for model in paths:
-        files = []
-        for inter in ("/", "/*/", "/*/*/", "/*/*/*/"):
-            if len(files) == 0:
-                files = glob.glob(model+inter+kwargs['result_fname'])
+    results = pyharm.load_results_glob(paths, kwargs['result_fname'])
 
-        if len(files) > 0:
-            try:
-                results[model] = pyharm.load_results(files[0], tag=model.replace("/a", " ").replace("/"," ").upper())
-            except:
-                print("Error loading file {}".format(files[0]))
-
-    print("Results len", len(results))
+    print("Read {} results".format(len(results)))
 
     # Hack to get the list of functions in current file,
     # so we can call them based on runtime user-spec string

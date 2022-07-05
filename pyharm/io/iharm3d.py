@@ -176,4 +176,4 @@ class Iharm3DFile(DumpFile):
         if astype is not None:
             arr = arr.astype(astype)
         
-        return np.squeeze(arr)
+        return arr

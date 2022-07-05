@@ -33,7 +33,7 @@ except ImportError:
     def do_out():
         return True
 
-# This extends the help message to print valid movies
+# This extends the help message to print valid analyses
 class ExtensibleCmd(click.Command):
     def format_help(self, ctx, formatter):
         click.Command.format_help(self, ctx, formatter)

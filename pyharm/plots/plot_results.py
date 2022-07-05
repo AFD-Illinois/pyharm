@@ -24,3 +24,5 @@ def plot_hst(ax, diag, var, tline=None, xticklabels=None, xlabel=None, **kwargs)
         ax.set_xticklabels(xticklabels)
     if xlabel is not None:
         ax.set_xlabel(xlabel)
+
+
