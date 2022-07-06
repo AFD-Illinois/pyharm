@@ -65,6 +65,7 @@ pretty_dict = {'rho': r"\rho",
             'ldot': r"\frac{\dot{L}}{\langle \dot{M} \rangle}",
             'ldot_per': r"\frac{\dot{L}}{\dot{M}}",
             'eff': r"\frac{\left| \dot{E} - \dot{M} \right|}{\langle \dot{M} \rangle}",
+            'spinup': r"\frac{\dot{L} - 2 a \dot{E}}{\langle \dot{M} \rangle}",
             # Independent variables
             't': r"t \; \left( \frac{G M}{c^3} \right)",
             'x': r"x \; \left( \frac{G M}{c^2} \right)",

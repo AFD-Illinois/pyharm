@@ -97,6 +97,7 @@ class AnaResults(object):
                     'edot': lambda diag: diag['Edot'] / diag['smooth_mdot'],
                     'ldot_per': lambda diag: diag['Ldot'] / diag['mdot'],
                     'ldot': lambda diag: diag['Ldot'] / diag['smooth_mdot'],
+                    'spinup': lambda diag: -(diag['Ldot'] + 2*diag.params['a']*diag['Edot']) / diag['smooth_mdot'],
                     # Post-processing functions for fluxes
                     'eff': lambda diag: np.abs(diag['Edot'] - diag['mdot']) / diag['smooth_mdot'],
                     'eff_per': lambda diag: np.abs(diag['Edot'] - diag['mdot']) / diag['mdot'],

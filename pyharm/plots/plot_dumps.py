@@ -329,14 +329,11 @@ def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=Fa
 
 def overlay_field(ax, dump, **kwargs):
         overlay_flowlines(ax, dump, 'B1', 'B2', **kwargs)
-        #overlay_flowlines(ax, dump, 'B2', 'B1', **kwargs)
 
 def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False, half_cut=False, reverse=False, **kwargs):
     """Overlay the "flow lines" of a pair of variables in X1 and X2 directions.  Sums assuming no divergence to obtain a
     potential, then plots contours of the potential so as to total 'nlines' total contours.
     """
-    N1 = dump['n1']
-    N2 = dump['n2']
 
     if native:
         half_cut = True
@@ -348,6 +345,8 @@ def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False
     if native:
         varx1 = varx1.T
         varx2 = -varx2.T
+
+    N1, N2 = varx1.shape[:2]
 
     AJ_phi = np.zeros([N1, 2*N2])
     for j in range(N2):
