@@ -110,7 +110,7 @@ class Iharm3DFile(DumpFile):
 
             # Add variables which change per-dump, recorded outside header
             for key in ['t', 'dt', 'n_step', 'n_dump', 'is_full_dump', 'dump_cadence', 'full_dump_cadence']:
-                if key in fil:
+                if key in fil and not isinstance(fil[key], h5py.Group):
                     params[key] = fil[key][()]
 
             # Grab the git revision if it's available, as this isn't recorded to/read from the header either
