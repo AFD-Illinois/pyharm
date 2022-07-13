@@ -15,7 +15,7 @@ matplotlib.use('Agg')
 
 import pyharm
 from pyharm.plots.frame import frame
-from pyharm.util import calc_nthreads
+from pyharm.parallel import calc_nthreads
 
 # Use mpi4py if available, or multiprocessing
 # TODO if MPI world size 1, fallback

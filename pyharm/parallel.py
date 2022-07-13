@@ -34,6 +34,12 @@ __license__ = """
 
 import multiprocessing
 from tqdm.auto import tqdm
+try:
+    import psutil
+    using_psutil = True
+except ModuleNotFoundError as e:
+    print("Not using psutil: ", e)
+    using_psutil = False
 
 # Hack for passing lambdas to a parallel function:
 # Initialize with a dangling function pointer and fill it at call time
@@ -88,6 +94,25 @@ def iter_parallel(function, merge_function, input_list, output, nprocs=None, ini
     else:
         pool.close()
         pool.join()
+
+def calc_nthreads(hdr, n_mkl=8, pad=0.25):
+    """Calculate a reasonable number of threads for the problem size based on available RAM.
+    Necessarily varying degrees of unreliable in predicting true usage -- hence padding parameter for safety.
+    Note pad is a proportion, so LOWER pad values are safer.
+    """
+    # Limit threads for 192^3+ problem due to memory
+    if using_psutil:
+        # Roughly compute memory and leave some generous padding for multiple copies and Python games
+        # (N1*N2*N3*8)*(NPRIM + 4*4 + 6) = size of "dump," (N1*N2*N3*8)*(2*4*4 + 6) = size of "geom"
+        # TODO get a better model for this!!
+        ncopies = hdr['n_prim'] + 4 * 4 + 6
+        nproc = int(pad * psutil.virtual_memory().total / (hdr['n1'] * hdr['n2'] * hdr['n3'] * 8 * ncopies))
+        if nproc < 1:
+            nproc = 1
+    else:
+        print("psutil not available: Using 4 processes as a safe default")
+
+    return nproc
 
 def set_mkl_threads(n_mkl):
     """Try to set the MKL numpy backend to use ``n_mkl`` threads."""

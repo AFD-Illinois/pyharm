@@ -113,10 +113,8 @@ def th_profiles(dump, out, vars=('inv_beta', 'sigma'), **kwargs):
 def omega_bz(dump, out, **kwargs):
     """Field rotation rate, for comparison against Blandford-Znajek prediction
     """
-    # rTh = _get(kwargs, 'rTh')
-    # at_i = i_of(dump['r1d'], rTh)
     at_i = _get(kwargs, 'iEH') # At event horizon
-    # Always do the 
+    # Average the next 5 zones out from zone 5
     out['htht/omega'] = theta_profile(dump, 'F_0_1', at_i, 5) / theta_profile(dump, 'F_1_3', at_i, 5)
 
     if _get(kwargs, 'do_tavgs'):

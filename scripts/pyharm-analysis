@@ -12,7 +12,7 @@ import textwrap
 
 import pyharm
 from pyharm import io
-from pyharm.util import calc_nthreads
+from pyharm.parallel import calc_nthreads
 from pyharm.ana.analysis import *
 import pyharm.io.iharm3d_header as hdr
 

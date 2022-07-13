@@ -103,7 +103,7 @@ def radial_profile(ax, result, var, arange=-1000, window=(1,50), disk=True, plot
         ax.set_xlim(2.0, None)
 
     ax.set_xlabel(r"Radius [$r_g$]")
-    ax.set_ylabel(pyharm.pretty(var), rotation='horizontal')
+    ax.set_ylabel(pyharm.pretty(var), rotation=0, ha='right')
     ax.legend()
     ax.grid(True)
 
@@ -179,11 +179,11 @@ def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-100
         axis.set_ylim(window[2:])
 
     if to_plot in ('avg', 'avg_std'):
-        axis.set_ylabel(r"$\langle" + pyharm.pretty(var, segment=True) + r"\rangle$", rotation='horizontal')
+        axis.set_ylabel(r"$\langle" + pyharm.pretty(var, segment=True) + r"\rangle$", rotation=0, ha='right')
     elif to_plot == 'std':
-        axis.set_ylabel(r"$\sigma \left(" + pyharm.pretty(var, segment=True) + r"\right)$", rotation='horizontal')
+        axis.set_ylabel(r"$\sigma \left(" + pyharm.pretty(var, segment=True) + r"\right)$", rotation=0, ha='right')
     elif to_plot == 'std_rel':
-        axis.set_ylabel(r"$\frac{\sigma \left(" + pyharm.pretty(var, segment=True) + r"\right)}{\langle" + pyharm.pretty(var, segment=True) + r"\rangle}$", rotation='horizontal')
+        axis.set_ylabel(r"$\frac{\sigma \left(" + pyharm.pretty(var, segment=True) + r"\right)}{\langle" + pyharm.pretty(var, segment=True) + r"\rangle}$", rotation=0, ha='right')
 
     axis.legend()
 
