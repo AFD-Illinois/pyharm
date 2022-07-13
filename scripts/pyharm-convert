@@ -4,13 +4,16 @@ import os
 import psutil
 import click
 import multiprocessing
+from functools import partial
 
 import numpy as np
 
 import pyharm
+from pyharm.parallel import map_parallel
 
-def convert_file(fname, outfname, double=False, restart=False):
+def convert_file(name_pair, double=False, restart=False):
     """Read a single file of some type, and write it as Illinois HDF5 format"""
+    fname, outfname = name_pair
     dump = pyharm.load_dump(fname, grid_cache=False)
     if restart:
         # Default in double
@@ -50,20 +53,16 @@ def convert(files, path, outfile, double, restart, nthreads, debug):
 
     if debug:
         for file, outfile in zip(files, outfiles):
-            convert_file(file, outfile, double)
+            convert_file((file, outfile), double, restart)
     else:
         if nthreads is None:
             nthreads = min(psutil.cpu_count(), len(files))
 
-        double = (double,)*len(files)
-        restart = (restart,)*len(files)
+        convert_func = partial(convert_file, double=double, restart=restart)
 
         print("Converting {} files with {} threads".format(len(files), nthreads))
-        with multiprocessing.Pool(nthreads) as pool:
-            pool.starmap_async(convert_file, zip(files, outfiles, double, restart)).get(720000)
-        print("Converted all files. It is normal to see many ERROR lines above,",
-               "but check that nothing important failed!")
-
+        map_parallel(convert_file, zip(files, outfiles))
+        print("Converted all files.")
 
 if __name__ == "__main__":
     convert()

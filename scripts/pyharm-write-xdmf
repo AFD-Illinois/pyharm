@@ -20,7 +20,8 @@ import click
 import pyharm
 from pyharm.util import i_of
 
-def write_xml_file(dump, rout_vis):
+def write_xml_file(dumpname, rout_vis):
+    dump = pyharm.load_dump(dumpname)
 
     # Dimensions
     global N1TOT, N2TOT, N3TOT, iX1_max, NDIM
@@ -202,10 +203,16 @@ def tensor_component(fp, name, sourcename, precision, mu, nu):
 @click.command()
 @click.argument('dumpnames', nargs=-1)
 @click.option('-rout', '--rout_vis', default=100., help="Default outer radius when visualizing")
+@click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
 def gen_xdmf(dumpnames, rout_vis):
-    for dumpname in dumpnames:
-        dump = pyharm.load_dump(dumpname)
-        write_xml_file(dump, rout_vis)
+    if debug:
+        for dumpname in dumpnames:
+            write_xml_file(pyharm.load_dump(dumpname), rout_vis)
+    else:
+        map_fn = partial(write_xml_file, rout_vis=rout_vis)
+        print("Writing {} XDMF description files with {} threads".format(len(files), nthreads))
+        map_parallel(write_xml_file, dumpnames)
+        print("Generated all files.")
 
 
 if __name__ == "__main__":

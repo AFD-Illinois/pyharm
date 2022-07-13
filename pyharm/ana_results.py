@@ -23,7 +23,7 @@ def load_result(fname, **kwargs):
     """
     return AnaResults(fname, **kwargs)
 
-def load_results_glob(paths, fname):
+def load_results_glob(paths, fname, tag_fn=None):
     """Load results from a path/glob/list of paths/globs,
     add appropriate tags, and return as a dictionary.
     """
@@ -44,8 +44,12 @@ def load_results_glob(paths, fname):
 
         if len(files) > 0:
             try:
-                results[model] = AnaResults(files[0], tag=model.replace("/a", " ").replace("/"," ").strip().upper())
+                if tag_fn is None:
+                    results[model] = AnaResults(files[0], tag=model.replace("/a", " ").replace("/"," ").strip().upper())
+                else:
+                    results[model] = AnaResults(files[0], tag=tag_fn(model))
             except:
+                # This is a bulk operation. Inform of problems but do not raise an error
                 print("Error loading file {}".format(files[0]))
     if len(results) == 0:
         raise IOError("No files found at paths: ".format(models))
@@ -93,6 +97,10 @@ class AnaResults(object):
                     'phi_b': lambda diag: diag['Phi_b'] / np.sqrt(diag['smooth_mdot']),
                     'phi_b_upper': lambda diag: diag['Phi_b_upper'] / np.sqrt(diag['smooth_mdot']),
                     'phi_b_lower': lambda diag: diag['Phi_b_lower'] / np.sqrt(diag['smooth_mdot']),
+                    'phi_b_per_gauss': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot']),
+                    'phi_b_gauss': lambda diag: diag['Phi_b'] / np.sqrt(diag['smooth_mdot']),
+                    'phi_b_upper_gauss': lambda diag: diag['Phi_b_upper'] / np.sqrt(diag['smooth_mdot']),
+                    'phi_b_lower_gauss': lambda diag: diag['Phi_b_lower'] / np.sqrt(diag['smooth_mdot']),
                     'edot_per': lambda diag: diag['Edot'] / diag['mdot'],
                     'edot': lambda diag: diag['Edot'] / diag['smooth_mdot'],
                     'ldot_per': lambda diag: diag['Ldot'] / diag['mdot'],
@@ -108,7 +116,9 @@ class AnaResults(object):
                  'Edot': lambda diag: diag['Edot_EH'],
                  'Ldot': lambda diag: diag['Ldot_EH']}
     # How to load from analysis results
-    diags_ana = {'mdot': lambda diag: np.abs(diag['Mdot'])}
+    diags_ana = {#'mdot': lambda diag: np.abs(diag['Mdot'])
+                 'mdot': lambda diag: np.abs(diag.get_dvar('rt','FM_disk')[:, i_of(diag['r'], 5)]) # Get mass flux at r=5 to avoid floor effects
+                }
 
     def __init__(self, fname, tag=""):
         self.tag = tag
@@ -256,16 +266,21 @@ class AnaResults(object):
                 mesh = False
 
             if ivar != '':
-                # 1D space: use spherical coordinates directly
+                # Want a 1D space: use the spherical coordinates directly
+                # TODO this without meshgrid -> indexing
                 native_coords = G.coord_all(mesh=mesh)
+                # Always index into flattened array, unless we need phi
+                if len(native_coords.shape) > 3 and ivar != 'phi':
+                    native_coords = native_coords[:,:,:,0]
+
                 if ivar == 'r':
-                    ret_i.append(G.coords.r(native_coords[:, :, 0, 0]))
+                    ret_i.append(G.coords.r(native_coords[:, :, 0]))
                 elif ivar in ('th', 'hth'):
                     if th_r is not None:
-                        r1d = G.coords.r(native_coords[:, :, 0, 0])
-                        th = G.coords.th(native_coords[:, i_of(r1d, th_r), :, 0])
+                        r1d = G.coords.r(native_coords[:, :, 0])
+                        th = G.coords.th(native_coords[:, i_of(r1d, th_r), :])
                     else:
-                        th = G.coords.th(native_coords[:, -1, :, 0])
+                        th = G.coords.th(native_coords[:, -1, :])
                     if ivar == 'hth':
                         th = th[:len(th)//2]
                     ret_i.append(th)
@@ -317,6 +332,8 @@ class AnaResults(object):
             ret_v = np.log(self.get_dvar(ivar, dvar[3:]))
         elif dvar[:4] == "inv_":
             ret_v = 1/self.get_dvar(ivar, dvar[4:])
+        elif dvar[:4] == "neg_":
+            ret_v = -self.get_dvar(ivar, dvar[4:])
         elif dvar[:6] == "smooth": # smooth_ or e.g. smooth101_
             dvarl = dvar.split('_')
             op = dvarl[0]

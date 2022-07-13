@@ -71,7 +71,9 @@ def write_hdr(params, outf):
         try:
             _write_value(outf, params[key], 'header/'+key)
         except TypeError:
-            print("Not writing parameter {}".format(key))
+            # This particular key is expected to be missing, keep quiet
+            if key != 'phdf_aux':
+                print("Not writing parameter {}".format(key), file=sys.stderr)
 
 def read_hdr(grp):
     """Read an iharm3d/Illinois HDF header.

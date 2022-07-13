@@ -104,7 +104,6 @@ class FluidDump:
             out = FluidDump(self.fname, add_grid=False, params=self.params)
             #out = copy.deepcopy(self) # In case this proves faster
             for c in self.cache:
-                print("Slicing {} to shape {}".format(c, slc))
                 out.cache[c] = self.cache[c][(Ellipsis,) + slc]
             out.grid = self.grid[slc]
             out.slice = slc
@@ -189,6 +188,10 @@ class FluidDump:
             return self[key[0]+"cov_base"][["t", "r", "th", "phi"].index(key.split("_")[-1])]
         elif key[-2:] == "^t" or key[-2:] == "^r" or key[-3:] == "^th" or key[-4:] == "^phi":
             return self[key[0]+"con_base"][["t", "r", "th", "phi"].index(key.split("^")[-1])]
+        elif key[-2:] == "_x" or key[-2:] == "_y" or key[-2:] == "_z":
+            return self[key[0]+"cov_cart"][["t", "x", "y", "z"].index(key.split("_")[-1])]
+        elif key[-2:] == "^x" or key[-2:] == "^y" or key[-2:] == "^z":
+            return self[key[0]+"con_cart"][["t", "x", "y", "z"].index(key.split("^")[-1])]
 
         # Return an array of the correct size filled with just zero or one
         # Don't cache these

@@ -47,6 +47,7 @@ class CoordinateSystem(object):
         """
         return np.array([self.cart_x(x), self.cart_y(x), self.cart_z(x)])
 
+    # Coordinates are of course system specific
     def r(self, x):
         raise NotImplementedError
 
@@ -206,13 +207,20 @@ class CoordinateSystem(object):
                         conn[lam, nu, mu] += gcon[lam, kap] * tmp[kap, nu, mu]
         return conn
 
+    # Transformation matrices are the other system-specific piece
     def dxdX(self, x):
+        raise NotImplementedError
+    
+    def dxdX_cart(self, x):
         raise NotImplementedError
 
     # Just take an inverse over first (!) 2 indices
     def dXdx(self, x):
         return np.einsum("...ij->ij...", la.inv(np.einsum("ij...->...ij", self.dxdX(x))))
 
+    # Just take an inverse over first (!) 2 indices
+    def dXdx_cart(self, x):
+        return np.einsum("...ij->ij...", la.inv(np.einsum("ij...->...ij", self.dxdX_cart(x))))
 
 class Minkowski(CoordinateSystem):
     @classmethod
@@ -321,7 +329,7 @@ class KS(CoordinateSystem):
         dxdX[3, 3] = 1
         return dxdX
 
-    def dxdX_cartesian(self, x):
+    def dxdX_cart(self, x):
         dxdX = np.zeros([4, 4, *x.shape[1:]])
         r, th, phi = self.bl_coord(x)
         dxdX[0, 0] = 1

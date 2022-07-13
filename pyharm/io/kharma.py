@@ -69,7 +69,9 @@ class KHARMAFile(DumpFile):
                        "KEL_ROWAN":    "Kel_Rowan",
                        "KEL_SHARMA":   "Kel_Sharma",
                        "KEL_CONSTANT": "Kel_Constant"}
-    prim_names_ordered = ['rho', 'u', 'uvec', 'B', 'q', 'dP', 'Ktot', 'Kel_Werner', 'Kel_Rowan', 'Kel_Sharma', 'Kel_Constant']
+    # When (old) KHARMA has ordered "prims" arrays they are only these variables.
+    prim_names_ordered = ['rho', 'u', 'u1', 'u2', 'u3', 'B1', 'B2', 'B3']
+
 
     @classmethod
     def get_dump_time(cls, fname):
@@ -152,18 +154,15 @@ class KHARMAFile(DumpFile):
         else:
             # Read from the closest parameter file
             path1 = "/".join(self.fname.split("/")[:-1])+"/*.par"
-            #print("Trying to find parameter files w/glob: {}".format(path1))
             fnames = glob.glob(path1)
             if len(fnames) == 0:
                 path2 = "/".join(self.fname.split("/")[:-2])+"/*.par"
-                #print("Trying to find parameter files w/glob: {}".format(path2))
                 fnames = glob.glob(path2)
             if len(fnames) == 0:
                 path3 = "/".join(self.fname.split("/")[:-1])+"*.par"
-                #print("Trying to find parameter files w/glob: {}".format(path3))
                 fnames = glob.glob(path3)
 
-            #print("Reading parameters from {}".format(fnames[-1]))
+            #print("Reading parameters from {}".format(fnames[-1]), file=sys.stderr)
             with open(fnames[-1], 'r') as parfile:
                 params = parameters.parse_parthenon_dat(parfile.read())
 
@@ -221,7 +220,7 @@ class KHARMAFile(DumpFile):
                         # Reshape to 4D if needed to append
                         new_prim = new_prim[np.newaxis, Ellipsis]
                     prims = np.append(prims, new_prim, axis=0)
-                except (IOError, OSError, TypeError):
+                except (IOError, OSError, TypeError, IndexError):
                     # Not every file will have all prims
                     pass
             # Save the result
@@ -337,8 +336,9 @@ class KHARMAFile(DumpFile):
                         raise IOError("Cannot find variable "+var+" in file "+self.fname+"!")
                     else:
                         # Both the int & slice cases require the same line: first 3 indices of file -> last 3 indices of output
-                        # print(fil_slc + (i,), file=sys.stderr)
-                        # print((Ellipsis,) + out_slc, file=sys.stderr)
+                        #print("Read {} at {}".format(var, i))
+                        #print(fil_slc + (i,), file=sys.stderr)
+                        #print((Ellipsis,) + out_slc, file=sys.stderr)
                         out[(Ellipsis,) + out_slc] = fil.Get('c.c.bulk.prims', False)[fil_slc + (i,)].T
         # Close
         fil.fid.close()

@@ -269,11 +269,10 @@ def jet_cut_lite(dump, out, **kwargs):
 def lumproxy(dump, out, **kwargs):
     """Luminosity proxy from GRMHD code comparison '19
     """
-    jmin, jmax = get_j_slice(dump)
     rho, Pg, B = dump['rho'], dump['Pg'], dump['b']
     # See EHT code comparison paper
     j = rho ** 3 / Pg ** 2 * np.exp(-0.2 * (rho ** 2 / (B * Pg ** 2)) ** (1. / 3.))
-    out['rt/Lum'] = shell_sum(dump, j, j_slice=(jmin, jmax))
+    out['rt/Lum'] = shell_sum(dump, j, j_slice=get_j_slice(dump))
 
 def gridtotals(dump, out):
     """Total energy and current, summed by shells to allow any cut on radius

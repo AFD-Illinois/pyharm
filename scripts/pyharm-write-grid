@@ -22,7 +22,7 @@ def write_bhlight_grid(G, outfname):
     outf['Xbl'] = np.array([np.zeros([G.N[1],G.N[2],G.N[3]]), *G.coords.ks_coord(x)]).transpose(1,2,3,0)
 
     # Face coordinates
-    xf = G.coord_bulk_mesh().reshape(4, G.N[1]+1, G.N[2]+1, G.N[3]+1)
+    xf = G.coord_bulk(mesh=True).reshape(4, G.N[1]+1, G.N[2]+1, G.N[3]+1)
     outf['XFharm'] = xf.transpose(1,2,3,0)
     outf['XFcart'] = np.array([np.zeros([G.N[1]+1,G.N[2]+1,G.N[3]+1]), *G.coords.cart_coord(xf)]).transpose(1,2,3,0)
 
@@ -44,7 +44,7 @@ def write_bhlight_grid(G, outfname):
     outf['gdet'] = gdet3
     outf['alpha'] = lapse3
 
-    dxdX = np.einsum("ij...,jk...->...ik", G.coords.dxdX_cartesian(x), G.coords.dxdX(x))
+    dxdX = np.einsum("ij...,jk...->...ik", G.coords.dxdX_cart(x), G.coords.dxdX(x))
     outf['Lambda_h2cart_con'] = dxdX
     outf['Lambda_h2cart_cov'] = np.linalg.inv(dxdX)
 

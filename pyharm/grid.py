@@ -281,20 +281,18 @@ class Grid:
 
         return np.squeeze(np.array(np.meshgrid(x[0], x[1], x[2], x[3])))
 
-    def coord_bulk(self, loc=Loci.CENT):
+    def coord_bulk(self, loc=Loci.CENT, mesh=False):
         """Return a 3D array of all position vectors X within the physical zones.
         See coord() for use.
         """
-        return self.coord(np.arange(self.N[1])+self.NG,
-                          np.arange(self.N[2])+self.NG,
-                          np.arange(self.N[3])+self.NG, loc=loc)
-
-    def coord_bulk_mesh(self):
-        """Returns zone corners for plotting a variable in the bulk
-        """
-        return self.coord(np.arange(self.N[1]+1)+self.NG,
-                          np.arange(self.N[2]+1)+self.NG,
-                          np.arange(self.N[3]+1)+self.NG, loc=Loci.CORN)
+        if mesh:
+            return self.coord(np.arange(self.N[1]+1)+self.NG,
+                    np.arange(self.N[2]+1)+self.NG,
+                    np.arange(self.N[3]+1)+self.NG, loc=Loci.CORN)
+        else:
+            return self.coord(np.arange(self.N[1])+self.NG,
+                            np.arange(self.N[2])+self.NG,
+                            np.arange(self.N[3])+self.NG, loc=loc)
 
     def coord_all(self, loc=Loci.CENT, mesh=False):
         """Like coord_bulk, but including ghost zones"""
@@ -489,7 +487,8 @@ class Grid:
             return True
         elif key[:7] == 'pcoord_':
             return True
-        elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z', 'X1', 'X2', 'X3', 'dXdx', 'dxdX'):
+        elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z', 'X1', 'X2', 'X3',
+                     'dXdx', 'dxdX', 'dxdX_cart', 'dXdx_cart'):
             return True
         else:
             return False
@@ -574,7 +573,7 @@ class Grid:
 
         elif key in ['n1', 'n2', 'n3']:
             return self.NTOT[int(key[-1:])]
-        elif key in ['r', 'th', 'phi', 'dxdX', 'dXdx']:
+        elif key in ['r', 'th', 'phi', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart']:
             # Assuming 2D grids is so much faster.  TODO accommodate 3D?
             self.cache[key] = getattr(self.coords, key)(self.coord_ij()[:, :, :, np.newaxis])
             return self.cache[key]

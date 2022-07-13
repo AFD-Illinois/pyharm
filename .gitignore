@@ -1,3 +1,6 @@
+# Notebooks. Override for sample notebook updates!
+notebooks/
+
 # HARM Output
 restarts/
 dumps/

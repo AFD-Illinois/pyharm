@@ -32,22 +32,6 @@ class ExtensibleCmd(click.Command):
                     # Reflow and indent
                     formatter.write(textwrap.indent(textwrap.fill(docstring), "    ") + "\n\n")
 
-def _savefig(fig, tag, kwargs):
-    # Any other closing/format stuff. PDF format, etc, etc
-    for ax in fig.get_axes():
-        ax.set_xlim(kwargs['xmin'],  kwargs['xmax'])
-        ax.set_ylim(kwargs['ymin'],  kwargs['ymax'])
-    plt.subplots_adjust(wspace=0.4)
-    # Underscore-separate things
-    if kwargs['tag'] != "": kwargs['tag'] += "_"
-    # User tag, then fn, then extension
-    if kwargs['pdf']:
-        plt.savefig(kwargs['tag']+tag+".pdf", dpi=200)
-    else:
-        plt.savefig(kwargs['tag']+tag+".png", dpi=200)
-    plt.close(fig)
-
-
 @click.command(cls=ExtensibleCmd)
 @click.argument('to_plot_str', nargs=1)
 @click.argument('paths', nargs=-1, type=click.Path(exists=True))
@@ -99,7 +83,20 @@ def plot_results(to_plot_str, paths, **kwargs):
             result_figures.__dict__[plotname](results, kwargs=kwargs)
         else:
             print("ERROR: Cannot make plot: {}".format(plotname))
-        
+
+    # Any other closing/format stuff. PDF format, etc, etc
+    for ax in fig.get_axes():
+        ax.set_xlim(kwargs['xmin'],  kwargs['xmax'])
+        ax.set_ylim(kwargs['ymin'],  kwargs['ymax'])
+    plt.subplots_adjust(wspace=0.4)
+    # Underscore-separate things
+    if kwargs['tag'] != "": kwargs['tag'] += "_"
+    # User tag, then fn, then extension
+    if kwargs['pdf']:
+        plt.savefig(kwargs['tag']+tag+".pdf", dpi=200)
+    else:
+        plt.savefig(kwargs['tag']+tag+".png", dpi=200)
+    plt.close(fig)
 
 if __name__ == "__main__":
     plot_results()
