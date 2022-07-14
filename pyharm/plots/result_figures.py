@@ -71,10 +71,13 @@ def initial_conditions(results, kwargs, overplot=False): # TODO radial_averages_
     if kwargs['varlist'] is None:
         vars=('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post')
 
-def radial_profile(ax, result, var, arange=-1000, window=(1,50), disk=True, plot_std=False, plot_eh=False, print_time=False, selector=None, tag="", **kwargs):
+def radial_profile(ax, result, var, arange=-1000, window=(1,50), disk=True, plot_std=False, plot_eh=False, print_time=False, selector=None, tag="", model_shared_portion=0, **kwargs):
 
-    if selector is not None and not selector(model):
+    if selector is not None and not selector(result.tag):
         return
+
+    model = " ".join(result.tag.split(" ")[model_shared_portion:])
+    title = " ".join(result.tag.split(" ")[:model_shared_portion])
 
     # Get the times to average
     avg_slice = _get_t_slice(result, arange)
@@ -92,7 +95,7 @@ def radial_profile(ax, result, var, arange=-1000, window=(1,50), disk=True, plot
             tyvals = result['rt/{}_disk'.format(var)][avg_slice, r_slice] + result['rt/{}_notdisk'.format(var)][avg_slice, r_slice]
 
     yvals = np.mean(tyvals, axis=0)
-    p = ax.loglog(result['r'][r_slice], yvals, label=tag+result.tag+("",r"({}-{} $t_g$)".format(*times))[print_time], **kwargs)
+    p = ax.loglog(result['r'][r_slice], yvals, label=model+("",r"({}-{} $t_g$)".format(*times))[print_time], **kwargs)
     if plot_std:
         yerrs = np.std(tyvals, axis=0)
         ax.fill_between(result['r'][r_slice], yvals-yerrs, yvals+yerrs, alpha=0.5, color=p[0].get_color())
@@ -104,6 +107,7 @@ def radial_profile(ax, result, var, arange=-1000, window=(1,50), disk=True, plot
 
     ax.set_xlabel(r"Radius [$r_g$]")
     ax.set_ylabel(pyharm.pretty(var), rotation=0, ha='right')
+    ax.set_title(title)
     ax.legend()
     ax.grid(True)
 

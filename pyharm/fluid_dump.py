@@ -21,14 +21,17 @@ class FluidDump:
         """Attach the fluid dump file 'fname' and make its contents accessible like a dictionary.  For a list of some
         variables and properties accessible this way, see the README.
 
-        Fluid dumps can be sliced like arrays!  That is, dump[i,j,k]['var_name'] will read or compute 'var_name' only for the
+        Fluid dumps can be sliced like arrays!  That is, ``dump[i,j,k]['var_name']`` will read or compute ``'var_name'`` only for the
         particular index in question, and similarly for slices of any size (e.g., 2D slices for plots).  This is
-        *tremendously useful*, so remember to slice first to save time if efficiency is important.
+        *tremendously useful*, so remember to slice first to save time if efficiency is important.  Note, though,
+        that slicing preserves the dimensionality -- that is, ``dump[i,j,k][var].shape`` will be (1,1,1).  Being able to assume
+        every dump has three dimensions makes a lot of internal logic easier.  If you need 2D arrays, just use
+        ``np.squeeze``, or the internal functions ``flatten_xz`` and ``flatten_xy``, which return common 2D slices or averages.
 
-        However, note that slicing does not support strides, and that slices may be *views* rather than *copies* --
-        if you're going to modify array contents yourself within a slice, it may affect the global array.  Generally
-        this is what you want (think assignment to a slice), but it can be confusing if you're really digging around.
-        Try using copy.copy or copy.deepcopy if unsure.
+        Also, note that slicing does not support strides, and that slices may be *views* rather than *copies* --
+        if you're going to modify array contents yourself within a slice (for some reason...), it may affect the global array.
+        Generally this will just behave how you want, but it can be confusing if you're really digging around.  If you have the memory,
+        you can use ``copy.copy`` or ``copy.deepcopy`` to be certain.
 
         :param fname: file name or path to dump
         :param tag: any string, usually long name of dump/model for plotting
