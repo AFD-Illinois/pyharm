@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -i
 
 # Admin stuff
 #SBATCH -J pyharm_movie
@@ -14,6 +14,10 @@
 # ALWAYS reserve full nodes to mitigate memory leaks
 #SBATCH --exclusive
 #SBATCH --mem=0
+
+# TODO if conda loaded...
+#conda deactivate
+#module unload anaconda3_cpu
 
 # Run movie as an MPI job on Delta
 # See pyharm-movie docs/help for options, test on a few dumps
