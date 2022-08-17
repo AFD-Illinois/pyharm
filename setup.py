@@ -50,7 +50,7 @@ write_git_revision("pyharm")
 
 
 setup(name="pyharm",
-      version="2022.3",
+      version="2022.8",
       description="Python tools for HARM analysis",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
@@ -63,6 +63,7 @@ setup(name="pyharm",
           "matplotlib",
           "h5py",
           "click",
+          "tqdm",
           "pandas",
           "sphinx",
           "pympler"],

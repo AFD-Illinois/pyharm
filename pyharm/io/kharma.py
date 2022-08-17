@@ -1,3 +1,36 @@
+__license__ = """
+ File: kharma.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 
 import sys
 import glob
@@ -6,7 +39,7 @@ import pandas
 import h5py
 
 from .. import parameters
-from ..util import slice_to_index
+from ..util import slice_to_index, i_of
 from ..defs import Loci
 from ..grid import Grid
 from .interface import DumpFile
@@ -15,24 +48,10 @@ from .interface import DumpFile
 from .phdf import phdf
 from .phdf_old import phdf as phdf_old
 
-def read_log(fname):
-    with open(fname) as inf:
-        inf.readline()
-        header = [e.split('=')[1].rstrip() for e in inf.readline().split('[')[1:]]
-    tab = pandas.read_table(fname, delim_whitespace=True, comment='#', names=header)
-    out = {}
-    for name in header:
-        out[name] = np.array(tab[name])
-
-    # Files can contain multiple runs. Find the most recent zero time
-    if not 'time' in out:
-        print("Not loading KHARMA log file: header not present!")
-        return None
-    start = len(out['time']) - np.argmin(out['time'][::-1]) - 1
-    for name in header:
-        out[name] = out[name][start:]
-
-    return out
+__doc__ = \
+"""Read KHARMA output files and logs.  Pretty much supports any Parthenon code and nearly supports AMR.
+Contains much index math.
+"""
 
 class KHARMAFile(DumpFile):
     """File filter for KHARMA files"""
@@ -48,7 +67,9 @@ class KHARMAFile(DumpFile):
                        "KEL_ROWAN":    "Kel_Rowan",
                        "KEL_SHARMA":   "Kel_Sharma",
                        "KEL_CONSTANT": "Kel_Constant"}
-    prim_names_ordered = ['rho', 'u', 'uvec', 'B', 'q', 'dP', 'Ktot', 'Kel_Werner', 'Kel_Rowan', 'Kel_Sharma', 'Kel_Constant']
+    # When (old) KHARMA has ordered "prims" arrays they are only these variables.
+    prim_names_ordered = ['rho', 'u', 'u1', 'u2', 'u3', 'B1', 'B2', 'B3']
+
 
     @classmethod
     def get_dump_time(cls, fname):
@@ -131,18 +152,15 @@ class KHARMAFile(DumpFile):
         else:
             # Read from the closest parameter file
             path1 = "/".join(self.fname.split("/")[:-1])+"/*.par"
-            #print("Trying to find parameter files w/glob: {}".format(path1))
             fnames = glob.glob(path1)
             if len(fnames) == 0:
                 path2 = "/".join(self.fname.split("/")[:-2])+"/*.par"
-                #print("Trying to find parameter files w/glob: {}".format(path2))
                 fnames = glob.glob(path2)
             if len(fnames) == 0:
                 path3 = "/".join(self.fname.split("/")[:-1])+"*.par"
-                #print("Trying to find parameter files w/glob: {}".format(path3))
                 fnames = glob.glob(path3)
 
-            #print("Reading parameters from {}".format(fnames[-1]))
+            #print("Reading parameters from {}".format(fnames[-1]), file=sys.stderr)
             with open(fnames[-1], 'r') as parfile:
                 params = parameters.parse_parthenon_dat(parfile.read())
 
@@ -200,7 +218,7 @@ class KHARMAFile(DumpFile):
                         # Reshape to 4D if needed to append
                         new_prim = new_prim[np.newaxis, Ellipsis]
                     prims = np.append(prims, new_prim, axis=0)
-                except (IOError, OSError, TypeError):
+                except (IOError, OSError, TypeError, IndexError):
                     # Not every file will have all prims
                     pass
             # Save the result
@@ -316,17 +334,59 @@ class KHARMAFile(DumpFile):
                         raise IOError("Cannot find variable "+var+" in file "+self.fname+"!")
                     else:
                         # Both the int & slice cases require the same line: first 3 indices of file -> last 3 indices of output
-                        # print(fil_slc + (i,), file=sys.stderr)
-                        # print((Ellipsis,) + out_slc, file=sys.stderr)
+                        #print("Read {} at {}".format(var, i))
+                        #print(fil_slc + (i,), file=sys.stderr)
+                        #print((Ellipsis,) + out_slc, file=sys.stderr)
                         out[(Ellipsis,) + out_slc] = fil.Get('c.c.bulk.prims', False)[fil_slc + (i,)].T
         # Close
         fil.fid.close()
         del fil
 
-        # We keep 3 indices for file reads, but if we should lose one, do it
-        self.cache[var] = np.squeeze(out)
+        # ALWAYS keep 3 indices.  Better to keep than to squeeze and accidentally broadcast
+        self.cache[var] = out
         if ind is not None:
             return self.cache[var][ind]
         else:
             return self.cache[var]
 
+## Module functions
+
+def read_log(fname):
+    with open(fname) as inf:
+        inf.readline()
+        header = [e.split('=')[1].rstrip() for e in inf.readline().split('[')[1:]]
+    tab = pandas.read_table(fname, delim_whitespace=True, comment='#', names=header)
+    out = {}
+    for name in header:
+        out[name] = np.array(tab[name])
+
+    if not 'time' in out:
+        print("Not loading KHARMA log file: header not present!")
+        return None
+    
+    # Files can contain multiple runs and restarts
+    # First, start at the most recent zero (argmin returns all in order)
+    start = len(out['time']) - np.argmin(out['time'][::-1]) - 1
+    for name in header:
+        out[name] = out[name][start:]
+
+    # Then run forward, look for jumps back, and take the more recent run
+    # The indices will all shift, so repeat from zero as necessary
+    caught_up = False
+    while not caught_up:
+        t_last = -1
+        caught_up = True
+        for i,t in enumerate(out['time']):
+            # This heuristic asks "did we jump back, and can we more or less refill the gap?"
+            if t < t_last and i_of(out['time'][i:], t_last) > i - i_of(out['time'], t) - 100:
+                # i_of returns only first occurrence
+                i_start = i_of(out['time'], t)
+                # i_of returns the index *before* current time
+                i_end = i
+                for name in header:
+                    out[name] = np.append(out[name][:i_start], out[name][i_end:])
+                caught_up = False
+                break
+            t_last = t
+
+    return out

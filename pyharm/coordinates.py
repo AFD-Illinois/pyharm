@@ -47,6 +47,7 @@ class CoordinateSystem(object):
         """
         return np.array([self.cart_x(x), self.cart_y(x), self.cart_z(x)])
 
+    # Coordinates are of course system specific
     def r(self, x):
         raise NotImplementedError
 
@@ -148,7 +149,7 @@ class CoordinateSystem(object):
             gcov_t = gcov.transpose((2, 3, 4, 0, 1))
             return la.inv(gcov_t).transpose((3, 4, 0, 1, 2))
         else:
-            raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2".format(gcov.shape))
+            raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2 or 4x4xN1xN2xN3".format(gcov.shape))
 
     def gdet(self, gcov):
         r"""Return the negative root determinant of the metric :math:`\sqrt{-g}`, given the covariant form."""
@@ -206,13 +207,20 @@ class CoordinateSystem(object):
                         conn[lam, nu, mu] += gcon[lam, kap] * tmp[kap, nu, mu]
         return conn
 
+    # Transformation matrices are the other system-specific piece
     def dxdX(self, x):
+        raise NotImplementedError
+    
+    def dxdX_cart(self, x):
         raise NotImplementedError
 
     # Just take an inverse over first (!) 2 indices
     def dXdx(self, x):
         return np.einsum("...ij->ij...", la.inv(np.einsum("ij...->...ij", self.dxdX(x))))
 
+    # Just take an inverse over first (!) 2 indices
+    def dXdx_cart(self, x):
+        return np.einsum("...ij->ij...", la.inv(np.einsum("ij...->...ij", self.dxdX_cart(x))))
 
 class Minkowski(CoordinateSystem):
     @classmethod
@@ -321,7 +329,7 @@ class KS(CoordinateSystem):
         dxdX[3, 3] = 1
         return dxdX
 
-    def dxdX_cartesian(self, x):
+    def dxdX_cart(self, x):
         dxdX = np.zeros([4, 4, *x.shape[1:]])
         r, th, phi = self.bl_coord(x)
         dxdX[0, 0] = 1
@@ -376,7 +384,7 @@ class EKS(KS):
 
     def native_stopx(self, met_params):
         if 'r_out' in met_params:
-            return np.array([0, np.log(met_params['r_out']), 1, 2*np.pi])
+            return np.array([0, np.log(met_params['r_out']), np.pi, 2*np.pi])
         elif ('startx1' in met_params and 'dx1' in met_params and 'n1' in met_params and
                'startx2' in met_params and 'dx2' in met_params and 'n2' in met_params and
                'startx3' in met_params and 'dx3' in met_params and 'n3' in met_params):

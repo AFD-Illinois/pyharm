@@ -1,3 +1,37 @@
+__license__ = """
+ File: plot_dumps.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -9,8 +43,10 @@ from ..util import i_of
 from .plot_utils import *
 from .pretty import pretty
 
-"""Plots of variables over (parts of) a simulation domain represented by a fluid dump file/object
-Can overlay "magnetic field lines" computed as contours of phi-symmetrized field's vector potential
+__doc__ = \
+"""2D plots of variables over different slices of a simulation domain.
+This file handles plotting of any particular variable on a particular ``matplotlib.Axis`` object.
+For full figures with default annotations, variable choices, etc, see ``figures.py``
 """
 
 def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None, frame=True,
@@ -64,7 +100,7 @@ def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None, frame=True,
 def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             xlabel=True, ylabel=True, native=False, log=False,
             half_cut=False, cmap='jet', shading='gouraud',
-            at=None, average=False, sum=False, **kwargs):
+            at=None, average=False, sum=False, cbar=True, **kwargs):
     """Plot a poloidal or X1/X2 slice of a dump file.
     Note this function also accepts all keyword arguments to _decorate_plot()
 
@@ -82,6 +118,9 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         if 'symlog_' in var:
             log = True
             var = var.replace("symlog_","")
+        elif 'log_' in var:
+            log = True
+            var = var.replace("log_","")
         vname = var
 
     x, z = dump.grid.get_xz_locations(mesh=(shading == 'flat'), native=native, half_cut=half_cut)
@@ -98,10 +137,17 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         if cmap == 'jet':
             cmap = 'RdBu_r'
         mesh = pcolormesh_symlog(ax, x, z, var, cmap=cmap, vmin=vmin, vmax=vmax,
-                                 shading=shading, cbar=False) # We add a colorbar later
+                                 shading=shading, cbar=cbar) # Use this cbar, it's customized
+        cbar = False # We don't need another later on
+    elif log:
+        # Support legacy calling convention
+        if vmin is not None and vmin < 0:
+            vmin = 10**vmin
+            vmax = 10**vmax
+        mesh = pcolormesh_log(ax, x, z, var, cmap=cmap, vmin=vmin, vmax=vmax,
+                              shading=shading, cbar=cbar) # Use this cbar, it's customized
+        cbar = False # We don't need another later on
     else:
-        if log:
-            var = np.log10(var)
         mesh = ax.pcolormesh(x, z, var, cmap=cmap, vmin=vmin, vmax=vmax,
                              shading=shading)
 
@@ -135,7 +181,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         var = vname
         if log:
             var = "log_"+var
-    _decorate_plot(ax, dump, var, **kwargs)
+    _decorate_plot(ax, dump, var, cbar=cbar, **kwargs)
 
     # In case user wants to tweak this
     return mesh
@@ -143,7 +189,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
 def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             xlabel=True, ylabel=True, native=False, log=False,
             cmap='jet', shading='gouraud',
-            at=None, average=False, sum=False, **kwargs):
+            at=None, average=False, sum=False, cbar=True, **kwargs):
     """Plot a toroidal or X1/X3 slice of a dump file.
     Note this function also accepts all keyword arguments to _decorate_plot()
 
@@ -182,7 +228,8 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
         if cmap == 'jet':
             cmap = 'RdBu_r'
         mesh = pcolormesh_symlog(ax, x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
-                        shading=shading, cbar=False) # We add a colorbar later
+                        shading=shading, cbar=cbar) # We add a colorbar later
+        cbar = False
     else:
         if log:
             var = np.log10(var)
@@ -218,7 +265,7 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
         var = vname
         if log:
             var = "log_"+var
-    _decorate_plot(ax, dump, var, **kwargs)
+    _decorate_plot(ax, dump, var, cbar=cbar, **kwargs)
 
     # In case user wants to tweak this
     return mesh
@@ -256,7 +303,7 @@ def plot_thphi(ax, dump, var, at_r=None, at_i=None, cmap='jet', vmin=None, vmax=
             log = True
             var = var.replace("symlog_","")
         vname = var
-        var = dump[at, :, :][var]
+        var = np.squeeze(dump[at, :, :][var])
     else:
         var = var[at, :, :]
 
@@ -329,14 +376,11 @@ def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=Fa
 
 def overlay_field(ax, dump, **kwargs):
         overlay_flowlines(ax, dump, 'B1', 'B2', **kwargs)
-        #overlay_flowlines(ax, dump, 'B2', 'B1', **kwargs)
 
 def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False, half_cut=False, reverse=False, **kwargs):
     """Overlay the "flow lines" of a pair of variables in X1 and X2 directions.  Sums assuming no divergence to obtain a
     potential, then plots contours of the potential so as to total 'nlines' total contours.
     """
-    N1 = dump['n1']
-    N2 = dump['n2']
 
     if native:
         half_cut = True
@@ -348,6 +392,8 @@ def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False
     if native:
         varx1 = varx1.T
         varx2 = -varx2.T
+
+    N1, N2 = varx1.shape[:2]
 
     AJ_phi = np.zeros([N1, 2*N2])
     for j in range(N2):

@@ -1,93 +1,41 @@
-################################################################################
-#                                                                              #
-#  UTILITY FUNCTIONS                                                           #
-#                                                                              #
-################################################################################
+__license__ = """
+ File: util.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 
-import glob
-import os
-import multiprocessing
-import numpy as np
-try:
-    import psutil
-    using_psutil = True
-except ModuleNotFoundError as e:
-    print("Not using psutil: ", e)
-    using_psutil = False
-
-# Run a function in parallel with Python's multiprocessing
-# 'function' must take only a number
-def run_parallel(function, nmax, nthreads, debug=False):
-    # TODO if debug...
-    pool = multiprocessing.Pool(nthreads)
-    try:
-        pool.map_async(function, list(range(nmax))).get(720000)
-    except KeyboardInterrupt:
-        print('Caught interrupt!')
-        pool.terminate()
-        exit(1)
-    else:
-        pool.close()
-    pool.join()
-
-# Run a function in parallel with Python's multiprocessing
-# 'function' must take only a number
-def map_parallel(function, nmax, nthreads, debug=False, initializer=None, initargs=()):
-    if initializer is not None:
-        pool = multiprocessing.Pool(nthreads, initializer=initializer, initargs=initargs)
-    else:
-        pool = multiprocessing.Pool(nthreads)
-
-    try:
-        # Map the function over the list. Results are 
-        out_iter = pool.map(function, list(range(nmax)))
-    except KeyboardInterrupt:
-        pool.terminate()
-        pool.join()
-    else:
-        pool.close()
-        pool.join()
-    return out_iter
-
-# Run a function in parallel with Python's multiprocessing
-# 'function' must take only a number
-# 'merge_function' must take the same number plus whatever 'function' outputs, and adds to the dictionary out_dict
-def iter_parallel(function, merge_function, out_dict, nmax, nthreads, debug=False, initializer=None, initargs=()):
-    if initializer is not None:
-        pool = multiprocessing.Pool(nthreads, initializer=initializer, initargs=initargs)
-    else:
-        pool = multiprocessing.Pool(nthreads)
-
-    try:
-        # Map the above function to the dump numbers, returning an iterator of 'out' dicts to be merged one at a time
-        # This avoids keeping the (very large) full pre-average list in memory
-        out_iter = pool.imap(function, list(range(nmax)))
-        for n, result in enumerate(out_iter):
-            merge_function(n, result, out_dict)
-    except KeyboardInterrupt:
-        pool.terminate()
-        pool.join()
-    else:
-        pool.close()
-        pool.join()
-
-
-# Calculate ideal # threads
-# Lower pad values are safer
-def calc_nthreads(hdr, n_mkl=8, pad=0.25):
-    # Limit threads for 192^3+ problem due to memory
-    if using_psutil:
-        # Roughly compute memory and leave some generous padding for multiple copies and Python games
-        # (N1*N2*N3*8)*(NPRIM + 4*4 + 6) = size of "dump," (N1*N2*N3*8)*(2*4*4 + 6) = size of "geom"
-        # TODO get a better model for this!!
-        ncopies = hdr['n_prim'] + 4 * 4 + 6
-        nproc = int(pad * psutil.virtual_memory().total / (hdr['n1'] * hdr['n2'] * hdr['n3'] * 8 * ncopies))
-        if nproc < 1:
-            nproc = 1
-    else:
-        print("psutil not available: Using 4 processes as a safe default")
-
-    return nproc
+__doc__ = \
+"""Generic functions which have no pyharm (or indeed any) dependencies.
+Currently, mostly index handling.
+"""
 
 def slice_to_index(current_start, current_stop, slc):
     """Take a slice out of a range represented by start and end points.

@@ -15,7 +15,7 @@ matplotlib.use('Agg')
 
 import pyharm
 from pyharm.plots.frame import frame
-from pyharm.util import calc_nthreads
+from pyharm.parallel import calc_nthreads
 
 # Use mpi4py if available, or multiprocessing
 # TODO if MPI world size 1, fallback
@@ -143,19 +143,33 @@ def movie(movie_types, paths, **kwargs):
             os.makedirs(frame_dir, exist_ok=True)
 
         try:
-            # Load diagnostics from HARM itself
+            # Load diagnostics from post-processing file
             fname = None
-            if len(glob.glob("*.hst")) > 0:
-                fname = glob.glob("*.hst")[0]
-            elif len(glob.glob("*/*.hst")) > 0:
-                fname = glob.glob("*/*.hst")[0]
+            if len(glob.glob("eht_out.h5")) > 0:
+                fname = glob.glob("eht_out.h5")[0]
             if fname is not None:
                 if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
                 diag = pyharm.io.read_log(fname)
             else:
                 diag = None
-        except (IndexError, IOError):
-            diag = None
+        except IOError:
+                diag = None
+        
+        if diag is None:
+            try:
+                # Load diagnostics from HARM itself
+                fname = None
+                if len(glob.glob("*.hst")) > 0:
+                    fname = glob.glob("*.hst")[0]
+                elif len(glob.glob("*/*.hst")) > 0:
+                    fname = glob.glob("*/*.hst")[0]
+                if fname is not None:
+                    if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
+                    diag = pyharm.io.read_log(fname)
+                else:
+                    diag = None
+            except (IndexError, IOError):
+                diag = None
 
         if do_out(): print("Imaging model {} with movie {}".format(path, movie_type), file=sys.stderr)
         if 'debug' in kwargs and kwargs['debug']:

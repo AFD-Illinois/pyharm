@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -i
 
 # Admin stuff
 #SBATCH -J pyharm_movie
@@ -9,11 +9,15 @@
 #SBATCH -o "out-%j.txt"
 
 # Nodes we want
-#SBATCH --tasks-per-node=128
-#SBATCH --cpus-per-task=1
+#SBATCH --tasks-per-node=32
+#SBATCH --cpus-per-task=4
 # ALWAYS reserve full nodes to mitigate memory leaks
 #SBATCH --exclusive
 #SBATCH --mem=0
+
+# TODO if conda loaded...
+#conda deactivate
+#module unload anaconda3_cpu
 
 # Run movie as an MPI job on Delta
 # See pyharm-movie docs/help for options, test on a few dumps
@@ -28,7 +32,7 @@ export OMP_NUM_THREADS=8
 # if this proves efficient for simple stuff.
 if [[ "$*" != *"-d "* ]]
 then
-  srun -n $(($SLURM_JOB_NUM_NODES * 128)) --cpu-bind=no pyharm-movie "${@}"
+  srun -n $(($SLURM_JOB_NUM_NODES * 32)) --cpu-bind=no pyharm-movie "${@}"
 else
   pyharm-analysis "${@}"
 fi

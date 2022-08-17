@@ -3,6 +3,7 @@
 import os
 import numpy as np
 import h5py
+import glob
 
 from .grid import Grid
 from .util import i_of
@@ -11,6 +12,52 @@ from .variables import fns_dict
 # Specifically for reading the header as copied/output to result files
 from .io.iharm3d_header import read_hdr
 from .io import read_log
+
+def load_results(fname, **kwargs):
+    """Wrapper to read diagnostic output or results of reductions
+    """
+    return AnaResults(fname, **kwargs)
+
+def load_result(fname, **kwargs):
+    """Wrapper to read diagnostic output or results of reductions
+    """
+    return AnaResults(fname, **kwargs)
+
+def load_results_glob(paths, fname, tag_fn=None):
+    """Load results from a path/glob/list of paths/globs,
+    add appropriate tags, and return as a dictionary.
+    """
+    if not (isinstance(paths, list) or isinstance(paths, tuple)):
+        paths = (paths,)
+
+    # The shell does this for us, but within python...
+    models = []
+    for path in paths:
+        models.extend(glob.glob(path))
+
+    results = {}
+    for model in models:
+        files = []
+        for inter in ("/", "/*/", "/*/*/", "/*/*/*/"):
+            if len(files) == 0:
+                files = glob.glob(model+inter+fname)
+
+        if len(files) > 0:
+            try:
+                # TODO TODO TODO better guards/options
+                if "_ext" in files[0]:
+                    files[0] = files[1]
+                if tag_fn is None:
+                    results[model] = AnaResults(files[0], tag=model.replace("/a", " ").replace("/"," ").strip().upper())
+                else:
+                    results[model] = AnaResults(files[0], tag=tag_fn(model))
+            except:
+                # This is a bulk operation. Inform of problems but do not raise an error
+                print("Error loading file {}".format(files[0]))
+    if len(results) == 0:
+        raise IOError("No files found at paths: ".format(models))
+    else:
+        return results
 
 def smoothed(a, window_sz=101):
     """A potentially reasonably fast smoothing operation.
@@ -53,12 +100,18 @@ class AnaResults(object):
                     'phi_b': lambda diag: diag['Phi_b'] / np.sqrt(diag['smooth_mdot']),
                     'phi_b_upper': lambda diag: diag['Phi_b_upper'] / np.sqrt(diag['smooth_mdot']),
                     'phi_b_lower': lambda diag: diag['Phi_b_lower'] / np.sqrt(diag['smooth_mdot']),
+                    'phi_b_per_gauss': lambda diag: diag['Phi_b'] / np.sqrt(diag['mdot']),
+                    'phi_b_gauss': lambda diag: diag['Phi_b'] / np.sqrt(diag['smooth_mdot']),
+                    'phi_b_upper_gauss': lambda diag: diag['Phi_b_upper'] / np.sqrt(diag['smooth_mdot']),
+                    'phi_b_lower_gauss': lambda diag: diag['Phi_b_lower'] / np.sqrt(diag['smooth_mdot']),
                     'edot_per': lambda diag: diag['Edot'] / diag['mdot'],
                     'edot': lambda diag: diag['Edot'] / diag['smooth_mdot'],
                     'ldot_per': lambda diag: diag['Ldot'] / diag['mdot'],
                     'ldot': lambda diag: diag['Ldot'] / diag['smooth_mdot'],
+                    'spinup': lambda diag: -(diag['Ldot'] + 2*diag.params['a']*diag['Edot']) / diag['smooth_mdot'],
                     # Post-processing functions for fluxes
                     'eff': lambda diag: np.abs(diag['Edot'] - diag['mdot']) / diag['smooth_mdot'],
+                    'eff_per': lambda diag: np.abs(diag['Edot'] - diag['mdot']) / diag['mdot'],
                     }
     # How to load variables from a KHARMA .hst file dictionary
     diags_hst = {'mdot': lambda diag: np.abs(diag['Mdot_EH_Flux']),
@@ -66,29 +119,40 @@ class AnaResults(object):
                  'Edot': lambda diag: diag['Edot_EH'],
                  'Ldot': lambda diag: diag['Ldot_EH']}
     # How to load from analysis results
-    diags_ana = {'mdot': lambda diag: np.abs(diag['Mdot'])}
+    diags_ana = {#'mdot': lambda diag: np.abs(diag['Mdot'])
+                 'mdot': lambda diag: np.abs(diag.get_dvar('rt','FM_disk')[:, i_of(diag['r'], 5)]) # Get mass flux at r=5 to avoid floor effects
+                }
 
     def __init__(self, fname, tag=""):
-        # When reading HDF5 files, just open the file
-        # When reading diagnostic output, read the whole thing
-        self.fname = fname
         self.tag = tag
         self.cache = {}
-        if ".h5" in fname or ".hdf5" in fname:
-            # Read analysis results
-            self.file = h5py.File(fname, "r")
-            self.ftype = "ana"
-            self.diag_fns = {**self.diag_fn_common, **self.diags_ana}
-            self.params = read_hdr(self.file['/header'])
-            self.grid = Grid(self.params)
-            if 'avg/start' in self.file: 
-                self.avg_ends = (self.file['avg/start'][()], self.file['avg/end'][()])
+        if isinstance(fname, str):
+            # When reading HDF5 files, just open the file
+            # When reading diagnostic output, read the whole thing
+            self.fname = fname
+            if ".h5" in fname or ".hdf5" in fname:
+                # Read analysis results
+                self.file = h5py.File(fname, "r")
+                self.ftype = "ana"
+                self.diag_fns = {**self.diag_fn_common, **self.diags_ana}
+                self.params = read_hdr(self.file['/header'])
+                self.grid = Grid(self.params)
+                if 'avg/start' in self.file: 
+                    self.avg_ends = (self.file['avg/start'][()], self.file['avg/end'][()])
+            else:
+                # Read diagnostic output.  Much more limited functionality here,
+                # mostly for applying diag_fns
+                self.file = read_log(fname)
+                self.diag_fns = {**self.diag_fn_common, **self.diags_hst}
+                self.ftype = "hst"
+                self.params = {}
         else:
-            # Read diagnostic output.  Much more limited functionality here,
-            # mostly for applying diag_fns
-            self.file = read_log(fname)
+            # Build an object around existing data dict, passed as "fname"
+            self.fname = ""
+            self.file = fname
             self.diag_fns = {**self.diag_fn_common, **self.diags_hst}
             self.ftype = "hst"
+            self.params = {}
             
 
     def __del__(self):
@@ -123,6 +187,7 @@ class AnaResults(object):
         else:
             try:
                 # The only independent variable in diagnostic output is t
+                #print("Getting t ",key)
                 return self.get_dvar('t', key)
             except (IOError, OSError):
                 if self.ftype == "ana":
@@ -159,7 +224,9 @@ class AnaResults(object):
         if th_r is None and mesh == True and ivar in self.cache:
             return self.cache[ivar]
 
-        G = self.grid
+        if ivar not in ('t', 'time'):
+            # Don't cache grid for e.g. fluxes
+            G = self.grid
 
         # 2D space: get x,y from grid
         # This ensures rth is correct & potentially is faster
@@ -202,16 +269,21 @@ class AnaResults(object):
                 mesh = False
 
             if ivar != '':
-                # 1D space: use spherical coordinates directly
+                # Want a 1D space: use the spherical coordinates directly
+                # TODO this without meshgrid -> indexing
                 native_coords = G.coord_all(mesh=mesh)
+                # Always index into flattened array, unless we need phi
+                if len(native_coords.shape) > 3 and ivar != 'phi':
+                    native_coords = native_coords[:,:,:,0]
+
                 if ivar == 'r':
-                    ret_i.append(G.coords.r(native_coords[:, :, 0, 0]))
+                    ret_i.append(G.coords.r(native_coords[:, :, 0]))
                 elif ivar in ('th', 'hth'):
                     if th_r is not None:
-                        r1d = G.coords.r(native_coords[:, :, 0, 0])
-                        th = G.coords.th(native_coords[:, i_of(r1d, th_r), :, 0])
+                        r1d = G.coords.r(native_coords[:, :, 0])
+                        th = G.coords.th(native_coords[:, i_of(r1d, th_r), :])
                     else:
-                        th = G.coords.th(native_coords[:, -1, :, 0])
+                        th = G.coords.th(native_coords[:, -1, :])
                     if ivar == 'hth':
                         th = th[:len(th)//2]
                     ret_i.append(th)
@@ -248,6 +320,8 @@ class AnaResults(object):
                 self.get_ivar('t')
                 # Apply ordered-time permutation on read and never after
                 ret_v = ret_v[self.t_perm]
+        elif self.ftype == "hst" and dvar in self.file:
+            ret_v = self.file[dvar]
         # Prefixes for a few common 1:1 math operations
         elif dvar[:5] == "sqrt_":
             ret_v = np.sqrt(self.get_dvar(ivar, dvar[5:]))
@@ -261,6 +335,8 @@ class AnaResults(object):
             ret_v = np.log(self.get_dvar(ivar, dvar[3:]))
         elif dvar[:4] == "inv_":
             ret_v = 1/self.get_dvar(ivar, dvar[4:])
+        elif dvar[:4] == "neg_":
+            ret_v = -self.get_dvar(ivar, dvar[4:])
         elif dvar[:6] == "smooth": # smooth_ or e.g. smooth101_
             dvarl = dvar.split('_')
             op = dvarl[0]

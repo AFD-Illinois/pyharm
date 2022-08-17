@@ -1,3 +1,37 @@
+__license__ = """
+ File: iharm3d.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 import h5py
 import numpy as np
 
@@ -7,75 +41,21 @@ from .interface import DumpFile
 # but don't balloon the line count
 from .iharm3d_header import read_hdr, write_hdr, _write_value
 
-# This is one-and-done, no need for objects
-def read_log(logfname):
-    """Read an iharm3d-format log.out file into a dictionary"""
-    dfile = np.loadtxt(logfname).transpose()
-    # iharm3d's logs are deep magic. TODO header?
-    log = {}
-    log['t'] = dfile[0]
-    log['rmed'] = dfile[1]
-    log['pp'] = dfile[2]
-    log['e'] = dfile[3]
-    log['uu_rho_gam_cent'] = dfile[4]
-    log['uu_cent'] = dfile[5]
-    log['mdot'] = dfile[6]
-    log['edot'] = dfile[7]
-    log['ldot'] = dfile[8]
-    log['mass'] = dfile[9]
-    log['egas'] = dfile[10]
-    log['Phi'] = dfile[11]
-    log['phi'] = dfile[12]
-    log['jet_EM_flux'] = dfile[13]
-    log['divbmax'] = dfile[14]
-    log['lum_eht'] = dfile[15]
-    log['mdot_eh'] = dfile[16]
-    log['edot_eh'] = dfile[17]
-    log['ldot_eh'] = dfile[18]
-
-    return log
-
-# One-and-done like above.  Plus, generally user wants to select which file they're writing,
-# not have a transparent interface
-def write_dump(dump, fname, astype=np.float32, ghost_zones=False):
-    """Write a dump file in iharm3d/Illinois HDF format.
-    Uses
-    """
-    with h5py.File(fname, "w") as outf:
-        write_hdr(dump.params, outf)
-
-        # Per-dump single variables
-        outf['t'] = dump['t']
-        outf['dt'] = dump['dt']
-        outf['dump_cadence'] = dump['dump_cadence']
-        outf['full_dump_cadence'] = dump['dump_cadence']
-        outf['is_full_dump'] = True
-        if 'n_dump' in dump.params:
-            outf['n_dump'] = dump['n_dump']
-        if 'n_step' in dump.params:
-            outf['n_step'] = dump['n_step']
-
-        # This will fetch and write all primitive variables
-        G = dump.grid
-        if G.NG > 0 and not ghost_zones:
-            p = dump.reader.read_var('prims', astype=astype)
-            outf["prims"] = np.einsum("p...->...p", p[G.slices.allv + G.slices.bulk]).astype(astype)
-        else:
-            p = dump.reader.read_var('prims', astype=astype)
-            outf["prims"] = np.einsum("p...->...p", p).astype(astype)
-
-        # Extra in-situ calculations or custom debugging additions
-        if "extras" not in outf:
-            outf.create_group("extras")
+__doc__ = \
+"""Functions for reading and writing iharm3d/Illinois HDF format files,
+as well as iharm3d's log files.
+"""
 
 class Iharm3DFile(DumpFile):
-    """File filter class for iharm3d dump files.
+    """File filter class for Illinois HDF5 format dump files, from iharm3d, ebhlight, pyharm, or converted
+    from KHARMA output or potentially more exotic formats.
+    Usually used through file-agnostic interface: see file_reader and the FluidDump class for details.
     """
 
     @classmethod
     def get_dump_time(cls, fname):
         """Quickly get just the simulation time represented in the dump file.
-        For cutting on time without loading everything
+        For cutting on time without loading everything.
         """
         with h5py.File(fname, 'r') as dfile:
             if 't' in dfile.keys():
@@ -85,7 +65,7 @@ class Iharm3DFile(DumpFile):
 
     def __init__(self, filename, ghost_zones=False, params=None):
         """Create an Iharm3DFile object -- note that the file handle will stay
-        open as long as the object
+        open as long as the object.
         """
         self.fname = filename
         self.cache = {}
@@ -110,7 +90,7 @@ class Iharm3DFile(DumpFile):
 
             # Add variables which change per-dump, recorded outside header
             for key in ['t', 'dt', 'n_step', 'n_dump', 'is_full_dump', 'dump_cadence', 'full_dump_cadence']:
-                if key in fil:
+                if key in fil and not isinstance(fil[key], h5py.Group):
                     params[key] = fil[key][()]
 
             # Grab the git revision if it's available, as this isn't recorded to/read from the header either
@@ -176,4 +156,64 @@ class Iharm3DFile(DumpFile):
         if astype is not None:
             arr = arr.astype(astype)
         
-        return np.squeeze(arr)
+        return arr
+
+## Module functions
+
+def read_log(logfname):
+    """Read an iharm3d-format log.out file into a dictionary
+    """
+    dfile = np.loadtxt(logfname).transpose()
+    # iharm3d's logs are deep magic. TODO header?
+    log = {}
+    log['t'] = dfile[0]
+    log['rmed'] = dfile[1]
+    log['pp'] = dfile[2]
+    log['e'] = dfile[3]
+    log['uu_rho_gam_cent'] = dfile[4]
+    log['uu_cent'] = dfile[5]
+    log['mdot'] = dfile[6]
+    log['edot'] = dfile[7]
+    log['ldot'] = dfile[8]
+    log['mass'] = dfile[9]
+    log['egas'] = dfile[10]
+    log['Phi'] = dfile[11]
+    log['phi'] = dfile[12]
+    log['jet_EM_flux'] = dfile[13]
+    log['divbmax'] = dfile[14]
+    log['lum_eht'] = dfile[15]
+    log['mdot_eh'] = dfile[16]
+    log['edot_eh'] = dfile[17]
+    log['ldot_eh'] = dfile[18]
+
+    return log
+
+def write_dump(dump, fname, astype=np.float32, ghost_zones=False):
+    """Write the data in FluidDump 'dump' to file 'fname' in iharm3d/Illinois HDF format.
+    """
+    with h5py.File(fname, "w") as outf:
+        write_hdr(dump.params, outf)
+
+        # Per-dump single variables
+        outf['t'] = dump['t']
+        outf['dt'] = dump['dt']
+        outf['dump_cadence'] = dump['dump_cadence']
+        outf['full_dump_cadence'] = dump['dump_cadence']
+        outf['is_full_dump'] = True
+        if 'n_dump' in dump.params:
+            outf['n_dump'] = dump['n_dump']
+        if 'n_step' in dump.params:
+            outf['n_step'] = dump['n_step']
+
+        # This will fetch and write all primitive variables
+        G = dump.grid
+        if G.NG > 0 and not ghost_zones:
+            p = dump.reader.read_var('prims', astype=astype)
+            outf["prims"] = np.einsum("p...->...p", p[G.slices.allv + G.slices.bulk]).astype(astype)
+        else:
+            p = dump.reader.read_var('prims', astype=astype)
+            outf["prims"] = np.einsum("p...->...p", p).astype(astype)
+
+        # Extra in-situ calculations or custom debugging additions
+        if "extras" not in outf:
+            outf.create_group("extras")

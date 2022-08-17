@@ -1,3 +1,36 @@
+__license__ = """
+ File: analyses.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 
 import sys
 
@@ -5,11 +38,11 @@ from ..variables import *
 from .reductions import *
 from .. import io
 
-"""
-Groups of particular related reductions.
+__doc__ = \
+"""Groups of particular related reductions performed over a GRMHD run.
 
 Each function takes a dump object and a dict 'out' to fill
-when computing new variables.
+when computing new variables.  This allows collation in analysis.py for the pyharm-analysis script
 
 Variables are organized by remaining independent variable, as described in ana_results.py
 """
@@ -113,10 +146,8 @@ def th_profiles(dump, out, vars=('inv_beta', 'sigma'), **kwargs):
 def omega_bz(dump, out, **kwargs):
     """Field rotation rate, for comparison against Blandford-Znajek prediction
     """
-    # rTh = _get(kwargs, 'rTh')
-    # at_i = i_of(dump['r1d'], rTh)
     at_i = _get(kwargs, 'iEH') # At event horizon
-    # Always do the 
+    # Average the next 5 zones out from zone 5
     out['htht/omega'] = theta_profile(dump, 'F_0_1', at_i, 5) / theta_profile(dump, 'F_1_3', at_i, 5)
 
     if _get(kwargs, 'do_tavgs'):
@@ -269,11 +300,10 @@ def jet_cut_lite(dump, out, **kwargs):
 def lumproxy(dump, out, **kwargs):
     """Luminosity proxy from GRMHD code comparison '19
     """
-    jmin, jmax = get_j_slice(dump)
     rho, Pg, B = dump['rho'], dump['Pg'], dump['b']
     # See EHT code comparison paper
     j = rho ** 3 / Pg ** 2 * np.exp(-0.2 * (rho ** 2 / (B * Pg ** 2)) ** (1. / 3.))
-    out['rt/Lum'] = shell_sum(dump, j, j_slice=(jmin, jmax))
+    out['rt/Lum'] = shell_sum(dump, j, j_slice=get_j_slice(dump))
 
 def gridtotals(dump, out):
     """Total energy and current, summed by shells to allow any cut on radius

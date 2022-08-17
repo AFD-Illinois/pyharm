@@ -12,7 +12,7 @@ import textwrap
 
 import pyharm
 from pyharm import io
-from pyharm.util import calc_nthreads
+from pyharm.parallel import calc_nthreads
 from pyharm.ana.analysis import *
 import pyharm.io.iharm3d_header as hdr
 
@@ -33,7 +33,7 @@ except ImportError:
     def do_out():
         return True
 
-# This extends the help message to print valid movies
+# This extends the help message to print valid analyses
 class ExtensibleCmd(click.Command):
     def format_help(self, ctx, formatter):
         click.Command.format_help(self, ctx, formatter)
@@ -140,6 +140,10 @@ def analysis(ana_types, paths, **kwargs):
             kwargs['t_avg_end'] = float(kwargs['average_end'])
         else:
             kwargs['t_avg_end'] = tend
+
+        # Set filename from analysis if doing one
+        if (kwargs['filename'] == 'eht_out.h5') and not (',' in kwargs['ana_types']):
+            kwargs['filename'] = kwargs['ana_types']+"_out.h5"
 
         if do_out():
             # Initialize the file, creating parent dir if not present

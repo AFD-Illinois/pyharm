@@ -1,4 +1,4 @@
-# Module defining coordinate grids
+# Module defining coordinate gridstype
 
 import copy
 from operator import truediv
@@ -8,11 +8,11 @@ from pyharm.defs import Loci, Slices, Shapes
 from pyharm.coordinates import *
 
 
-def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3,
+def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
                     r_in=None, r_out=1000, caches=True, cache_conn=False):
     """Convenience function for generating grids with particular known parameters.
 
-    :param type: coordinate system, denoted 'eks', 'mks', 'fmks', 'minkowski', or
+    :param system: coordinate system, denoted 'eks', 'mks', 'fmks', 'minkowski', or
                  anything exotic defined in :mode`pyharm.coordinates`
 
     All other parameters are as described in Grid.__init__, and are optional with
@@ -21,7 +21,7 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3,
     """
 
     params = {}
-    params['coordinates'] = type
+    params['coordinates'] = system
     params['n1tot'] = n1
     params['n2tot'] = n2
     params['n3tot'] = n3
@@ -30,20 +30,21 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3,
     params['n3'] = n3
     params['ng'] = 0
 
-    if type == 'minkowski' or type == 'cartesian':
+    if system == 'minkowski' or system == 'cartesian':
         params['x1min'] = 0
         params['x2min'] = 0
         params['x3min'] = 0
         params['x1max'] = 1
         params['x2max'] = 1
         params['x3max'] = 1
-    elif 'mks' in type:
+    elif 'ks' in system:
         params['a'] = a
-        params['hslope'] = hslope
         params['r_out'] = r_out
         if r_in is not None:
             params['r_in'] = r_in
-        if type == 'fmks' or type == 'mmks':
+        if 'mks' in system:
+            params['hslope'] = hslope
+        if system == 'fmks' or system == 'mmks':
             params['poly_xt'] = 0.82
             params['poly_alpha'] = 14.0
             params['mks_smooth'] = 0.5
@@ -281,20 +282,18 @@ class Grid:
 
         return np.squeeze(np.array(np.meshgrid(x[0], x[1], x[2], x[3])))
 
-    def coord_bulk(self, loc=Loci.CENT):
+    def coord_bulk(self, loc=Loci.CENT, mesh=False):
         """Return a 3D array of all position vectors X within the physical zones.
         See coord() for use.
         """
-        return self.coord(np.arange(self.N[1])+self.NG,
-                          np.arange(self.N[2])+self.NG,
-                          np.arange(self.N[3])+self.NG, loc=loc)
-
-    def coord_bulk_mesh(self):
-        """Returns zone corners for plotting a variable in the bulk
-        """
-        return self.coord(np.arange(self.N[1]+1)+self.NG,
-                          np.arange(self.N[2]+1)+self.NG,
-                          np.arange(self.N[3]+1)+self.NG, loc=Loci.CORN)
+        if mesh:
+            return self.coord(np.arange(self.N[1]+1)+self.NG,
+                    np.arange(self.N[2]+1)+self.NG,
+                    np.arange(self.N[3]+1)+self.NG, loc=Loci.CORN)
+        else:
+            return self.coord(np.arange(self.N[1])+self.NG,
+                            np.arange(self.N[2])+self.NG,
+                            np.arange(self.N[3])+self.NG, loc=loc)
 
     def coord_all(self, loc=Loci.CENT, mesh=False):
         """Like coord_bulk, but including ghost zones"""
@@ -341,7 +340,7 @@ class Grid:
         return np.einsum("ij...,j...->i...", self.gcon[loc.value], vcov)
 
     def dot(self, ucon, ucov):
-        """Inner product along first index. Exists to make other code OpenCL-agnostic"""
+        """Inner product along first index."""
         return np.einsum("i...,i...", ucon, ucov)
 
     def dt_light(self):
@@ -489,7 +488,8 @@ class Grid:
             return True
         elif key[:7] == 'pcoord_':
             return True
-        elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z', 'X1', 'X2', 'X3', 'dXdx', 'dxdX'):
+        elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z', 'X1', 'X2', 'X3',
+                     'dXdx', 'dxdX', 'dxdX_cart', 'dXdx_cart'):
             return True
         else:
             return False
@@ -538,10 +538,15 @@ class Grid:
                 if cache in self.__dict__:
                     # Slice over all locations in 1st index
                     out.__dict__[cache] = self.__dict__[cache][(slice(None),) + out.slice]
+                    if len(out.__dict__[cache].shape) < 4:
+                        out.__dict__[cache] = out.__dict__[cache][Ellipsis, np.newaxis]
             for cache in ('gcon', 'gcov', 'conn'):
                 if cache in self.__dict__:
                     # Slice over all loc + 2 indices in gcon/gcov, 3 indices in conn
                     out.__dict__[cache] = self.__dict__[cache][(slice(None), slice(None), slice(None)) + out.slice]
+                    if len(out.__dict__[cache].shape) < 6:
+                        out.__dict__[cache] = out.__dict__[cache][Ellipsis, np.newaxis]
+
             return out
 
         elif key in self.cache:
@@ -569,7 +574,7 @@ class Grid:
 
         elif key in ['n1', 'n2', 'n3']:
             return self.NTOT[int(key[-1:])]
-        elif key in ['r', 'th', 'phi', 'dxdX', 'dXdx']:
+        elif key in ['r', 'th', 'phi', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart']:
             # Assuming 2D grids is so much faster.  TODO accommodate 3D?
             self.cache[key] = getattr(self.coords, key)(self.coord_ij()[:, :, :, np.newaxis])
             return self.cache[key]

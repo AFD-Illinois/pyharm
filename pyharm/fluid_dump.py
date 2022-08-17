@@ -21,14 +21,17 @@ class FluidDump:
         """Attach the fluid dump file 'fname' and make its contents accessible like a dictionary.  For a list of some
         variables and properties accessible this way, see the README.
 
-        Fluid dumps can be sliced like arrays!  That is, dump[i,j,k]['var_name'] will read or compute 'var_name' only for the
+        Fluid dumps can be sliced like arrays!  That is, ``dump[i,j,k]['var_name']`` will read or compute ``'var_name'`` only for the
         particular index in question, and similarly for slices of any size (e.g., 2D slices for plots).  This is
-        *tremendously useful*, so remember to slice first to save time if efficiency is important.
+        *tremendously useful*, so remember to slice first to save time if efficiency is important.  Note, though,
+        that slicing preserves the dimensionality -- that is, ``dump[i,j,k][var].shape`` will be (1,1,1).  Being able to assume
+        every dump has three dimensions makes a lot of internal logic easier.  If you need 2D arrays, just use
+        ``np.squeeze``, or the internal functions ``flatten_xz`` and ``flatten_xy``, which return common 2D slices or averages.
 
-        However, note that slicing does not support strides, and that slices may be *views* rather than *copies* --
-        if you're going to modify array contents yourself within a slice, it may affect the global array.  Generally
-        this is what you want (think assignment to a slice), but it can be confusing if you're really digging around.
-        Try using copy.copy or copy.deepcopy if unsure.
+        Also, note that slicing does not support strides, and that slices may be *views* rather than *copies* --
+        if you're going to modify array contents yourself within a slice (for some reason...), it may affect the global array.
+        Generally this will just behave how you want, but it can be confusing if you're really digging around.  If you have the memory,
+        you can use ``copy.copy`` or ``copy.deepcopy`` to be certain.
 
         :param fname: file name or path to dump
         :param tag: any string, usually long name of dump/model for plotting
@@ -86,15 +89,20 @@ class FluidDump:
         if type(key) in (list, tuple):
             slc = key
             # TODO handle further slicing after this is a 2D object?
-            relevant_0 = isinstance(slc[0], int) or isinstance(slc[0], np.int32) or isinstance(slc[0], np.int64) \
-                         or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)
-            relevant_1 = isinstance(slc[1], int) or isinstance(slc[1], np.int32) or isinstance(slc[1], np.int64) \
-                         or isinstance(slc[1].start, int) or isinstance(slc[1].stop, int)
-            relevant_2 = isinstance(slc[2], int) or isinstance(slc[2], np.int32) or isinstance(slc[2], np.int64) \
-                         or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
-            if not (relevant_0 or relevant_1 or relevant_2):
+            relevant = [False, False, False]
+            new_slc = list(slc)
+            for i in range(3):
+                if isinstance(slc[i], slice):
+                    new_slc[i] = slc[i]
+                else:
+                    new_slc[i] = slice(slc[i], slc[i]+1) # For gauging relevance later
+                relevant[i] = ((new_slc[i].start is not None) or (new_slc[i].stop is not None))
+
+            if not (relevant[0] or relevant[1] or relevant[2]):
                 return self
+
             # TODO somehow proper copy constructor
+            slc = tuple(new_slc)
             #print("FluidDump slice copy: ", self.cache, key)
             out = FluidDump(self.fname, add_grid=False, params=self.params)
             #out = copy.deepcopy(self) # In case this proves faster
@@ -183,6 +191,10 @@ class FluidDump:
             return self[key[0]+"cov_base"][["t", "r", "th", "phi"].index(key.split("_")[-1])]
         elif key[-2:] == "^t" or key[-2:] == "^r" or key[-3:] == "^th" or key[-4:] == "^phi":
             return self[key[0]+"con_base"][["t", "r", "th", "phi"].index(key.split("^")[-1])]
+        elif key[-2:] == "_x" or key[-2:] == "_y" or key[-2:] == "_z":
+            return self[key[0]+"cov_cart"][["t", "x", "y", "z"].index(key.split("_")[-1])]
+        elif key[-2:] == "^x" or key[-2:] == "^y" or key[-2:] == "^z":
+            return self[key[0]+"con_cart"][["t", "x", "y", "z"].index(key.split("^")[-1])]
 
         # Return an array of the correct size filled with just zero or one
         # Don't cache these

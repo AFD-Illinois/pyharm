@@ -4,30 +4,37 @@ import os
 import psutil
 import click
 import multiprocessing
+from functools import partial
 
 import numpy as np
 
 import pyharm
+from pyharm.parallel import map_parallel
 
-def convert_file(fname, outfname, double=False, restart=False):
+def convert_file(name_pair, double=False, restart=False, resume=False):
     """Read a single file of some type, and write it as Illinois HDF5 format"""
-    dump = pyharm.load_dump(fname, grid_cache=False)
-    if restart:
-        # Default in double
-        pyharm.io.iharm3d_restart.write_restart(dump, outfname)
-    else:
-        pyharm.io.iharm3d.write_dump(dump, outfname, astype=(np.float32, np.float64)[double])
+    fname, outfname = name_pair
+    #print("Converting {} -> {}".format(fname, outfname), file=sys.stderr)
+    if not (resume and os.path.exists(outfname)):
+        dump = pyharm.load_dump(fname, grid_cache=False)
+        if restart:
+            # Default in double
+            pyharm.io.iharm3d_restart.write_restart(dump, outfname)
+        else:
+            pyharm.io.iharm3d.write_dump(dump, outfname, astype=(np.float32, np.float64)[double])
+        del dump
 
 @click.command()
 @click.argument('files', nargs=-1)
 # Common options
 @click.option('-p', '--path', default=None, help="Output filepath prefix, e.g. dumps/.")
 @click.option('-o', '--outfile', default=None, help="Output filename, if converting a single dump.")
+@click.option('-r', '--resume', is_flag=True, help="Only convert files not already present in the output directory")
 @click.option('--double', is_flag=True, help="Read/write in double precision")
 @click.option('--restart', is_flag=True, help="Write an iharm3d restart file suitable for resizing. Implies --double.")
-@click.option('-nt', '--nthreads', default=None, help="Number of parallel conversions -- defaults to nprocs")
+@click.option('-nt', '--nthreads', default=None, help="Number of parallel conversions -- defaults to min(nprocs, 64)")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
-def convert(files, path, outfile, double, restart, nthreads, debug):
+def convert(files, path, outfile, double, restart, resume, nthreads, debug):
     """Convert a file from KHARMA format (or any readable format) into iharm3d/Illinois HDF5 format
     (and only this format, as pyharm cannot write other file formats).
 
@@ -39,31 +46,38 @@ def convert(files, path, outfile, double, restart, nthreads, debug):
     formats.
 
     Usage: convert.py FILE1 [FILE2 FILE3]
+
+    Note on parallelization: fewer threads may be much faster on some machines (even supercomputer nodes)
+    due to contention.  Play arount with -nt to find what's fastest.  There is a hard limit of 32 threads,
+    as no machine in existence gracefully handles more than that number of simultaneous file reads to one node.
     """
     if path is not None:
+        # Make the path and prepend it to new filenames
         os.makedirs(path, exist_ok=True)
-        outfiles = os.path.join(path, [f.split("/")[-1].replace(".phdf", "")+".h5" for f in files])
+        outfiles = [os.path.join(path, f.split("/")[-1].replace(".phdf", "")+".h5") for f in files]
     elif outfile is not None:
+        # Out list of one
         outfiles = [outfile]
     else:
+        # Place new files alongside the old
         outfiles = [f.replace(".phdf", "").replace(".rhdf","")+".h5" for f in files]
+
+    # TODO if resume, take out existing files *here*
 
     if debug:
         for file, outfile in zip(files, outfiles):
-            convert_file(file, outfile, double)
+            convert_file((file, outfile), double, restart)
     else:
         if nthreads is None:
-            nthreads = min(psutil.cpu_count(), len(files))
+            nthreads = min(min(psutil.cpu_count(), len(files)), 32)
+        else:
+            nthreads = int(nthreads)
 
-        double = (double,)*len(files)
-        restart = (restart,)*len(files)
+        convert_func = partial(convert_file, double=double, restart=restart, resume=resume)
 
         print("Converting {} files with {} threads".format(len(files), nthreads))
-        with multiprocessing.Pool(nthreads) as pool:
-            pool.starmap_async(convert_file, zip(files, outfiles, double, restart)).get(720000)
-        print("Converted all files. It is normal to see many ERROR lines above,",
-               "but check that nothing important failed!")
-
+        map_parallel(convert_file, zip(files, outfiles), nprocs=nthreads)
+        print("Converted all files.")
 
 if __name__ == "__main__":
     convert()

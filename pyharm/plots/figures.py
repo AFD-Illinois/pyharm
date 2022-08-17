@@ -1,5 +1,36 @@
-# Various full figures, combining plots & settings frequently used together
-# Similar to reports.py in imtools
+__license__ = """
+ File: figures.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 
 import os
 import sys
@@ -14,6 +45,7 @@ from .plot_dumps import *
 from .plot_results import *
 from ..defs import FloorFlag_KHARMA, FloorFlag_iharm3d, InversionStatus
 
+__doc__ = \
 """Various full figures, combining plots & settings frequently used together.
 Similar to the file of the same name in imtools.
 """
@@ -81,8 +113,9 @@ def simple(fig, dump, diag, plotrc):
     ax_slc = [plt.subplot(gs[0, 0]), plt.subplot(gs[0, 1])]
     ax_flux = [plt.subplot(gs[1, :]), plt.subplot(gs[2, :])]
     plot_slices(ax_slc[0], ax_slc[1], dump, 'rho', log=True, **plotrc)
-    plot_hst(ax_flux[0], diag, 'Mdot', tline=dump['t'], xlabel="", xticklabels=[])
-    plot_hst(ax_flux[1], diag, 'phi_b', tline=dump['t'])
+    ana = AnaResults(diag)
+    plot_hst(ax_flux[0], ana, 'Mdot', tline=dump['t'], xlabel="", xticklabels=[])
+    plot_hst(ax_flux[1], ana, 'phi_b', tline=dump['t'])
     fig.subplots_adjust(hspace=0.25, bottom=0.05, top=0.95)
     # Make sure frame.py doesn't set a title
     plotrc['no_title'] = True
@@ -108,8 +141,9 @@ def traditional(fig, dump, diag, plotrc):
 
     # FLUXES
     if diag is not None:
-        plot_hst(ax_flux(6), diag, 'mdot', tline=dump['t'], xticklabels=[])
-        plot_hst(ax_flux(8), diag, 'phi_b', tline=dump['t'])
+        ana = AnaResults(diag)
+        plot_hst(ax_flux(6), ana, 'mdot', tline=dump['t'], xticklabels=[])
+        plot_hst(ax_flux(8), ana, 'phi_b', tline=dump['t'])
         plotrc['no_title'] = True # We have an indication of the time, so don't title with it
     else:
         print("Not plotting fluxes!", file=sys.stderr)

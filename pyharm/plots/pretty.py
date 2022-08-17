@@ -65,6 +65,7 @@ pretty_dict = {'rho': r"\rho",
             'ldot': r"\frac{\dot{L}}{\langle \dot{M} \rangle}",
             'ldot_per': r"\frac{\dot{L}}{\dot{M}}",
             'eff': r"\frac{\left| \dot{E} - \dot{M} \right|}{\langle \dot{M} \rangle}",
+            'spinup': r"\frac{\dot{L} - 2 a \dot{E}}{\langle \dot{M} \rangle}",
             # Independent variables
             't': r"t \; \left( \frac{G M}{c^3} \right)",
             'x': r"x \; \left( \frac{G M}{c^2} \right)",
@@ -82,6 +83,8 @@ def pretty(var, segment=False):
     # Strip any flags that don't result in a different string
     if "_post" in var:
         return pretty(var.replace("_post",""), segment=segment)
+    if "_disk" in var:
+        return pretty(var.replace("_disk",""), segment=segment) + " (disk-average)"
 
     # Break down the name and translate bits we know to Latex;
     # keeps anything we don't understand as-is, no formatting
