@@ -1,3 +1,37 @@
+__license__ = """
+ File: iharm3d_restart.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 import h5py
 import numpy as np
 
@@ -8,7 +42,70 @@ from .interface import DumpFile
 from .iharm3d import Iharm3DFile
 from .iharm3d_header import _write_value
 
+__doc__ = \
+"""Functions for reading and writing iharm3d-format restart files.
+Since these files are quite simple, this is also the format used
+by KHARMA when resizing and resuming simulations at higher resolution. 
+"""
+
+class Iharm3DRestart(Iharm3DFile):
+    """File filter class for iharm3d restart files. Overrides just the parameters & read_var methods.
+    """
+
+    def read_params(self, **kwargs):
+        """Read the file header and per-dump parameters (t, dt, etc)"""
+        with h5py.File(self.fname, "r") as fil:
+            params = {}
+            # Add everything a restart file records
+            for key in ['DTd', 'DTf', 'DTl', 'DTp', 'DTr', 'cour', 'dt', 'dump_cnt',
+                        'gam', 'n1', 'n2', 'n3', 'nstep', 'restart_id', 't', 'tdump',
+                        'tf', 'tlog', 'version']:
+                if key in fil:
+                    params[key] = fil[key][()]
+            if 'a' in fil.keys():
+                for key in ['a', 'hslope', 'R0', 'Rhor', 'Rin', 'Rout']:
+                    if key in fil:
+                        params[key] = fil[key][()]
+                params['coordinates'] = 'fmks'
+            # TODO ELSE CARTESIAN
+
+            return parameters.fix(params)
+
+    def read_var(self, var, slc=(), **kwargs):
+        if var in self.cache:
+            return self.cache[var]
+        with h5py.File(self.fname, "r") as fil:
+            # Translate the slice to a portion of the file
+            # A bit overkill to stay adaptable: keeps all dimensions until squeeze in _prep_array
+            # TODO ghost zones
+            fil_slc = [slice(None), slice(None), slice(None)]
+            if isinstance(slc, tuple) or isinstance(slc, list):
+                for i in range(len(slc)):
+                    if isinstance(slc[i], int) or isinstance(slc[i], np.int32) or isinstance(slc[i], np.int64):
+                        fil_slc[2-i] = slice(slc[i], slc[i]+1)
+                    else:
+                        fil_slc[2-i] = slc[i]
+            fil_slc = tuple(fil_slc)
+
+            # No indications present in restarts to read any fancy indexing. Only support the basics
+            i = self.index_of(var)
+            if i is not None:
+                # This is one of the main vars in the 'prims' array
+                arr = fil['/p'][(i,) + fil_slc][()]
+                if len(arr.shape) > 3:
+                    self.cache[var] = np.squeeze(np.einsum("pkji->pijk", arr))
+                else:
+                    self.cache[var] = np.squeeze(np.einsum("kji->ijk", arr))
+                return self.cache[var]
+            else:
+                raise IOError("Cannot find variable "+var+" in file "+self.fname+"!")
+
+## Module functions
+
 def write_restart(dump, fname, astype=np.float64):
+    """Write a valid iharm3d restart/KHARMA resize file,
+    containing the data in FluidDump 'dump', to 'fname', at precision 'astype'.
+    """
     with h5py.File(fname, "w") as outf:
 
         # Record this was converted
@@ -77,55 +174,3 @@ def write_restart(dump, fname, astype=np.float64):
         else:
             p = dump.reader.read_var('prims', astype=astype)
             outf["p"] = np.einsum("pijk->pkji", p).astype(astype)
-
-class Iharm3DRestart(Iharm3DFile):
-    """File filter class for iharm3d restart files. Overrides just parameters & read_var methods.
-    """
-
-    def read_params(self, **kwargs):
-        """Read the file header and per-dump parameters (t, dt, etc)"""
-        with h5py.File(self.fname, "r") as fil:
-            params = {}
-            # Add everything a restart file records
-            for key in ['DTd', 'DTf', 'DTl', 'DTp', 'DTr', 'cour', 'dt', 'dump_cnt',
-                        'gam', 'n1', 'n2', 'n3', 'nstep', 'restart_id', 't', 'tdump',
-                        'tf', 'tlog', 'version']:
-                if key in fil:
-                    params[key] = fil[key][()]
-            if 'a' in fil.keys():
-                for key in ['a', 'hslope', 'R0', 'Rhor', 'Rin', 'Rout']:
-                    if key in fil:
-                        params[key] = fil[key][()]
-                params['coordinates'] = 'fmks'
-            # TODO ELSE CARTESIAN
-
-            return parameters.fix(params)
-
-    def read_var(self, var, slc=(), **kwargs):
-        if var in self.cache:
-            return self.cache[var]
-        with h5py.File(self.fname, "r") as fil:
-            # Translate the slice to a portion of the file
-            # A bit overkill to stay adaptable: keeps all dimensions until squeeze in _prep_array
-            # TODO ghost zones
-            fil_slc = [slice(None), slice(None), slice(None)]
-            if isinstance(slc, tuple) or isinstance(slc, list):
-                for i in range(len(slc)):
-                    if isinstance(slc[i], int) or isinstance(slc[i], np.int32) or isinstance(slc[i], np.int64):
-                        fil_slc[2-i] = slice(slc[i], slc[i]+1)
-                    else:
-                        fil_slc[2-i] = slc[i]
-            fil_slc = tuple(fil_slc)
-
-            # No indications present in restarts to read any fancy indexing. Only support the basics
-            i = self.index_of(var)
-            if i is not None:
-                # This is one of the main vars in the 'prims' array
-                arr = fil['/p'][(i,) + fil_slc][()]
-                if len(arr.shape) > 3:
-                    self.cache[var] = np.squeeze(np.einsum("pkji->pijk", arr))
-                else:
-                    self.cache[var] = np.squeeze(np.einsum("kji->ijk", arr))
-                return self.cache[var]
-            else:
-                raise IOError("Cannot find variable "+var+" in file "+self.fname+"!")

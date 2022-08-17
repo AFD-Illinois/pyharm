@@ -1,22 +1,56 @@
+__license__ = """
+ File: reductions.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 import numpy as np
 import scipy.fftpack as fft
 
 # This is too darn useful
 from pyharm.util import i_of
 
-"""
-General interface for reductions:
-(dump, var, options)
-dump: FluidDump object, generally pre-slice.
-var: either the name of a variable to compute over the necessary slice,
+__doc__ = \
+"""The general interface for reductions is (dump, var, options)
+| dump: FluidDump object, generally pre-slice.
+| var: either the name of a variable to compute over the necessary slice,
 or a pre-sliced & computed variable of the right shape.
-
 
 Other options as described below.
 Certain zone arguments with defaults are still necessary when a reduction is otherwise ambiguous!
-
-TODO PDFs, revisions generally as analysis ramps back up
 """
+
+# TODO PDFs. Any stray incompatibilities with new slicing stuff
+# TODO would need lots of modification for non-regular or not-in-native coordinates
+# TODO slice-before-calculate support for correlation functions
 
 ## Plotting reductions ##
 
@@ -132,7 +166,6 @@ def shell_sum(dump, var, at_r=None, at_i=None, th_slice=None, j_slice=None, mask
     """
 
     # Translate coordinates to zone numbers.
-    # TODO slice dx2, dx3 if they're matrices for exotic coordinates
     if at_i is not None:
         i_slice = slice(at_i, at_i+1)
     elif at_r is not None:
@@ -153,8 +186,6 @@ def shell_sum(dump, var, at_r=None, at_i=None, th_slice=None, j_slice=None, mask
     else:
         var = var[i_slice, j_slice, :]
 
-
-    # TODO slice dx2, dx3 if they're matrices for exotic coordinates
     integrand = var * dump['gdet'][i_slice, j_slice, :] * dump['dx2'] * dump['dx3']
     if mask is not None:
         integrand *= mask
@@ -196,8 +227,7 @@ def sphere_sum(dump, var, r_slice=None, i_slice=None, th_slice=None, j_slice=Non
     else:
         var = var[i_slice, j_slice, :]
 
-    # TODO slice dx2, dx3 if they're matrices for exotic coordinates
-    # TODO mask?
+    # TODO mask support?
     return np.sum(var * dump['gdet'][i_slice, j_slice, :] * dump['dx1'] * dump['dx2'] * dump['dx3'])
 
 
@@ -250,22 +280,21 @@ def theta_profile(dump, var, start, zones_to_av=1, use_gdet=True, fold=True):
             integrand = var[i_slice]
 
         if fold:
-            return integrand[:,j_top].mean(axis=(0, 2)) + integrand[:,j_bottom].mean(axis=(0, 2))
+            return (integrand[:,j_top].mean(axis=(0, 2)) + integrand[:,j_bottom].mean(axis=(0, 2))) / 2
         else:
             return integrand.mean(axis=(0, 2))
 
 
 ## Correlation functions/lengths ##
 
-
 def corr_midplane(var, norm=True, at_i1=None):
     """Angular correlation function at the midplane,
-     of an array representing a variable in spherical-like coordinates r,th,phi
-     """
+    of an array representing a variable in spherical-like coordinates r,th,phi
+    """
     if at_i1 is None:
         at_i1 = range(var.shape[0])
     if isinstance(at_i1,int):
-        at_i1 = [at_i1]
+        at_i1 = (at_i1,)
 
     # This selects the midplane-adjacent zones N2/2-1 & N2/2
     jmin = var.shape[1] // 2 - 1
@@ -294,7 +323,8 @@ def corr_midplane(var, norm=True, at_i1=None):
 
 
 def corr_midplane_direct(var, norm=True):
-    """Alternate more volatile implementation of corr_midplane"""
+    """Alternate more volatile implementation of corr_midplane
+    """
     jmin = var.shape[1] // 2 - 1
     jmax = var.shape[1] // 2 + 1
 
