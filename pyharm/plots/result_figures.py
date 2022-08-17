@@ -1,3 +1,36 @@
+__license__ = """
+ File: result_figures.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,21 +38,10 @@ import matplotlib.pyplot as plt
 import pyharm
 from pyharm.defs import Loci
 
-def _savefig(fig, tag, kwargs):
-    # Any other closing/format stuff. PDF format, etc, etc
-    for ax in fig.get_axes():
-        ax.set_xlim(kwargs['xmin'],  kwargs['xmax'])
-        ax.set_ylim(kwargs['ymin'],  kwargs['ymax'])
-    plt.subplots_adjust(wspace=0.4)
-    # Underscore-separate things
-    if kwargs['tag'] != "":
-        kwargs['tag'] += "_"
-    # User tag, then fn, then extension
-    if kwargs['pdf']:
-        plt.savefig(kwargs['tag']+tag+".pdf", dpi=200)
-    else:
-        plt.savefig(kwargs['tag']+tag+".png", dpi=200)
-    plt.close(fig)
+__doc__ = \
+"""Plots of post-reduction results as computed by pyharm-analysis & read by ana_results.py.
+WIP.
+"""
 
 def _get_t_slice(result, arange):
     """Returns a time slice corresponding to the tuple or number 'arange'
@@ -46,7 +68,7 @@ def _get_r_slice(result, rrange):
     """
     return slice(max(pyharm.util.i_of(result['r'], rrange[0]), 0), pyharm.util.i_of(result['r'], rrange[1]))
 
-def _remove_spin(tag):
+def _trunc_at_spin(tag):
     model_lst = tag.split(" ")
     model_lst_trunc = []
     for m in model_lst:
@@ -71,7 +93,8 @@ def initial_conditions(results, kwargs, overplot=False): # TODO radial_averages_
     if kwargs['varlist'] is None:
         vars=('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post')
 
-def radial_profile(ax, result, var, arange=-1000, window=(1,50), disk=True, plot_std=False, plot_eh=False, print_time=False, selector=None, tag="", model_shared_portion=0, **kwargs):
+def radial_profile(ax, result, var, arange=-1000, window=(2,50), disk=True, plot_std=False, plot_eh=False, selector=None, tag="",
+                   print_time=False, model_shared_portion=0, **kwargs):
 
     if selector is not None and not selector(result.tag):
         return
@@ -84,7 +107,7 @@ def radial_profile(ax, result, var, arange=-1000, window=(1,50), disk=True, plot
     times = (round(result['t'][avg_slice][0]/1000)*1000,
              round(result['t'][avg_slice][-1]/1000)*1000)
     # Get just the relevant radial slice so y-limits get set properly
-    r_slice = _get_r_slice(result, window)
+    r_slice = _get_r_slice(result, (window[0]-1, window[1]+20))
 
     if disk:
         tyvals = result['rt/{}_disk'.format(var)][avg_slice, r_slice]
@@ -95,15 +118,15 @@ def radial_profile(ax, result, var, arange=-1000, window=(1,50), disk=True, plot
             tyvals = result['rt/{}_disk'.format(var)][avg_slice, r_slice] + result['rt/{}_notdisk'.format(var)][avg_slice, r_slice]
 
     yvals = np.mean(tyvals, axis=0)
-    p = ax.loglog(result['r'][r_slice], yvals, label=model+("",r"({}-{} $t_g$)".format(*times))[print_time], **kwargs)
+    p = ax.loglog(result['r'][r_slice], yvals, label=model+("",r" {}-{} $t_g$".format(*times))[print_time], **kwargs)
     if plot_std:
         yerrs = np.std(tyvals, axis=0)
         ax.fill_between(result['r'][r_slice], yvals-yerrs, yvals+yerrs, alpha=0.5, color=p[0].get_color())
 
     if plot_eh:
-        ax.axvline(2.0, color='k')
+        ax.axvline(2.0, color='k') # TODO set xlim inside despite default
     else:
-        ax.set_xlim(2.0, None)
+        ax.set_xlim(window[0], window[1])
 
     ax.set_xlabel(r"Radius [$r_g$]")
     ax.set_ylabel(pyharm.pretty(var), rotation=0, ha='right')
@@ -111,10 +134,11 @@ def radial_profile(ax, result, var, arange=-1000, window=(1,50), disk=True, plot
     ax.legend()
     ax.grid(True)
 
-def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-1000, selector=None, tag="", **kwargs):
+def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-1000, selector=None, tag="",
+                  print_time=False, print_only_time=False, model_shared_portion=0, no_print_flux=False, **kwargs):
     if plot_vs == 'spin':
         get_xval = lambda tag: float(tag.split(" ")[-1].lstrip("A"))
-        get_modelname = _remove_spin
+        get_modelname = _trunc_at_spin
     elif plot_vs == 'res':
         get_xval = lambda tag: int(tag.split(" ")[-1].split("X")[0].split("x")[0])
         get_modelname = lambda tag: " ".join(tag.split(" ")[:-1])
@@ -124,6 +148,7 @@ def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-100
     model_yvals = {}
     model_stds = {}
     model_times = {}
+    title = ""
     # Run through the files and suck up everything, sorting by "model" not including spin
     for result in results.values():
         # If this thing is even readable...
@@ -135,6 +160,9 @@ def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-100
 
         model = get_modelname(result.tag)
         xval = get_xval(result.tag)
+
+        model = " ".join(model.split(" ")[model_shared_portion:])
+        title = " ".join(model.split(" ")[:model_shared_portion])
 
         if selector is not None and not selector(model):
             continue
@@ -160,15 +188,21 @@ def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-100
     
     # Then plot each model
     for model in model_xvals.keys():
+        if print_only_time:
+            mname = r"{}-{} $t_g$".format(*model_times[model])
+        else:
+            mname = tag + model + ("", r" ({}-{} $t_g$)".format(*model_times[model]))[print_time]
+        if no_print_flux:
+            mname = mname.replace("MAD","").replace("SANE","").replace("  "," ")
         if to_plot == 'avg_std':
             # Sort all arrrays by x value to avoid weird back and forth lines
             xvals, yvals, ystd = zip(*sorted(zip(model_xvals[model], model_yvals[model], model_stds[model]), key=lambda x: x[0]))
-            axis.errorbar(xvals, yvals, yerr=ystd, fmt='.--', capsize=5, label=model + " ({} to {})".format(*model_times[model]), **kwargs)
+            axis.errorbar(xvals, yvals, yerr=ystd, fmt='.--', capsize=5, label=mname, **kwargs)
         else:
             xvals, yvals = zip(*sorted(zip(model_xvals[model], model_yvals[model]), key=lambda x: x[0]))
-            axis.plot(xvals, yvals, '.--', label=tag+model+r" ({}-{} $t_g$)".format(*model_times[model]), **kwargs)
+            axis.plot(xvals, yvals, '.--', label=mname, **kwargs)
 
-
+    axis.set_title(title)
     axis.grid(True)
 
     if plot_vs == 'spin':
@@ -222,21 +256,11 @@ def default_radial_averages(results, kwargs):
 
         window = plot_radial_averages(ax, results, kwargs, default_r=50)
 
-        if window:
-            _savefig(fig, "radial_averages_by_window_"+result.tag, kwargs)
-        else:
-            _savefig(fig, "radial_averages_"+result.tag, kwargs)
-        
-
 def radial_fluxes(results, kwargs):
     for result in results.values():
         fig, _ = plt.subplots(1,3, figsize=(14,4))
         ax = fig.get_axes()
         window = plot_radial_averages(ax, results, kwargs, default_r=20)
-        if window:
-            _savefig(fig, "radial_fluxes_by_window_"+result.tag, kwargs)
-        else:
-            _savefig(fig, "radial_fluxes_"+result.tag, kwargs)
 
 
 def disk_momentum(results, kwargs):
@@ -268,7 +292,6 @@ def eh_fluxes(results, kwargs):
         axes = fig.get_axes()
         plot_eh_fluxes(axes, result)
         plt.subplots_adjust(wspace=0.4)
-        _savefig(fig, "eh_fluxes_"+result.tag, kwargs)
 
 def eh_fluxes_per(results, kwargs):
     for result in results.values():
@@ -278,7 +301,6 @@ def eh_fluxes_per(results, kwargs):
         axes = fig.get_axes()
         plot_eh_fluxes(axes, result, per=True)
         plt.subplots_adjust(wspace=0.4)
-        _savefig(fig, "eh_fluxes_per_"+result.tag, kwargs)
 
 def eh_phi_versions(results, kwargs):
     for result in results.values():
@@ -287,7 +309,6 @@ def eh_phi_versions(results, kwargs):
         axes = fig.get_axes()
         plot_eh_phi_versions(axes, result)
         plt.subplots_adjust(wspace=0.4)
-        _savefig(fig, "eh_phi_versions_"+result.tag, kwargs)
 
 def overplot_eh_phi_versions(results, kwargs):
     for result in results.values():
@@ -296,7 +317,6 @@ def overplot_eh_phi_versions(results, kwargs):
         axes = fig.get_axes()
         plot_eh_phi_versions(axes, result)
         plt.subplots_adjust(wspace=0.4)
-        _savefig(fig, "eh_phi_versions_"+result.tag, kwargs)
 
 def overplot_eh_fluxes(results, kwargs):
     fig, _ = plt.subplots(4,1, figsize=(7,7))
@@ -306,4 +326,3 @@ def overplot_eh_fluxes(results, kwargs):
 
     ax[0].legend()
     plt.subplots_adjust(wspace=0.4)
-    _savefig(fig, "eh_fluxes_compare", kwargs)

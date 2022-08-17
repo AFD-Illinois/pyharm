@@ -384,7 +384,7 @@ class EKS(KS):
 
     def native_stopx(self, met_params):
         if 'r_out' in met_params:
-            return np.array([0, np.log(met_params['r_out']), 1, 2*np.pi])
+            return np.array([0, np.log(met_params['r_out']), np.pi, 2*np.pi])
         elif ('startx1' in met_params and 'dx1' in met_params and 'n1' in met_params and
                'startx2' in met_params and 'dx2' in met_params and 'n2' in met_params and
                'startx3' in met_params and 'dx3' in met_params and 'n3' in met_params):

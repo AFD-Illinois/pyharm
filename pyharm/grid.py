@@ -1,4 +1,4 @@
-# Module defining coordinate grids
+# Module defining coordinate gridstype
 
 import copy
 from operator import truediv
@@ -8,11 +8,11 @@ from pyharm.defs import Loci, Slices, Shapes
 from pyharm.coordinates import *
 
 
-def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3,
+def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
                     r_in=None, r_out=1000, caches=True, cache_conn=False):
     """Convenience function for generating grids with particular known parameters.
 
-    :param type: coordinate system, denoted 'eks', 'mks', 'fmks', 'minkowski', or
+    :param system: coordinate system, denoted 'eks', 'mks', 'fmks', 'minkowski', or
                  anything exotic defined in :mode`pyharm.coordinates`
 
     All other parameters are as described in Grid.__init__, and are optional with
@@ -21,7 +21,7 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3,
     """
 
     params = {}
-    params['coordinates'] = type
+    params['coordinates'] = system
     params['n1tot'] = n1
     params['n2tot'] = n2
     params['n3tot'] = n3
@@ -30,20 +30,21 @@ def make_some_grid(type, n1=128, n2=128, n3=128, a=0, hslope=0.3,
     params['n3'] = n3
     params['ng'] = 0
 
-    if type == 'minkowski' or type == 'cartesian':
+    if system == 'minkowski' or system == 'cartesian':
         params['x1min'] = 0
         params['x2min'] = 0
         params['x3min'] = 0
         params['x1max'] = 1
         params['x2max'] = 1
         params['x3max'] = 1
-    elif 'mks' in type:
+    elif 'ks' in system:
         params['a'] = a
-        params['hslope'] = hslope
         params['r_out'] = r_out
         if r_in is not None:
             params['r_in'] = r_in
-        if type == 'fmks' or type == 'mmks':
+        if 'mks' in system:
+            params['hslope'] = hslope
+        if system == 'fmks' or system == 'mmks':
             params['poly_xt'] = 0.82
             params['poly_alpha'] = 14.0
             params['mks_smooth'] = 0.5

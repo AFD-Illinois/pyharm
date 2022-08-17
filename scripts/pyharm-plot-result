@@ -90,7 +90,8 @@ def plot_results(to_plot_str, paths, **kwargs):
         ax.set_ylim(kwargs['ymin'],  kwargs['ymax'])
     plt.subplots_adjust(wspace=0.4)
     # Underscore-separate things
-    if kwargs['tag'] != "": kwargs['tag'] += "_"
+    if kwargs['tag'] != "":
+        kwargs['tag'] += "_"
     # User tag, then fn, then extension
     if kwargs['pdf']:
         plt.savefig(kwargs['tag']+tag+".pdf", dpi=200)
