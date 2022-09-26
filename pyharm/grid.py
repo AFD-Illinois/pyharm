@@ -579,14 +579,14 @@ class Grid:
             self.cache[key] = getattr(self.coords, key)(self.coord_ij())
             return self.cache[key]
         elif key  == 'r1d':
-            self.cache[key] = self.coords.r(self.coord(np.arange(self.GN[1]), 0, 0))
+            self.cache[key] = np.squeeze(self.coords.r(self.coord(np.arange(self.GN[1]), 0, 0)))
             return self.cache[key]
         elif key  == 'th1d':
             # Return coord at outer edge for minimum cylindrification
-            self.cache[key] = self.coords.th(self.coord(self.GN[1]-1, np.arange(self.GN[2]), 0))
+            self.cache[key] =  np.squeeze(self.coords.th(self.coord(self.GN[1]-1, np.arange(self.GN[2]), 0)))
             return self.cache[key]
         elif key  == 'phi1d':
-            self.cache[key] = self.coords.phi(self.coord(0, 0, np.arange(self.GN[3])))
+            self.cache[key] =  np.squeeze(self.coords.phi(self.coord(0, 0, np.arange(self.GN[3]))))
             return self.cache[key]
         elif key in ['x', 'y', 'z']:
             self.cache[key] = getattr(self.coords, 'cart_' + key)(self.coord_ij())
