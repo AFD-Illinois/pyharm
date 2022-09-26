@@ -40,7 +40,6 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
 from ..ana.reductions import *
-from ..variables import *
 from .plot_dumps import *
 from .plot_results import *
 from ..defs import FloorFlag_KHARMA, FloorFlag_iharm3d, InversionStatus

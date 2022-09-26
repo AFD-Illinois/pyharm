@@ -167,6 +167,7 @@ class Grid:
 
         self.dV = self.dx[1]*self.dx[2]*self.dx[3]
 
+        # If we're in Cartesian Minkowski, keep a "grid" of just one zone
         if caches and (self.coords == Minkowski):
             # Shapes. Store like a 0-dim array:
             # locations, tensor dims, grid dims
@@ -179,16 +180,16 @@ class Grid:
             for loc in Loci:
                 ilist = np.arange(1)
                 jlist = np.arange(1)
-                x = self.coord(ilist, jlist, 0, loc)
+                x = self.coord(ilist, jlist, [0,], loc)
 
                 gcov_loc = self.coords.gcov(x)
                 gcon_loc = self.coords.gcon(gcov_loc)
                 gdet_loc = self.coords.gdet(gcov_loc)
 
-                self.gcov[loc.value] = gcov_loc[Ellipsis, np.newaxis, np.newaxis, np.newaxis]
-                self.gcon[loc.value] = gcon_loc[Ellipsis, np.newaxis, np.newaxis, np.newaxis]
-                self.gdet[loc.value] = gdet_loc[Ellipsis, np.newaxis, np.newaxis, np.newaxis]
-                self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0, Ellipsis, np.newaxis, np.newaxis, np.newaxis])
+                self.gcov[loc.value] = gcov_loc
+                self.gcon[loc.value] = gcon_loc
+                self.gdet[loc.value] = gdet_loc
+                self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
 
         elif caches:
             # Shapes
@@ -201,7 +202,7 @@ class Grid:
             for loc in Loci:
                 ilist = np.arange(self.GN[1])
                 jlist = np.arange(self.GN[2])
-                x = self.coord(ilist, jlist, 0, loc)
+                x = self.coord(ilist, jlist, [0,], loc)
 
                 # Save zone centers to calculate connection coefficients
                 if loc == Loci.CENT:
@@ -211,19 +212,19 @@ class Grid:
                 gcon_loc = self.coords.gcon(gcov_loc)
                 gdet_loc = self.coords.gdet(gcov_loc)
                 if self.GN[2] > 1:
-                    self.gcov[loc.value] = gcov_loc[Ellipsis, np.newaxis]
-                    self.gcon[loc.value] = gcon_loc[Ellipsis, np.newaxis]
-                    self.gdet[loc.value] = gdet_loc[Ellipsis, np.newaxis]
-                    self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0, Ellipsis, np.newaxis])
+                    self.gcov[loc.value] = gcov_loc
+                    self.gcon[loc.value] = gcon_loc
+                    self.gdet[loc.value] = gdet_loc
+                    self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
                 else:
-                    self.gcov[loc.value] = gcov_loc[Ellipsis, np.newaxis, np.newaxis]
-                    self.gcon[loc.value] = gcon_loc[Ellipsis, np.newaxis, np.newaxis]
-                    self.gdet[loc.value] = gdet_loc[Ellipsis, np.newaxis, np.newaxis]
-                    self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0, Ellipsis, np.newaxis, np.newaxis])
+                    self.gcov[loc.value] = gcov_loc
+                    self.gcon[loc.value] = gcon_loc
+                    self.gdet[loc.value] = gdet_loc
+                    self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
 
             if cache_conn:
                 # It will probably never be advantageous to store this in 3D
-                self.conn = self.coords.conn_func(x_cent)[Ellipsis, np.newaxis]
+                self.conn = self.coords.conn_func(x_cent)
 
     def __del__(self):
         # Try to clean up what we can. Anything that may possibly not be a simple ref
@@ -232,7 +233,7 @@ class Grid:
                 del self.__dict__[cache]
 
     ### COORDINATES
-    def coord(self, i, j, k, loc=Loci.CENT):
+    def coord(self, i, j, k, loc=Loci.CENT, squeeze=False):
         """Get the position x of zone(s) i,j,k, in _native_ coordinates
 
         If given lists of i,j,k, this returns x[NDIM,len(i),len(j),len(k)] via np.meshgrid().
@@ -280,7 +281,7 @@ class Grid:
         else:
             raise ValueError("Invalid coordinate location!")
 
-        return np.squeeze(np.array(np.meshgrid(x[0], x[1], x[2], x[3])))
+        return np.array(np.meshgrid(x[0], x[1], x[2], x[3]))[Ellipsis, 0, :, :]
 
     def coord_bulk(self, loc=Loci.CENT, mesh=False):
         """Return a 3D array of all position vectors X within the physical zones.
@@ -410,7 +411,7 @@ class Grid:
             z = self.coords.cart_z(m)
         # TODO save to cache...
 
-        return x, z
+        return np.squeeze(x), np.squeeze(z)
 
     def get_xy_locations(self, mesh=False, native=False):
         """Get the mesh locations x_ij and y_ij needed for plotting a midplane slice.
@@ -431,7 +432,7 @@ class Grid:
             x = self.coords.cart_x(m)
             y = self.coords.cart_y(m)
         
-        return x, y
+        return np.squeeze(x), np.squeeze(y)
 
     def get_thphi_locations(self, at, mesh=False, native=False, bottom=False, projection='mercator'):
         """Get the mesh locations x_ij and y_ij needed for plotting a th-phi slice.
@@ -473,7 +474,7 @@ class Grid:
             x = self.coords.th(m) * np.cos(self.coords.phi(m))
             y = self.coords.th(m) * np.sin(self.coords.phi(m))
         
-        return x, y
+        return np.squeeze(x), np.squeeze(y)
 
     def can_provide(self, key):
         """Whether the given key would return something from this object.
@@ -575,8 +576,7 @@ class Grid:
         elif key in ['n1', 'n2', 'n3']:
             return self.NTOT[int(key[-1:])]
         elif key in ['r', 'th', 'phi', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart']:
-            # Assuming 2D grids is so much faster.  TODO accommodate 3D?
-            self.cache[key] = getattr(self.coords, key)(self.coord_ij()[:, :, :, np.newaxis])
+            self.cache[key] = getattr(self.coords, key)(self.coord_ij())
             return self.cache[key]
         elif key  == 'r1d':
             self.cache[key] = self.coords.r(self.coord(np.arange(self.GN[1]), 0, 0))
@@ -589,7 +589,7 @@ class Grid:
             self.cache[key] = self.coords.phi(self.coord(0, 0, np.arange(self.GN[3])))
             return self.cache[key]
         elif key in ['x', 'y', 'z']:
-            self.cache[key] = getattr(self.coords, 'cart_' + key)(self.coord_ij()[:, :, :, np.newaxis])
+            self.cache[key] = getattr(self.coords, 'cart_' + key)(self.coord_ij())
             return self.cache[key]
         elif key in ['X1', 'X2', 'X3']:
             return self.coord_ij()[:, :, :, np.newaxis][int(key[-1:])]

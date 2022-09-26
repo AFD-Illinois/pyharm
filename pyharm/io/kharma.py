@@ -159,8 +159,9 @@ class KHARMAFile(DumpFile):
             if len(fnames) == 0:
                 path3 = "/".join(self.fname.split("/")[:-1])+"*.par"
                 fnames = glob.glob(path3)
+            if len(fnames) == 0:
+                raise IOError("Cannot read parameter file KHARMAv1 dump {}.\nMove associated .par file to the dump's directory.".format(self.fname))
 
-            #print("Reading parameters from {}".format(fnames[-1]), file=sys.stderr)
             with open(fnames[-1], 'r') as parfile:
                 params = parameters.parse_parthenon_dat(parfile.read())
 

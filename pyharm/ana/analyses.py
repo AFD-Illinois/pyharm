@@ -34,7 +34,6 @@ __license__ = """
 
 import sys
 
-from ..variables import *
 from .reductions import *
 from .. import io
 
