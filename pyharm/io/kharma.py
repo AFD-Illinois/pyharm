@@ -304,25 +304,24 @@ class KHARMAFile(DumpFile):
             # If the ghost zones are included (ng_f > 0) but we don't want them (all) (ng_i = 0),
             # then take a portion of the file.  Otherwise take it all.
             # Also include the block number out front
-            fil_slc = (ib, slice(loc_slc[2].start - b[2].start + ng_fz - ng[2], loc_slc[2].stop - b[2].start + ng_fz + ng[2]),
+            fil_slc = (ib, slice(None), slice(loc_slc[2].start - b[2].start + ng_fz - ng[2], loc_slc[2].stop - b[2].start + ng_fz + ng[2]),
                            slice(loc_slc[1].start - b[1].start + ng_fy - ng[1], loc_slc[1].stop - b[1].start + ng_fy + ng[1]),
                            slice(loc_slc[0].start - b[0].start + ng_fx - ng[0], loc_slc[0].stop - b[0].start + ng_fx + ng[0]))
-            if (fil_slc[1].start > fil_slc[1].stop) or (fil_slc[2].start > fil_slc[2].stop) or (fil_slc[3].start > fil_slc[3].stop):
+            if (fil_slc[2].start > fil_slc[2].stop) or (fil_slc[3].start > fil_slc[3].stop) or (fil_slc[4].start > fil_slc[4].stop):
                 # Don't read blocks outside our domain
                 #print("Skipping block: ", b, " would be to location ", out_slc, " from portion ", fil_slc)
                 continue
-            #print("Reading block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
-            #print("{} {} {} {}".format(loc_slc[2].start, b[2].start, ng_fz, ng[2]))
+            #print("Reading var ", var, " from block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
             #print(fil.Get(var, False).shape)
 
             if 'prims.rho' in fil.Variables:
                 # New file format. Read whatever
                 if len(out.shape) == 4: # Always read the whole vector, even if we're returning an index
                     #print("Reading vector size ", fil.Get(var, False)[fil_slc + (slice(None),)].T.shape, " to loc size ", out[(slice(None),) + out_slc].shape)
-                    out[(slice(None),) + out_slc] = fil.Get(var, False)[fil_slc + (slice(None),)].T
+                    out[(slice(None),) + out_slc] = fil.Get(var, False)[fil_slc].transpose(0,3,2,1)
                 else: # Read a scalar
                     #print("Reading scalar size ", fil.Get(var, False)[fil_slc].T.shape," to loc size ", out[out_slc].shape)
-                    out[out_slc] = fil.Get(var, False)[fil_slc].T
+                    out[out_slc] = fil.Get(var, False)[fil_slc][0].T
 
             else:
                 # Old file formats.  If we'd split prims/B_prim:

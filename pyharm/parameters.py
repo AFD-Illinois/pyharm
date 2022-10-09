@@ -69,14 +69,6 @@ def parse_parthenon_dat(string):
                     params[ls[0]] = int(ls[-1])
         except ValueError:
             params[ls[0]] = ls[-1]
-    
-    # Now do any repairs specific to translating the Parthenon->iharm3d naming scheme
-    for pair in (('nx1','n1'), ('nx2','n2'), ('nx3','n3'),
-                 ('n1','n1tot'), ('n2','n2tot'), ('n3','n3tot'),
-                 ('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3'),
-                 ('gamma', 'gam'), ('dt', 'dump_cadence'), ('tlim', 'tf'), ('cfl', 'cour')):
-        if (pair[0] in params):
-            params[pair[1]] = params[pair[0]]
 
     # Translate coordinate naming scheme
     if "cartesian" in params['base']:
@@ -102,6 +94,14 @@ def fix(params):
     """Fix a bunch of common problems and omissions in parameters dictionaries.
     Already called by both parameter parsing functions.
     """
+
+    # Now do any repairs specific to translating the Parthenon->iharm3d naming scheme
+    for pair in (('nx1','n1'), ('nx2','n2'), ('nx3','n3'),
+                 ('n1','n1tot'), ('n2','n2tot'), ('n3','n3tot'),
+                 ('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3'),
+                 ('gamma', 'gam'), ('dt', 'dump_cadence'), ('tlim', 'tf'), ('cfl', 'cour')):
+        if (pair[0] in params):
+            params[pair[1]] = params[pair[0]]
 
     if (not 'r_out' in params) and 'Rout' in params:
         params['r_out'] = params['Rout']
@@ -153,8 +153,8 @@ def fix(params):
     # If we must guess r_in and/or set coordinate stuff, do it last
     if 'r_in' not in params:
         if 'x1min' not in params:
-            params['r_in'] = np.exp((params['n1tot'] * np.log(params['r_eh']) / 5.5 - np.log(params['r_out'])) /
-                                    (-1. + params['n1tot'] / 5.5))
+            params['r_in'] = np.exp((params['n1'] * np.log(params['r_eh']) / 5.5 - np.log(params['r_out'])) /
+                                    (-1. + params['n1'] / 5.5))
         else:
             params['r_in'] = np.exp(params['x1min'])
 
@@ -177,9 +177,9 @@ def fix(params):
             params['x3max'] = 2*np.pi
 
     if 'dx1' not in params:
-        params['dx1'] = (params['x1max'] - params['x1min']) / params['nx1']
-        params['dx2'] = (params['x2max'] - params['x2min']) / params['nx2']
-        params['dx3'] = (params['x3max'] - params['x3min']) / params['nx3']
+        params['dx1'] = (params['x1max'] - params['x1min']) / params['n1']
+        params['dx2'] = (params['x2max'] - params['x2min']) / params['n2']
+        params['dx3'] = (params['x3max'] - params['x3min']) / params['n3']
 
     # Translate anything we added -> iharm3d again
     # TODO pick one form geez
