@@ -241,8 +241,8 @@ class KHARMAFile(DumpFile):
             if self.index_of(var.replace("prims.", "")) is not None:
                 var = var.replace("prims.", "")
             # Try to get it from conserved version (e.g. KHARMA restarts lack prims.B)
-            elif "cons" not in var:
-                var_con = "cons"+var.replace("prims", "")
+            if "cons" not in var:
+                var_con = "cons."+var.replace("prims.", "")
                 if "B" in var_con and var_con in fil.Variables:
                     grid = Grid(self.params)
                     return self.read_var(var_con, astype=astype, slc=slc) / \

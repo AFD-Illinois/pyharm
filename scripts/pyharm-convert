@@ -76,7 +76,7 @@ def convert(files, path, outfile, double, restart, resume, nthreads, debug):
         convert_func = partial(convert_file, double=double, restart=restart, resume=resume)
 
         print("Converting {} files with {} threads".format(len(files), nthreads))
-        map_parallel(convert_file, zip(files, outfiles), nprocs=nthreads)
+        map_parallel(convert_func, zip(files, outfiles), nprocs=nthreads)
         print("Converted all files.")
 
 if __name__ == "__main__":
