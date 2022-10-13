@@ -48,9 +48,10 @@ def load_results_glob(paths, fname, tag_fn=None):
                 if "_ext" in files[0]:
                     files[0] = files[1]
                 if tag_fn is None:
-                    results[model] = AnaResults(files[0], tag=model.replace("/a", " ").replace("/"," ").strip().upper())
+                    tag = model.replace("/a", " ").replace("/"," ").strip().upper()
                 else:
-                    results[model] = AnaResults(files[0], tag=tag_fn(model))
+                    tag = tag_fn(model)
+                results[tag] = AnaResults(files[0], tag=tag)
             except:
                 # This is a bulk operation. Inform of problems but do not raise an error
                 print("Error loading file {}".format(files[0]))
