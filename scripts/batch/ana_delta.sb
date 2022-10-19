@@ -9,8 +9,8 @@
 #SBATCH -o "out-%j.txt"
 
 # Nodes we want
-#SBATCH --tasks-per-node=32
-#SBATCH --cpus-per-task=4
+#SBATCH --tasks-per-node=128
+#SBATCH --cpus-per-task=1
 # ALWAYS reserve full nodes to mitigate memory leaks
 #SBATCH --exclusive
 #SBATCH --mem=0
@@ -25,14 +25,20 @@
 
 # Better to oversubscribe CPU than serialize as there are
 # relatively few numpy ops
-export MKL_NUM_THREADS=8
-export OMP_NUM_THREADS=8
+export OMP_NUM_THREADS=1
+export OMP_NESTED=TRUE
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export MKL_DYNAMIC=FALSE
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
 
 # Start 1 task/cpu by default. -O option allows more tasks,
 # if this proves efficient for simple stuff.
+# --cpu-bind=no
 if [[ "$*" != *"-d "* ]]
 then
-  srun -n $(($SLURM_JOB_NUM_NODES * 32)) --cpu-bind=no pyharm-analysis "${@}"
+  srun -n $(($SLURM_JOB_NUM_NODES * 128)) pyharm-analysis "${@}"
 else
   pyharm-analysis "${@}"
 fi

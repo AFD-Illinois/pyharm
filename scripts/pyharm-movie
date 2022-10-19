@@ -152,9 +152,9 @@ def movie(movie_types, paths, **kwargs):
                 diag = pyharm.io.read_log(fname)
             else:
                 diag = None
-        except IOError:
+        except (IOError, pandas.errors.ParserError):
                 diag = None
-        
+
         if diag is None:
             try:
                 # Load diagnostics from HARM itself
