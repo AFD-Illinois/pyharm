@@ -328,6 +328,8 @@ class KHARMAFile(DumpFile):
                         out[out_slc] = fil.Get(var, False)[(ib,) + fil_slc + (0,)].T
                     except ValueError:
                         out[out_slc] = fil.Get(var, False)[(ib, 0) + fil_slc].T
+                    except IndexError:
+                        out[out_slc] = fil.Get(var, False)[(ib,) + fil_slc].T
 
             else:
                 # Old file formats.  If we'd split prims/B_prim:

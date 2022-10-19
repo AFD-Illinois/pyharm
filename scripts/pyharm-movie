@@ -24,7 +24,7 @@ try:
     from mpi4py import MPI
     from mpi4py.futures import MPICommExecutor, MPIPoolExecutor
     if MPI.COMM_WORLD.Get_rank() == 0:
-        print("Using MPI", file=sys.stderr)
+        print("MPI Available", file=sys.stderr)
     # Use MPI unless we're alone
     use_mpi = (MPI.COMM_WORLD.Get_size() > 1)
     def do_out():
@@ -86,6 +86,7 @@ class ExtensibleCmd(click.Command):
 @click.option('-a', '--accurate_fnames', is_flag=True, help="Name frames by 1/100M, for short runs.")
 @click.option('-r', '--resume', is_flag=True, help="Continue a previous run, by skipping existing frames")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
+@click.option('--nompi', is_flag=True, help="Avoid MPI even if available")
 #@click.option('-m', '--memory_limit', default=1, help="Memory limit in GB for each process, enforced by starting total/m processes.")
 def movie(movie_types, paths, **kwargs):
     """Generate movies of type MOVIE_TYPE from dumps at each of PATHS.
@@ -208,17 +209,19 @@ def movie(movie_types, paths, **kwargs):
             # This application is entirely side-effects (frame creation)
             # So we map & ignore result
             # TODO pass single figure & blit/encode within Python?
-            if not use_mpi:
-                print("Using {} processes".format(nthreads))
-                with multiprocessing.Pool(nthreads) as pool:
-                    args = zip(files, (diag,)*len(files), (kwargs,)*len(files))
-                    pool.starmap_async(frame, args).get(720000)
-            else:
+            if use_mpi and not kwargs['nompi']:
+                print("Using MPI")
                 # Everything is set by MPI.  We inherit a situation and use it
                 with MPICommExecutor() as executor:
                     if executor is not None:
                         print("Imaging {} files across pool size {}".format(len(files), MPI.COMM_WORLD.Get_size()), file=sys.stderr)
                         executor.map(frame, files, (diag,)*len(files), (kwargs,)*len(files))
+            else:
+                print("Using {} processes".format(nthreads))
+                with multiprocessing.Pool(nthreads) as pool:
+                    args = zip(files, (diag,)*len(files), (kwargs,)*len(files))
+                    pool.starmap_async(frame, args).get(720000)
+
         if do_out(): print("Imaged model {} with movie(s) {}".format(path, movie_types), file=sys.stderr)
 
         # Change back to wherever our root was, argument paths can be relative

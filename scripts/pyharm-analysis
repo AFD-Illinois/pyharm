@@ -23,7 +23,7 @@ try:
     from mpi4py import MPI
     from mpi4py.futures import MPICommExecutor, MPIPoolExecutor
     if MPI.COMM_WORLD.Get_rank() == 0:
-        print("Using MPI", file=sys.stderr)
+        print("MPI Available", file=sys.stderr)
     # Use MPI unless we're alone
     use_mpi = (MPI.COMM_WORLD.Get_size() > 1)
     def do_out():
@@ -67,6 +67,7 @@ class ExtensibleCmd(click.Command):
 # Extras
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
 @click.option('-d', '--debug', is_flag=True, default=False, help="Serial operation for debugging")
+@click.option('--nompi', is_flag=True, default=False, help="Avoid MPI even if available")
 #@click.option('-m', '--memory_limit', default=1, help="Memory limit in GB for each process, enforced by starting total/m processes.")
 def analysis(ana_types, paths, **kwargs):
     """Analyze the simulation output at each of PATHS with the function/combo specified by ANA_TYPES
@@ -198,7 +199,7 @@ def analysis(ana_types, paths, **kwargs):
                 write_ana_dict(out, outfile, n, len(files))
                 tr.print_diff()
             outfile.close()
-            
+
             pr.disable()
             s = io.StringIO()
             ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.TIME)
@@ -217,19 +218,14 @@ def analysis(ana_types, paths, **kwargs):
                                 psutil.cpu_count())
                 else:
                     nthreads = psutil.cpu_count()
+            else:
+                nthreads = int(kwargs['nthreads'])
+
             # This application is entirely side-effects (frame creation)
             # So we map & ignore result
             # TODO pass single figure & blit/encode within Python?
-            if not use_mpi:
-                print("Using {} processes".format(nthreads))
-                with multiprocessing.Pool(nthreads) as pool:
-                    args = zip(files, (kwargs,)*len(files))
-                    out_iter = pool.imap(analyze_catch_err, args)
-                    for n, result in enumerate(out_iter):
-                        write_ana_dict(result, outfile, n, len(files))
-                outfile.close()
-
-            else:
+            if use_mpi and not kwargs['nompi']:
+                print("Using MPI")
                 # Everything is set by MPI.  We inherit a situation and use it
                 with MPICommExecutor() as executor:
                     # Only the master process gets an executor object here,
@@ -241,6 +237,14 @@ def analysis(ana_types, paths, **kwargs):
                         for n, result in enumerate(executor.map(analyze_catch_err, args)):
                             write_ana_dict(result, outfile, n, len(files))
                         outfile.close()
+            else:
+                print("Using {} processes".format(nthreads))
+                with multiprocessing.Pool(nthreads) as pool:
+                    args = zip(files, (kwargs,)*len(files))
+                    out_iter = pool.imap(analyze_catch_err, args)
+                    for n, result in enumerate(out_iter):
+                        write_ana_dict(result, outfile, n, len(files))
+                outfile.close()
 
 
 
