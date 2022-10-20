@@ -19,7 +19,7 @@ __license__ = """
  3. Neither the name of the copyright holder nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
-
+ 
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -412,7 +412,8 @@ class Grid:
         :param native: get native X1/X2 coordinates rather than Cartesian x,z locations
         :param half_cut: get only the slice at phi=0
         """
-        # TODO if cache...
+        # TODO cache this!
+        # TODO oblate option for x=sqrt(r^2 + a^2) rather than r
         if native:
             # We always want one "pane" when plotting in native coords
             half_cut = True
@@ -438,7 +439,6 @@ class Grid:
         else:
             x = self.coords.cart_x(m)
             z = self.coords.cart_z(m)
-        # TODO save to cache...
 
         return np.squeeze(x), np.squeeze(z)
 
@@ -449,6 +449,8 @@ class Grid:
         :param mesh: get mesh corners rather than centers, for flat shading
         :param native: get native X1/X3 coordinates rather than Cartesian x,z locations
         """
+        # TODO cache this!
+        # TODO oblate option for x,y=sqrt(r^2 + a^2) rather than r
         if mesh:
             m = self.coord_ik_mesh(at=self.NTOT[2]//2)
         else:
@@ -463,6 +465,15 @@ class Grid:
         
         return np.squeeze(x), np.squeeze(y)
 
+    def get_xz_areas(self, **kwargs):
+        """Get cell areas in the plotting plane using the trapezoid area function from cell corners"""
+        x, z = self.get_xz_locations(mesh=True, **kwargs)
+        x1 = x[:-1,:-1]; z1 = z[:-1,:-1]
+        x2 = x[1: ,:-1]; z2 = z[1: ,:-1]
+        x3 = x[1: ,1: ]; z3 = z[1: ,1: ]
+        x4 = x[:-1,1: ]; z4 = z[:-1,1: ]
+        return 0.5 * np.abs(x1*z2+x2*z3+x3*z4+x4*z1 - x2*z1-x3*z2-x4*z3-x1*z4)
+
     def get_thphi_locations(self, at, mesh=False, native=False, bottom=False, projection='mercator'):
         """Get the mesh locations x_ij and y_ij needed for plotting a th-phi slice.
         This can be done in a bunch of ways controlled with options
@@ -475,7 +486,7 @@ class Grid:
             | "polar": view down from +z.  Or with 'bottom', view up from -Z.
             | "flattened_polar": reinterpret as polar coordinates, theta -> r, phi -> phi
         """
-
+        # TODO cache this!
         j_slice = slice(None)
         if projection in ('polar', 'flattened_polar'):
             if bottom:

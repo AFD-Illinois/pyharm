@@ -8,10 +8,10 @@ __license__ = """
  
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
-
+ 
  1. Redistributions of source code must retain the above copyright notice, this
     list of conditions and the following disclaimer.
-
+ 
  2. Redistributions in binary form must reproduce the above copyright notice,
     this list of conditions and the following disclaimer in the documentation
     and/or other materials provided with the distribution.
@@ -219,5 +219,11 @@ def fix(params):
     for pair in (('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3')):
         if (pair[0] in params):
             params[pair[1]] = params[pair[0]]    
+
+    # Defualts we never changed but didn't always record
+    if 'gam_e' not in params:
+        params['gam_e'] = 4./3
+    if 'gam_p' not in params:
+        params['gam_p'] = 5./3
 
     return params
