@@ -1,7 +1,37 @@
-# Module defining coordinate gridstype
+__license__ = """
+ File: grid.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2022, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
 
-import copy
-from operator import truediv
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 import numpy as np
 
 from pyharm.defs import Loci, Slices, Shapes
@@ -54,16 +84,15 @@ def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
 
 
 class Grid:
-    """Holds all information about the a grid or mesh of zones:
-    size, shape, zones' global locations, metric tensor
+    """The Grid object divides a domain in native coordinates into zones, and caches the
+    local metric (and some other convenient information) at several locations in each zone.
+    The object can be used to consult the grid size/shape for global calculations, and raise and
+    lower the indices of fluid 4-vectors.
     """
 
     def __init__(self, params, caches=True, cache_conn=False):
         """
-        Initialize a Grid object.  This object divides a domain in native coordinates into zones, and caches the
-        local metric (and some other convenient information) at several locations in each zone.
-        Primarily, this object should be used to consult the grid size/shape for global calculations, and raise and
-        lower the indices of fluid 4-vectors.  Note that "params" is usually filled by reading a file, not manually:
+        Initialize a Grid object.  Note that "params" is usually filled by reading a file, not manually:
         for manual Grid creation, see :func:`pyharm.grid.make_some_grid`.
 
         :param caches: Whether to cache gcon/gcov/gdet at zone centers/faces. Usually desired.
