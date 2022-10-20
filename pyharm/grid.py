@@ -1,7 +1,37 @@
-# Module defining coordinate gridstype
+__license__ = """
+ File: grid.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2022, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 
-import copy
-from operator import truediv
 import numpy as np
 
 from pyharm.defs import Loci, Slices, Shapes
@@ -54,16 +84,15 @@ def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
 
 
 class Grid:
-    """Holds all information about the a grid or mesh of zones:
-    size, shape, zones' global locations, metric tensor
+    """The Grid object divides a domain in native coordinates into zones, and caches the
+    local metric (and some other convenient information) at several locations in each zone.
+    The object can be used to consult the grid size/shape for global calculations, and raise and
+    lower the indices of fluid 4-vectors.
     """
 
     def __init__(self, params, caches=True, cache_conn=False):
         """
-        Initialize a Grid object.  This object divides a domain in native coordinates into zones, and caches the
-        local metric (and some other convenient information) at several locations in each zone.
-        Primarily, this object should be used to consult the grid size/shape for global calculations, and raise and
-        lower the indices of fluid 4-vectors.  Note that "params" is usually filled by reading a file, not manually:
+        Initialize a Grid object.  Note that "params" is usually filled by reading a file, not manually:
         for manual Grid creation, see :func:`pyharm.grid.make_some_grid`.
 
         :param caches: Whether to cache gcon/gcov/gdet at zone centers/faces. Usually desired.
@@ -383,7 +412,8 @@ class Grid:
         :param native: get native X1/X2 coordinates rather than Cartesian x,z locations
         :param half_cut: get only the slice at phi=0
         """
-        # TODO if cache...
+        # TODO cache this!
+        # TODO oblate option for x=sqrt(r^2 + a^2) rather than r
         if native:
             # We always want one "pane" when plotting in native coords
             half_cut = True
@@ -409,7 +439,6 @@ class Grid:
         else:
             x = self.coords.cart_x(m)
             z = self.coords.cart_z(m)
-        # TODO save to cache...
 
         return np.squeeze(x), np.squeeze(z)
 
@@ -420,6 +449,8 @@ class Grid:
         :param mesh: get mesh corners rather than centers, for flat shading
         :param native: get native X1/X3 coordinates rather than Cartesian x,z locations
         """
+        # TODO cache this!
+        # TODO oblate option for x,y=sqrt(r^2 + a^2) rather than r
         if mesh:
             m = self.coord_ik_mesh(at=self.NTOT[2]//2)
         else:
@@ -434,6 +465,15 @@ class Grid:
         
         return np.squeeze(x), np.squeeze(y)
 
+    def get_xz_areas(self, **kwargs):
+        """Get cell areas in the plotting plane using the trapezoid area function from cell corners"""
+        x, z = self.get_xz_locations(mesh=True, **kwargs)
+        x1 = x[:-1,:-1]; z1 = z[:-1,:-1]
+        x2 = x[1: ,:-1]; z2 = z[1: ,:-1]
+        x3 = x[1: ,1: ]; z3 = z[1: ,1: ]
+        x4 = x[:-1,1: ]; z4 = z[:-1,1: ]
+        return 0.5 * np.abs(x1*z2+x2*z3+x3*z4+x4*z1 - x2*z1-x3*z2-x4*z3-x1*z4)
+
     def get_thphi_locations(self, at, mesh=False, native=False, bottom=False, projection='mercator'):
         """Get the mesh locations x_ij and y_ij needed for plotting a th-phi slice.
         This can be done in a bunch of ways controlled with options
@@ -446,7 +486,7 @@ class Grid:
             | "polar": view down from +z.  Or with 'bottom', view up from -Z.
             | "flattened_polar": reinterpret as polar coordinates, theta -> r, phi -> phi
         """
-
+        # TODO cache this!
         j_slice = slice(None)
         if projection in ('polar', 'flattened_polar'):
             if bottom:
