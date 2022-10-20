@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020, AFD Group at UIUC
+ Copyright (c) 2020-2022, AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -63,6 +63,7 @@ fns_dict = {# 4-vectors
             'bsq': lambda dump: dump.grid.dot(dump['bcov'], dump['bcon']),
             'sigma': lambda dump: dump['bsq'] / dump['RHO'],
             'u': lambda dump: dump['UU'],
+            'h': lambda dump: enthalpy(dump),
             'FM': lambda dump: dump['RHO'] * dump['ucon'][1],
             'FE': lambda dump: -T_mixed(dump, 1, 0),
             'FE_EM': lambda dump: -TEM_mixed(dump, 1, 0),
@@ -94,6 +95,8 @@ fns_dict = {# 4-vectors
             'JE1': lambda dump: -T_mixed(dump, 1, 0),
             'JE2': lambda dump: -T_mixed(dump, 2, 0),
             'lam_MRI': lambda dump: lam_MRI(dump),
+            'lam_MRI_transform': lambda dump: lam_MRI_transform(dump),
+            'vA': lambda dump: alfven_speed(dump),
             'jet_psi': lambda dump: jet_psi(dump),
             'divB': lambda dump: divB(dump.grid, dump['B']),
             'divB_cons': lambda dump: divB_cons(dump.grid, dump['cons.B']),
@@ -226,8 +229,22 @@ def bernoulli(dump, with_B=False):
     else:
         return -(1 + dump['gam'] * dump['UU'] / dump['RHO']) * dump['ucov'][0] - 1
 
-def lam_MRI(dump):
+def lam_MRI_old(dump):
     return (2*np.pi)/(dump['u^3']/dump['u^0']) * dump['b^th']/np.sqrt(dump['rho'] + dump['u'] + dump['p'] + dump['bsq'])
+
+def alfven_speed(dump):
+    return dump['b']/np.sqrt(4*np.pi*dump['rho'])
+
+def lam_MRI(dump):
+    return dump['vA'] / (dump['u^3']/dump['u^0'])
+
+def lam_MRI_transform(dump):
+    # From Porth et al (2019) & referenced Takahashi 
+    return 2 * np.pi / (np.sqrt(dump['rho']*dump['h'] + dump['bsq']) * (dump['u^3']/dump['u^0'])) * \
+            dump['b^th'] * np.sqrt(dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2)
+
+def enthalpy(dump):
+    return 1 + dump['Pg'] + dump['u']
 
 def jet_psi(dump):
     sig = dump['sigma']
