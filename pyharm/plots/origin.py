@@ -35,6 +35,8 @@ __license__ = """
 import numpy as np
 from matplotlib.patches import Circle
 
+from .plot_utils import *
+
 __doc__ = \
 """Plots related to zone-based data recorded by e.g. ipole, not a full fluid dump.
 The primary function plots data recorded by ipole in "histo" mode, which records any
@@ -44,16 +46,21 @@ The other functions plot properties of the spacetime or illustrate geometry such
 observer angle.
 """
 
-def plot_emission_origin(ax, grid, Inu, window=None, sz=6):
+def plot_emission_origin(ax, grid, Inu, window=None, sz=6, log=False, vmin=None, vmax=None):
     """Plot the origin of emission, as recorded by ipole in a 3D histogram of emission count/zone Inu.
     Normalizes by zone area on the plot in order to show true emission density.
     """
     var = np.mean(Inu, axis=-1) / grid.get_xz_areas(half_cut=True)
     X, Y = grid.get_xz_locations(mesh=True, half_cut=True)
 
+    pargs = {'cmap':'afmhot', 'shading':'flat', 'linewidth':0,
+             'vmin':vmin, 'vmax':vmax, 'rasterized':True}
+
     ax.set_facecolor('black')
-    pcol = ax.pcolormesh(X, Y, var, cmap='afmhot', shading='flat', linewidth=0, rasterized=True)
-    pcol.set_edgecolor('face')
+    if log:
+        pcol = pcolormesh_log(ax, X, Y, var, **pargs)
+    else:
+        pcol = ax.pcolormesh(X, Y, var, **pargs)
 
     if window is None:
         window = [0, 2*sz, -sz, sz]

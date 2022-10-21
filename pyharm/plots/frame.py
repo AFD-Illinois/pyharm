@@ -228,7 +228,7 @@ def frame(fname, diag, kwargs):
                 fig.subplots_adjust(left=0.03, right=0.97)
 
         # OVERLAYS
-        if 'overlay_field' in kwargs and kwargs['overlay_field'] and not plotrc['native']:
+        if 'overlay_field' in kwargs and kwargs['overlay_field'] and not ('native' in plotrc and plotrc['native']):
             nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
             overlay_field(ax, dump, nlines=nlines)
         # TODO contours
