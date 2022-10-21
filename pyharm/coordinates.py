@@ -167,49 +167,25 @@ class CoordinateSystem(object):
         dxdX = self.dxdX(X)
         return np.einsum("ab...,ac...,bd...->cd...", gcov_ks, dxdX, dxdX)
 
-    def gcon(self, gcov):
-        """Return contravariant form of the metric, given the covariant form.
-        As with all coordinate functions, the matrix/vector indices are *first*.  Specifically, gcon_func expects
-        exactly zero grid indices (i.e. a single 4x4 matrix) or two grid indices (i.e. 4x4xN1xN2).
+    def gcon(self, X):
+        """Return contravariant form of the metric.
+        As with all coordinate functions, the matrix/vector indices are *first*.
         """
-        # TODO option to take coordinates and auto-call gcon?
-        # TODO support 1 & 3 dimensional arrays of input matrices, probably with einsum
-        # TODO add option to return gdet for speed
-        if len(gcov.shape) == 2:
-            return la.inv(gcov)
-        elif len(gcov.shape) == 3:
-            # Canon ordering is mu,nu,i,j for what I swear are good reasons
-            gcov_t = gcov.transpose((2, 0, 1))
-            return la.inv(gcov_t).transpose((2, 0, 1))
-        elif len(gcov.shape) == 4:
-            # Canon ordering is mu,nu,i,j for what I swear are good reasons
-            gcov_t = gcov.transpose((2, 3, 0, 1))
-            return la.inv(gcov_t).transpose((2, 3, 0, 1))
-        elif len(gcov.shape) == 5:
-            gcov_t = gcov.transpose((2, 3, 4, 0, 1))
-            return la.inv(gcov_t).transpose((3, 4, 0, 1, 2))
-        else:
-            raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2 or 4x4xN1xN2xN3".format(gcov.shape))
+        return self.gcon_from_gcov(self.gcov(X))
 
-    def gdet(self, gcov):
+    def gcon_from_gcov(self, gcov):
+        """Return contravariant form of the metric, given the covariant form.
+        As with all coordinate functions, the matrix/vector indices are *first*.
+        """
+        return np.einsum("...ij->ij...", la.inv(np.einsum("ij...->...ij", gcov)))
+
+    def gdet(self, X):
+        r"""Return the negative root determinant of the metric :math:`\sqrt{-g}`."""
+        return self.gdet_from_gcov(self.gcov(X))
+
+    def gdet_from_gcov(self, gcov):
         r"""Return the negative root determinant of the metric :math:`\sqrt{-g}`, given the covariant form."""
-        # TODO could share more code w/above. Worth it?
-        if len(gcov.shape) == 2:
-            return np.sqrt(-la.det(gcov))
-        elif len(gcov.shape) == 3:
-            gcov_t = gcov.transpose((2, 0, 1))
-            gdet = np.sqrt(-la.det(gcov_t))
-            return gdet
-        elif len(gcov.shape) == 4:
-            gcov_t = gcov.transpose((2, 3, 0, 1))
-            gdet = np.sqrt(-la.det(gcov_t))
-            return gdet
-        elif len(gcov.shape) == 5:
-            gcov_t = gcov.transpose((2, 3, 4, 0, 1))
-            gdet = np.sqrt(-la.det(gcov_t))
-            return gdet
-        else:
-            raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2".format(gcov.shape))
+        return np.sqrt(-la.det(np.einsum("ij...->...ij", gcov)))
 
     # TODO Einsum this too
     def conn_func(self, x, delta=1e-5):

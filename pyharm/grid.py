@@ -212,8 +212,8 @@ class Grid:
                 x = self.coord(ilist, jlist, [0,], loc)
 
                 gcov_loc = self.coords.gcov(x)
-                gcon_loc = self.coords.gcon(gcov_loc)
-                gdet_loc = self.coords.gdet(gcov_loc)
+                gcon_loc = self.coords.gcon_from_gcov(gcov_loc)
+                gdet_loc = self.coords.gdet_from_gcov(gcov_loc)
 
                 self.gcov[loc.value] = gcov_loc
                 self.gcon[loc.value] = gcon_loc
@@ -238,8 +238,8 @@ class Grid:
                     x_cent = x
 
                 gcov_loc = self.coords.gcov(x)
-                gcon_loc = self.coords.gcon(gcov_loc)
-                gdet_loc = self.coords.gdet(gcov_loc)
+                gcon_loc = self.coords.gcon_from_gcov(gcov_loc)
+                gdet_loc = self.coords.gdet_from_gcov(gcov_loc)
                 if self.GN[2] > 1:
                     self.gcov[loc.value] = gcov_loc
                     self.gcon[loc.value] = gcon_loc
