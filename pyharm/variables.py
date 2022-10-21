@@ -50,10 +50,11 @@ fns_dict = {# 4-vectors
             'bcon': lambda dump: bcon_calc(dump),
             'bcov': lambda dump: dump.grid.lower_grid(dump['bcon']),
             # Versions in base coordinates
-            'ucon_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucon"], dump['dXdx']),
-            'ucov_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucov"], dump['dxdX']),
-            'bcon_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcon"], dump['dXdx']),
-            'bcov_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcov"], dump['dxdX']),
+            # these use the reverse of dxdX/dXdx as they transform *back*
+            'ucon_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucon"], dump['dxdX']),
+            'ucov_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucov"], dump['dXdx']),
+            'bcon_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcon"], dump['dxdX']),
+            'bcov_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcov"], dump['dXdx']),
             # Versions in Cartesian
             'ucon_cart': lambda dump: np.einsum("i...,ij...->j...", dump["ucon_base"], dump['dXdx_cart']),
             'ucov_cart': lambda dump: np.einsum("i...,ij...->j...", dump["ucov_base"], dump['dxdX_cart']),
@@ -95,6 +96,7 @@ fns_dict = {# 4-vectors
             'JE1': lambda dump: -T_mixed(dump, 1, 0),
             'JE2': lambda dump: -T_mixed(dump, 2, 0),
             'lam_MRI': lambda dump: lam_MRI(dump),
+            'lam_MRI_old': lambda dump: lam_MRI_old(dump),
             'lam_MRI_transform': lambda dump: lam_MRI_transform(dump),
             'vA': lambda dump: alfven_speed(dump),
             'jet_psi': lambda dump: jet_psi(dump),
