@@ -1,3 +1,10 @@
+
+# Import submodules to avoid errors
+import .ana
+import .grmhd
+import .io
+import .plots
+
 # Load a selection of useful functions and aliases to serve as a high-level interface
 
 from pyharm.ana_results import AnaResults
