@@ -32,8 +32,13 @@ __license__ = """
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-# Load a selection of useful functions and aliases to serve as a high-level interface
+# Import submodules to avoid errors
+import .ana
+import .grmhd
+import .io
+import .plots
 
+# Load a selection of useful functions and aliases to serve as a high-level interface
 from pyharm.ana_results import AnaResults
 from .fluid_dump import FluidDump
 from .ana.reductions import *
