@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020, AFD Group at UIUC
+ Copyright (c) 2020-2022, AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
 from ..ana.reductions import *
-from ..variables import *
 from .plot_dumps import *
 from .plot_results import *
 from ..defs import FloorFlag_KHARMA, FloorFlag_iharm3d, InversionStatus

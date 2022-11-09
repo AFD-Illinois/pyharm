@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020, AFD Group at UIUC
+ Copyright (c) 2020-2022, AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ from ..fluid_dump import FluidDump
 
 from . import figures
 from .plot_dumps import *
+from .overlays import *
 from .pretty import pretty
 
 __doc__ = \
@@ -101,12 +102,14 @@ def frame(fname, diag, kwargs):
         plotrc = {}
         # Copy in the equivalent options, casting them to what below code expects
         for key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax', # float
+                    'left', 'right', 'top', 'bottom', 'wspace', 'hspace', # float
                     'at', 'nlines', # int
                     'native', 'bh', 'no_title', 'average', 'sum', # bool
                     'shading', 'cmap'): # string
             if key in kwargs:
                 plotrc[key] = kwargs[key]
-                if key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax'):
+                if key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax',
+                            'left', 'right', 'top', 'bottom', 'wspace', 'hspace'):
                     # Should be floats or none
                     if plotrc[key] is not None:
                         plotrc[key] = float(plotrc[key])
@@ -169,10 +172,6 @@ def frame(fname, diag, kwargs):
         if movie_type in figures.__dict__:
             # Named movie frame figures in figures.py
             fig = figures.__dict__[movie_type](fig, dump, diag, plotrc)
-
-            if 'overlay_field' in kwargs and kwargs['overlay_field']:
-                nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
-                overlay_field(ax, dump, **plotrc)
         else:
             # Try to make a simple movie of just the stated variable
 
@@ -225,12 +224,18 @@ def frame(fname, diag, kwargs):
             if no_margin:
                 fig.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
             else:
-                fig.subplots_adjust(left=0.03, right=0.97)
+                adjustrc = {}
+                for key in ('left', 'right', 'top', 'bottom', 'wspace', 'hspace'):
+                    if key in plotrc and plotrc[key] is not None:
+                        adjustrc[key] = plotrc[key]
+                fig.subplots_adjust(**adjustrc)
 
         # OVERLAYS
-        if 'overlay_field' in kwargs and kwargs['overlay_field'] and not plotrc['native']:
+        if 'overlay_field' in kwargs and kwargs['overlay_field'] and not ('native' in plotrc and plotrc['native']):
             nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
             overlay_field(ax, dump, nlines=nlines)
+        if 'overlay_grid' in kwargs and kwargs['overlay_grid']:
+            overlay_grid(ax, dump.grid)
         # TODO contours
 
         # TITLE

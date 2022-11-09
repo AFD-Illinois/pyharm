@@ -1,4 +1,36 @@
-# Functions indexing a results directory
+__license__ = """
+ File: ana_results.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2022, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 
 import os
 import numpy as np
@@ -12,6 +44,12 @@ from .variables import fns_dict
 # Specifically for reading the header as copied/output to result files
 from .io.iharm3d_header import read_hdr
 from .io import read_log
+
+__doc__ = \
+"""This file defines an object representing post-processing results, i.e. after
+time-averaging or other reductions.
+It also provides several functions for reading such objects.
+"""
 
 def load_results(fname, **kwargs):
     """Wrapper to read diagnostic output or results of reductions
@@ -48,9 +86,10 @@ def load_results_glob(paths, fname, tag_fn=None):
                 if "_ext" in files[0]:
                     files[0] = files[1]
                 if tag_fn is None:
-                    results[model] = AnaResults(files[0], tag=model.replace("/a", " ").replace("/"," ").strip().upper())
+                    tag = model.replace("/a", " ").replace("/"," ").strip().upper()
                 else:
-                    results[model] = AnaResults(files[0], tag=tag_fn(model))
+                    tag = tag_fn(model)
+                results[tag] = AnaResults(files[0], tag=tag)
             except:
                 # This is a bulk operation. Inform of problems but do not raise an error
                 print("Error loading file {}".format(files[0]))
@@ -305,7 +344,7 @@ class AnaResults(object):
         In implementation, this is the closest analog to FluidDump's __getitem__ function -- it's the
         place to add any complex new tags/operations/whatever.
         """
-        #print("dvar ", dvar)
+        #print("Getting ivar/dvar ", ivar+"/"+dvar)
 
         # Cache based on *both* variables to avoid collisions e.g. t/Mdot vs rt/Mdot or something
         vname = ivar+"/"+dvar
@@ -313,6 +352,7 @@ class AnaResults(object):
             return self.cache[vname]
 
         # Grab from the file first no matter what it's named
+        #print(self.file[ivar].keys())
         if ivar in self.file and dvar in self.file[ivar]:
             ret_v = self.file[ivar][dvar][()]
             if 't' in ivar:
@@ -384,6 +424,13 @@ class AnaResults(object):
 
         elif self.ftype == "hst":
             return self.file.keys()
+    
+    def keys(self):
+        keylist = []
+        for ivar in self.ivars_present():
+            for dvar in self.dvars_present(ivar):
+                keylist.append(ivar+"/"+dvar)
+        return keylist
     
     def get_time_slice(self, tmin, tmax=0):
         """Get the indices in the (correct, potentially reordered) timeline

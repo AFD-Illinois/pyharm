@@ -1,8 +1,50 @@
+__license__ = """
+ File: coordinates.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2022, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 
 import numpy as np
 # Need extra broadcasting currently, or this would be scipy.linalg
 import numpy.linalg as la
 import scipy.optimize as opt
+
+__doc__ = \
+"""This file defines a bunch of handy functions for working in or translating between
+several coordinate systems.
+The intent is that any function can take an array of any shape, so long as the semantic index
+is *first*, e.g. an array X size [4,N1,N2,N3] of locations on a grid.
+
+TODO Coordinate system descriptions forthcoming.
+"""
 
 default_met_params = {'a': 0.9375, 'hslope': 0.3, 'r_out': 50.0, 'n1tot': 192,
                       'poly_xt': 0.82, 'poly_alpha': 14.0, 'mks_smooth': 0.5}
@@ -19,8 +61,6 @@ class CoordinateSystem(object):
 
     Everything this class can return is derived from a metric and transformation matrix,
     so most new coordinate systems just define those two things.
-
-    TODO notes on indexing flexibility in these functions
     """
 
     def native_startx(cls, met_params):
@@ -90,10 +130,10 @@ class CoordinateSystem(object):
                     theta = np.pi - self.small_th
         return theta
 
-    def gcov_ks(self, X):
+    def gcov_ks(self, x):
         """Covariant metric in Kerr-Schild coordinates at some native location 4-vector X"""
-        gcov_ks = np.zeros([4, 4, *(X.shape[1:])])
-        r, th, _ = self.ks_coord(X)
+        gcov_ks = np.zeros([4, 4, *(x.shape[1:])])
+        r, th, _ = self.ks_coord(x)
         if 'small_th' not in self.__dict__:
             self.small_th = 1e-20
         th = self.correct_small_th(th)
@@ -121,55 +161,31 @@ class CoordinateSystem(object):
 
         return gcov_ks
 
-    def gcov(self, X):
+    def gcov(self, x):
         """Covariant metric in native coordinates at some native location 4-vector X"""
-        gcov_ks = self.gcov_ks(X)
-        dxdX = self.dxdX(X)
+        gcov_ks = self.gcov_ks(x)
+        dxdX = self.dxdX(x)
         return np.einsum("ab...,ac...,bd...->cd...", gcov_ks, dxdX, dxdX)
 
-    def gcon(self, gcov):
-        """Return contravariant form of the metric, given the covariant form.
-        As with all coordinate functions, the matrix/vector indices are *first*.  Specifically, gcon_func expects
-        exactly zero grid indices (i.e. a single 4x4 matrix) or two grid indices (i.e. 4x4xN1xN2).
+    def gcon(self, x):
+        """Return contravariant form of the metric.
+        As with all coordinate functions, the matrix/vector indices are *first*.
         """
-        # TODO option to take coordinates and auto-call gcon?
-        # TODO support 1 & 3 dimensional arrays of input matrices, probably with einsum
-        # TODO add option to return gdet for speed
-        if len(gcov.shape) == 2:
-            return la.inv(gcov)
-        elif len(gcov.shape) == 3:
-            # Canon ordering is mu,nu,i,j for what I swear are good reasons
-            gcov_t = gcov.transpose((2, 0, 1))
-            return la.inv(gcov_t).transpose((2, 0, 1))
-        elif len(gcov.shape) == 4:
-            # Canon ordering is mu,nu,i,j for what I swear are good reasons
-            gcov_t = gcov.transpose((2, 3, 0, 1))
-            return la.inv(gcov_t).transpose((2, 3, 0, 1))
-        elif len(gcov.shape) == 5:
-            gcov_t = gcov.transpose((2, 3, 4, 0, 1))
-            return la.inv(gcov_t).transpose((3, 4, 0, 1, 2))
-        else:
-            raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2 or 4x4xN1xN2xN3".format(gcov.shape))
+        return self.gcon_from_gcov(self.gcov(x))
 
-    def gdet(self, gcov):
+    def gcon_from_gcov(self, gcov):
+        """Return contravariant form of the metric, given the covariant form.
+        As with all coordinate functions, the matrix/vector indices are *first*.
+        """
+        return np.einsum("...ij->ij...", la.inv(np.einsum("ij...->...ij", gcov)))
+
+    def gdet(self, X):
+        r"""Return the negative root determinant of the metric :math:`\sqrt{-g}`."""
+        return self.gdet_from_gcov(self.gcov(X))
+
+    def gdet_from_gcov(self, gcov):
         r"""Return the negative root determinant of the metric :math:`\sqrt{-g}`, given the covariant form."""
-        # TODO could share more code w/above. Worth it?
-        if len(gcov.shape) == 2:
-            return np.sqrt(-la.det(gcov))
-        elif len(gcov.shape) == 3:
-            gcov_t = gcov.transpose((2, 0, 1))
-            gdet = np.sqrt(-la.det(gcov_t))
-            return gdet
-        elif len(gcov.shape) == 4:
-            gcov_t = gcov.transpose((2, 3, 0, 1))
-            gdet = np.sqrt(-la.det(gcov_t))
-            return gdet
-        elif len(gcov.shape) == 5:
-            gcov_t = gcov.transpose((2, 3, 4, 0, 1))
-            gdet = np.sqrt(-la.det(gcov_t))
-            return gdet
-        else:
-            raise ValueError("Dimensions of gcov are {}.  Should be 4x4 or 4x4xN1xN2".format(gcov.shape))
+        return np.sqrt(-la.det(np.einsum("ij...->...ij", gcov)))
 
     # TODO Einsum this too
     def conn_func(self, x, delta=1e-5):
@@ -284,11 +300,19 @@ class Minkowski(CoordinateSystem):
         return gcov
 
     @classmethod
-    def gcon(cls, gcov):
+    def gcon(cls, x):
+        return Minkowski.gcov(x)
+
+    @classmethod
+    def gcon_from_gcov(cls, gcov):
         return gcov
 
     @classmethod
-    def gdet(cls, gcov):
+    def gdet(cls, x):
+        return np.ones([*x.shape[1:]])
+
+    @classmethod
+    def gdet_from_gcov(cls, gcov):
         return np.ones([*gcov.shape[2:]])
 
     @classmethod

@@ -1,10 +1,43 @@
+__license__ = """
+ File: parameters.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2022, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 
-
-import os
-import sys
 import numpy as np
 
-"""Parse and handle parameters
+__doc__ = \
+"""Parse and handle parameters.
+These functions exist primarily to standardize reading simulation parameters
+from a number of sources, and name them ~generally the same things.
 """
 
 def parse_iharm3d_dat(params, fname):
@@ -69,14 +102,6 @@ def parse_parthenon_dat(string):
                     params[ls[0]] = int(ls[-1])
         except ValueError:
             params[ls[0]] = ls[-1]
-    
-    # Now do any repairs specific to translating the Parthenon->iharm3d naming scheme
-    for pair in (('nx1','n1'), ('nx2','n2'), ('nx3','n3'),
-                 ('n1','n1tot'), ('n2','n2tot'), ('n3','n3tot'),
-                 ('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3'),
-                 ('gamma', 'gam'), ('dt', 'dump_cadence'), ('tlim', 'tf'), ('cfl', 'cour')):
-        if (pair[0] in params):
-            params[pair[1]] = params[pair[0]]
 
     # Translate coordinate naming scheme
     if "cartesian" in params['base']:
@@ -102,6 +127,14 @@ def fix(params):
     """Fix a bunch of common problems and omissions in parameters dictionaries.
     Already called by both parameter parsing functions.
     """
+
+    # Now do any repairs specific to translating the Parthenon->iharm3d naming scheme
+    for pair in (('nx1','n1'), ('nx2','n2'), ('nx3','n3'),
+                 ('n1','n1tot'), ('n2','n2tot'), ('n3','n3tot'),
+                 ('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3'),
+                 ('gamma', 'gam'), ('dt', 'dump_cadence'), ('tlim', 'tf'), ('cfl', 'cour')):
+        if (pair[0] in params):
+            params[pair[1]] = params[pair[0]]
 
     if (not 'r_out' in params) and 'Rout' in params:
         params['r_out'] = params['Rout']
@@ -153,8 +186,8 @@ def fix(params):
     # If we must guess r_in and/or set coordinate stuff, do it last
     if 'r_in' not in params:
         if 'x1min' not in params:
-            params['r_in'] = np.exp((params['n1tot'] * np.log(params['r_eh']) / 5.5 - np.log(params['r_out'])) /
-                                    (-1. + params['n1tot'] / 5.5))
+            params['r_in'] = np.exp((params['n1'] * np.log(params['r_eh']) / 5.5 - np.log(params['r_out'])) /
+                                    (-1. + params['n1'] / 5.5))
         else:
             params['r_in'] = np.exp(params['x1min'])
 
@@ -177,14 +210,20 @@ def fix(params):
             params['x3max'] = 2*np.pi
 
     if 'dx1' not in params:
-        params['dx1'] = (params['x1max'] - params['x1min']) / params['nx1']
-        params['dx2'] = (params['x2max'] - params['x2min']) / params['nx2']
-        params['dx3'] = (params['x3max'] - params['x3min']) / params['nx3']
+        params['dx1'] = (params['x1max'] - params['x1min']) / params['n1']
+        params['dx2'] = (params['x2max'] - params['x2min']) / params['n2']
+        params['dx3'] = (params['x3max'] - params['x3min']) / params['n3']
 
     # Translate anything we added -> iharm3d again
     # TODO pick one form geez
     for pair in (('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3')):
         if (pair[0] in params):
             params[pair[1]] = params[pair[0]]    
+
+    # Defualts we never changed but didn't always record
+    if 'gam_e' not in params:
+        params['gam_e'] = 4./3
+    if 'gam_p' not in params:
+        params['gam_p'] = 5./3
 
     return params

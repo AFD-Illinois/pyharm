@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020, AFD Group at UIUC
+ Copyright (c) 2020-2022, AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -159,8 +159,9 @@ class KHARMAFile(DumpFile):
             if len(fnames) == 0:
                 path3 = "/".join(self.fname.split("/")[:-1])+"*.par"
                 fnames = glob.glob(path3)
+            if len(fnames) == 0:
+                raise IOError("Cannot read parameter file KHARMAv1 dump {}.\nMove associated .par file to the dump's directory.".format(self.fname))
 
-            #print("Reading parameters from {}".format(fnames[-1]), file=sys.stderr)
             with open(fnames[-1], 'r') as parfile:
                 params = parameters.parse_parthenon_dat(parfile.read())
 
@@ -240,8 +241,8 @@ class KHARMAFile(DumpFile):
             if self.index_of(var.replace("prims.", "")) is not None:
                 var = var.replace("prims.", "")
             # Try to get it from conserved version (e.g. KHARMA restarts lack prims.B)
-            elif "cons" not in var:
-                var_con = "cons"+var.replace("prims", "")
+            if "cons" not in var:
+                var_con = "cons."+var.replace("prims.", "")
                 if "B" in var_con and var_con in fil.Variables:
                     grid = Grid(self.params)
                     return self.read_var(var_con, astype=astype, slc=slc) / \
@@ -303,25 +304,32 @@ class KHARMAFile(DumpFile):
             # If the ghost zones are included (ng_f > 0) but we don't want them (all) (ng_i = 0),
             # then take a portion of the file.  Otherwise take it all.
             # Also include the block number out front
-            fil_slc = (ib, slice(loc_slc[2].start - b[2].start + ng_fz - ng[2], loc_slc[2].stop - b[2].start + ng_fz + ng[2]),
-                           slice(loc_slc[1].start - b[1].start + ng_fy - ng[1], loc_slc[1].stop - b[1].start + ng_fy + ng[1]),
-                           slice(loc_slc[0].start - b[0].start + ng_fx - ng[0], loc_slc[0].stop - b[0].start + ng_fx + ng[0]))
-            if (fil_slc[1].start > fil_slc[1].stop) or (fil_slc[2].start > fil_slc[2].stop) or (fil_slc[3].start > fil_slc[3].stop):
+            fil_slc = (slice(loc_slc[2].start - b[2].start + ng_fz - ng[2], loc_slc[2].stop - b[2].start + ng_fz + ng[2]),
+                       slice(loc_slc[1].start - b[1].start + ng_fy - ng[1], loc_slc[1].stop - b[1].start + ng_fy + ng[1]),
+                       slice(loc_slc[0].start - b[0].start + ng_fx - ng[0], loc_slc[0].stop - b[0].start + ng_fx + ng[0]))
+            if (fil_slc[-3].start > fil_slc[-3].stop) or (fil_slc[-2].start > fil_slc[-2].stop) or (fil_slc[-1].start > fil_slc[-1].stop):
                 # Don't read blocks outside our domain
                 #print("Skipping block: ", b, " would be to location ", out_slc, " from portion ", fil_slc)
                 continue
-            #print("Reading block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
-            #print("{} {} {} {}".format(loc_slc[2].start, b[2].start, ng_fz, ng[2]))
+            #print("Reading var ", var, " from block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
             #print(fil.Get(var, False).shape)
 
             if 'prims.rho' in fil.Variables:
                 # New file format. Read whatever
                 if len(out.shape) == 4: # Always read the whole vector, even if we're returning an index
                     #print("Reading vector size ", fil.Get(var, False)[fil_slc + (slice(None),)].T.shape, " to loc size ", out[(slice(None),) + out_slc].shape)
-                    out[(slice(None),) + out_slc] = fil.Get(var, False)[fil_slc + (slice(None),)].T
+                    try:
+                        out[(slice(None),) + out_slc] = fil.Get(var, False)[(ib,) + fil_slc + (slice(None),)].T
+                    except ValueError:
+                        out[(slice(None),) + out_slc] = fil.Get(var, False)[(ib, slice(None)) + fil_slc].transpose(0,3,2,1)
                 else: # Read a scalar
                     #print("Reading scalar size ", fil.Get(var, False)[fil_slc].T.shape," to loc size ", out[out_slc].shape)
-                    out[out_slc] = fil.Get(var, False)[fil_slc].T
+                    try:
+                        out[out_slc] = fil.Get(var, False)[(ib,) + fil_slc + (0,)].T
+                    except ValueError:
+                        out[out_slc] = fil.Get(var, False)[(ib, 0) + fil_slc].T
+                    except IndexError:
+                        out[out_slc] = fil.Get(var, False)[(ib,) + fil_slc].T
 
             else:
                 # Old file formats.  If we'd split prims/B_prim:
@@ -355,6 +363,7 @@ def read_log(fname):
     with open(fname) as inf:
         inf.readline()
         header = [e.split('=')[1].rstrip() for e in inf.readline().split('[')[1:]]
+
     tab = pandas.read_table(fname, delim_whitespace=True, comment='#', names=header)
     out = {}
     for name in header:

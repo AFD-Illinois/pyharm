@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020, AFD Group at UIUC
+ Copyright (c) 2020-2022, AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -292,6 +292,7 @@ def eh_fluxes(results, kwargs):
         axes = fig.get_axes()
         plot_eh_fluxes(axes, result)
         plt.subplots_adjust(wspace=0.4)
+    return fig #TODO 
 
 def eh_fluxes_per(results, kwargs):
     for result in results.values():

@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020, AFD Group at UIUC
+ Copyright (c) 2020-2022, AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -118,7 +118,7 @@ def wrap(x):
     return np.append(x[Ellipsis], x[:, 0:1], 1)
 
 def flatten_thphi(dump, var, at=5, sum=False):
-    """Return an th-phi slice or sum of var.  Note sums are *not* GR-aware!
+    """Return a th-phi slice or sum of var.  Note sums are *not* GR-aware!
 
     :param at: which rank in X1 to take data from.
     :param sum: whether to sum all ranks. Overrides 'at'.

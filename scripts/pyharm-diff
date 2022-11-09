@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+
+"""
+Plot the differences between two GRMHD output files and test for similarity
+"""
+
+import pyharm
+from pyharm import parameters
+import pyharm.plots.plot_dumps as pplt
+import pyharm.util as util
+
+import sys
+import click
+import numpy as np
+import matplotlib.pyplot as plt
+
+@click.command()
+@click.argument('dump1file', nargs=1, type=click.Path(exists=True))
+@click.argument('dump2file', nargs=1, type=click.Path(exists=True))
+# Common options
+@click.option('-o', '--out_name', default=None, help="Base name of output images.")
+@click.option('-g', '--ghost_zones', is_flag=True, help="Compare ghost zones.")
+@click.option('--fig_x', default=20.0, help="Figure width in inches.")
+@click.option('--fig_y', default=20.0, help="Figure height in inches.")
+@click.option('--xmin', default=None, help="Window X minimum.")
+@click.option('--xmax', default=None, help="Window X maximum.")
+@click.option('--ymin', default=None, help="Window Y minimum.")
+@click.option('--ymax', default=None, help="Window Y maximum.")
+@click.option('-a', '--absolute', is_flag=True, help="Plot absolute differences, rather than relative.")
+@click.option('--rel_tol', default=5e-10, help="Relative tolerance to consider a variable different.")
+@click.option('--abs_tol', default=1e20, help="Absolute tolerance to consider a variable different.")
+def diff(dump1file, dump2file, **kwargs):
+    if kwargs['out_name'] is not None:
+        imname = kwargs['out_name']
+    else:
+        imname = "diff_"+kwargs['dump1file'].split('.')[:-1]+kwargs['dump2file'].split('.')[:-1]
+
+    dump1 = pyharm.load_dump(dump1file, ghost_zones=kwargs['ghost_zones'])
+    #Hopefully this fails for dumps that shouldn't be compared
+    dump2 = pyharm.load_dump(dump2file, ghost_zones=kwargs['ghost_zones'])
+
+    # TODO accommodate >9 prims
+    vars = list(dump2['prim_names']) # Parthenon isn't dealing with KEL
+
+    return_code = 0
+
+    # Always do XZ
+    fig, _ = plt.subplots(3, 3, figsize=(kwargs['fig_x'], kwargs['fig_y']))
+    axes = fig.get_axes()
+    for var, ax in zip(vars, axes):
+        if kwargs['absolute']:
+            pplt.plot_diff_xz(ax, dump1, dump2, var, rel=False)
+        else:
+            pplt.plot_diff_xz(ax, dump1, dump2, var, rel=True, vmax=1)
+        ax.set_xlabel('')
+        ax.set_ylabel('')
+
+        l1_norm = np.sum(np.abs(dump1[var] - dump2[var])) / np.sum(np.abs(dump1[var]))
+        if l1_norm > kwargs['rel_tol']:
+            print("Outputs disagree in {}: normalized L1: {}".format(var, l1_norm))
+            return_code = 1
+
+    plt.tight_layout()
+    plt.savefig(imname+"_xz.png", dpi=100)
+    plt.close(fig)
+
+    # Do XY if not 2D
+    if dump1['n3'] > 1:
+        fig, _ = plt.subplots(3, 3, figsize=(kwargs['fig_x'], kwargs['fig_y']))
+        axes = fig.get_axes()
+        for var,ax in zip(vars, axes):
+            if kwargs['absolute']:
+                pplt.plot_diff_xy(ax, dump1, dump2, var, rel=False)
+            else:
+                pplt.plot_diff_xy(ax, dump1, dump2, var, rel=True, vmax=1)
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+
+        plt.tight_layout()
+        plt.savefig(imname+"_xy.png", dpi=100)
+        plt.close(fig)
+
+    exit(return_code)
+
+if __name__ == "__main__":
+    diff()

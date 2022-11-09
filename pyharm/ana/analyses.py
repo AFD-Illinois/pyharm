@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020, AFD Group at UIUC
+ Copyright (c) 2020-2022, AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,6 @@ __license__ = """
 
 import sys
 
-from ..variables import *
 from .reductions import *
 from .. import io
 
