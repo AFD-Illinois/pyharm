@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+"""Scalable script for making movies, i.e. plots of each dump file of a simulation.
+Run 'pyharm-movie --help' for usage and available plots.
+"""
+
 import os, sys
 import click
 import glob
@@ -61,17 +65,24 @@ class ExtensibleCmd(click.Command):
 @click.option('-e', '--tend', default=1e7, help="End time.")
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
 @click.option('-o', '--output_dir', default=".", help="Base directory for outputs. Any folder structure of models will be preserved.")
-# Plotting options
+# Figure options
 @click.option('--fig_x', default=16.0, help="Figure width in inches.")
 @click.option('--fig_y', default=9.0, help="Figure height in inches.")
 @click.option('--fig_dpi', default=100, help="DPI of resulting figure.")
+@click.option('--left', default=0.07, help="Left side padding of figure (as in subplots_adjust).")
+@click.option('--right', default=0.93, help="Right side padding of figure (as in subplots_adjust).")
+@click.option('--bottom', default=None, help="Bottom padding of figure (as in subplots_adjust).")
+@click.option('--top', default=None, help="Top padding of figure (as in subplots_adjust).")
+@click.option('--wspace', default=None, help="Width spacing between plots in figure (as in subplots_adjust).")
+@click.option('--hspace', default=None, help="Height spacing between plots in figure (as in subplots_adjust).")
 @click.option('--no_title', is_flag=True, help="Omit a plot title e.g. of simulation time.")
-@click.option('-g','--plot_ghost', is_flag=True, default=False, help="Plot ghost zones.")
+# Dump file plotting options
+@click.option('-g','--ghost_zones', is_flag=True, help="Plot ghost zones.")
 @click.option('-at','--at','--at_zone', 'at', default=0, help="Phi zone to plot at.")
 @click.option('-av','--av','--average', 'average', is_flag=True, help="Average quantities over phi.")
 @click.option('--sum', is_flag=True, help="Sum quantities over phi.")
 @click.option('-sz','--sz','--size', 'size', default=None, help="Window size, in M each side of central object.")
-@click.option('-sh','--sh','--shading', 'shading', default='gouraud', help="Shading: flat, nearest, gouraud.")
+@click.option('-sh','--sh','--shading', 'shading', default='flat', help="Shading: flat, nearest, gouraud.")
 @click.option('--vmin', default=None, help="Colorscale minimum.")
 @click.option('--vmax', default=None, help="Colorscale maximum.")
 @click.option('--cmap', default='jet', help="Colormap.")
@@ -80,10 +91,13 @@ class ExtensibleCmd(click.Command):
 @click.option('--ymin', default=None, help="Window Y minimum.")
 @click.option('--ymax', default=None, help="Window Y maximum.")
 @click.option('--overlay_field', is_flag=True, help="Overlay field lines.")
+@click.option('--overlay_grid', is_flag=True, help="Overlay simulation zone borders.")
+@click.option('--native', is_flag=True, help="Plot in native coordinates X1,X2,X3 rather than converting to Cartesian.")
+@click.option('--bh', default=True, help="Whether to show the BH shadow.")
 @click.option('--no_grid_cache', is_flag=True, help="Don't cache geometry.  For plotting large Cartesian simulations.")
 @click.option('--prefer_iharm3d', is_flag=True, help="Prefer iharm3d-format files if available alongside KHARMA output")
 # Extras
-@click.option('-a', '--accurate_fnames', is_flag=True, help="Name frames by 1/100M, for short runs.")
+@click.option('--accurate_fnames', is_flag=True, help="Name frames by 1/100M, for short runs.")
 @click.option('-r', '--resume', is_flag=True, help="Continue a previous run, by skipping existing frames")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
 @click.option('--nompi', is_flag=True, help="Avoid MPI even if available")

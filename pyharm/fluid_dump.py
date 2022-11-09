@@ -48,6 +48,11 @@ __doc__ = \
 The object serves as a cohesive interface for any data or calculations concerning the fluid state data.
 """
 
+def load_dump(fname, **kwargs):
+    """Wrapper to create a new FluidDump object using the given file
+    """
+    return FluidDump(fname, **kwargs)
+
 class FluidDump:
     """Read and cache data from a fluid dump file in any supported format, and allow accessing
     various derived properties directly.

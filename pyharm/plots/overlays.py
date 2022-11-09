@@ -48,10 +48,10 @@ def overlay_circle(ax, at_r=10, color='#FFFFFF'):
 def overlay_observer_arrow(ax, angle=163, r_start=4, r_end=5.5):
     """Place an arrow at 'angle' marking the direction to the observer"""
     th = angle/180.*np.pi
-    x1 = r_start * np.sin(angle)
-    y1 = r_start * np.cos(angle)
-    x2 = r_end * np.sin(angle)
-    y2 = r_end * np.cos(angle)
+    x1 = r_start * np.sin(th)
+    y1 = r_start * np.cos(th)
+    x2 = r_end * np.sin(th)
+    y2 = r_end * np.cos(th)
     ax.arrow(x1,y1, (x2-x1),(y2-y1), head_width=0.4, head_length=0.4, fc='#00ff00', ec='#00ff00', width=0.1)
 
 #### SPACETIME ####
@@ -101,7 +101,7 @@ def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=Fa
     """
     # TODO optional line cutoff by setting NaN according to a second condition
     # TODO these few functions could just optionally use np.mean
-    x, z = dump.grid.get_xz_locations(native=native, half_cut=half_cut)
+    x, z = dump.grid.get_xz_locations(native=native, half_cut=(half_cut or native))
     if average:
         var = np.squeeze(flatten_xz(dump, var, at, True) / dump['n3']) # Arg to flatten_xz is "sum", so we divide
     else:

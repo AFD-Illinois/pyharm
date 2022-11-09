@@ -130,10 +130,10 @@ class CoordinateSystem(object):
                     theta = np.pi - self.small_th
         return theta
 
-    def gcov_ks(self, X):
+    def gcov_ks(self, x):
         """Covariant metric in Kerr-Schild coordinates at some native location 4-vector X"""
-        gcov_ks = np.zeros([4, 4, *(X.shape[1:])])
-        r, th, _ = self.ks_coord(X)
+        gcov_ks = np.zeros([4, 4, *(x.shape[1:])])
+        r, th, _ = self.ks_coord(x)
         if 'small_th' not in self.__dict__:
             self.small_th = 1e-20
         th = self.correct_small_th(th)
@@ -161,17 +161,17 @@ class CoordinateSystem(object):
 
         return gcov_ks
 
-    def gcov(self, X):
+    def gcov(self, x):
         """Covariant metric in native coordinates at some native location 4-vector X"""
-        gcov_ks = self.gcov_ks(X)
-        dxdX = self.dxdX(X)
+        gcov_ks = self.gcov_ks(x)
+        dxdX = self.dxdX(x)
         return np.einsum("ab...,ac...,bd...->cd...", gcov_ks, dxdX, dxdX)
 
-    def gcon(self, X):
+    def gcon(self, x):
         """Return contravariant form of the metric.
         As with all coordinate functions, the matrix/vector indices are *first*.
         """
-        return self.gcon_from_gcov(self.gcov(X))
+        return self.gcon_from_gcov(self.gcov(x))
 
     def gcon_from_gcov(self, gcov):
         """Return contravariant form of the metric, given the covariant form.
@@ -300,11 +300,19 @@ class Minkowski(CoordinateSystem):
         return gcov
 
     @classmethod
-    def gcon(cls, gcov):
+    def gcon(cls, x):
+        return Minkowski.gcov(x)
+
+    @classmethod
+    def gcon_from_gcov(cls, gcov):
         return gcov
 
     @classmethod
-    def gdet(cls, gcov):
+    def gdet(cls, x):
+        return np.ones([*x.shape[1:]])
+
+    @classmethod
+    def gdet_from_gcov(cls, gcov):
         return np.ones([*gcov.shape[2:]])
 
     @classmethod

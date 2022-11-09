@@ -36,11 +36,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import numpy as np
-from scipy.integrate import trapz
 
 from ..ana.reductions import flatten_xy, flatten_xz, wrap
 from ..util import i_of
 from .plot_utils import *
+from .overlays import *
 from .pretty import pretty
 
 __doc__ = \
@@ -123,8 +123,8 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             var = var.replace("log_","")
         vname = var
 
-    x, z = dump.grid.get_xz_locations(mesh=(shading == 'flat'), native=native, half_cut=half_cut)
-    var = flatten_xz(dump, var, at, sum or average, half_cut)
+    x, z = dump.grid.get_xz_locations(mesh=(shading == 'flat'), native=native, half_cut=(half_cut or native))
+    var = flatten_xz(dump, var, at, sum or average, half_cut or native)
     if average:
         var /= dump['n3']
     if shading != 'flat':
@@ -169,8 +169,8 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             ax.set_ylim(window[2:])
         # TODO alt option of size -r_out to r_out?
 
-        if not half_cut:
-            ax.set_aspect('equal')
+    # TODO do we ever not want this?
+    ax.set_aspect('equal')
 
     # Set up arguments for decorating plot
     if not 'bh' in kwargs:
@@ -254,7 +254,9 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
         else:
             # TODO guess this?
             pass
-        ax.set_aspect('equal')
+
+    # TODO do we ever not want this?
+    ax.set_aspect('equal')
 
     # Set up arguments for decorating plot
     if not 'bh' in kwargs:
@@ -358,74 +360,18 @@ def plot_slices(ax1, ax2, dump, var, field_overlay=False, nlines=10, **kwargs):
     kwargs_right = {**kwargs, **{'at': None}}
     plot_xy(ax2, dump, var, **kwargs_right)
 
-def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=False, at=0, average=False, use_contourf=False, **kwargs):
-    """Overlay countour lines on an XZ plot, of 'var' at each of the list 'levels' in color 'color'.
-    Takes a bunch of the same other options as the plot it's overlaid upon.
-    """
-    # TODO optional line cutoff by setting NaN according to a second condition
-    # TODO these few functions could just optionally use np.mean
-    x, z = dump.grid.get_xz_locations(native=native, half_cut=half_cut)
-    if average:
-        var = np.squeeze(flatten_xz(dump, var, at, True) / dump['n3']) # Arg to flatten_xz is "sum", so we divide
+def plot_diff_xy(ax, dump1, dump2, var, rel=False, **kwargs):
+    if rel:
+        plot_xy(ax, dump1, np.abs((dump1[var] - dump2[var])/dump1[var]),
+            label=pretty(var), **kwargs)
     else:
-        var = np.squeeze(flatten_xz(dump, var, at, False))
-    if use_contourf:
-        return ax.contourf(x, z, var, levels=levels, colors=color, **kwargs)
+        plot_xy(ax, dump1, np.abs(dump1[var] - dump2[var]),
+            log=True, label=pretty(var), **kwargs)
+
+def plot_diff_xz(ax, dump1, dump2, var, rel=False, **kwargs):
+    if rel:
+        plot_xz(ax, dump1, np.abs((dump1[var] - dump2[var])/dump1[var]),
+            label=pretty(var), **kwargs)
     else:
-        return ax.contour(x, z, var, levels=levels, colors=color, **kwargs)
-
-def overlay_field(ax, dump, **kwargs):
-        overlay_flowlines(ax, dump, 'B1', 'B2', **kwargs)
-
-def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False, half_cut=False, reverse=False, **kwargs):
-    """Overlay the "flow lines" of a pair of variables in X1 and X2 directions.  Sums assuming no divergence to obtain a
-    potential, then plots contours of the potential so as to total 'nlines' total contours.
-    """
-
-    if native:
-        half_cut = True
-
-    x, z = dump.grid.get_xz_locations(native=native, half_cut=half_cut)
-    varx1 = flatten_xz(dump, varx1, sum=True, half_cut=True) / dump['n3'] * np.squeeze(dump['gdet'])
-    varx2 = flatten_xz(dump, varx2, sum=True, half_cut=True) / dump['n3'] * np.squeeze(dump['gdet'])
-
-    if native:
-        varx1 = varx1.T
-        varx2 = -varx2.T
-
-    N1, N2 = varx1.shape[:2]
-
-    AJ_phi = np.zeros([N1, 2*N2])
-    for j in range(N2):
-        for i in range(N1):
-            if not reverse:
-                AJ_phi[i, N2 - 1 - j] = AJ_phi[i, N2 + j] = \
-                    (trapz(varx2[:i, j], dx=dump['dx1']) -
-                     trapz(varx1[i, :j], dx=dump['dx2']))
-            else:
-                AJ_phi[i, N2 - 1 - j] = AJ_phi[i, N2 + j] = \
-                    (trapz(varx2[:i, j], dx=dump['dx1']) +
-                     trapz(varx1[i, j:], dx=dump['dx2']))
-    AJ_phi -= AJ_phi.min()
-    levels = np.linspace(0, AJ_phi.max(), nlines * 2)
-
-    if half_cut:
-        AJ_phi = AJ_phi[:,:N2]
-
-    ax.contour(x, z, AJ_phi, levels=levels, colors=color)
-
-
-def overlay_quiver(ax, dump, varx1, varx2, cadence=64, norm=1):
-    """Overlay a quiver plot of 2 vector components onto a plot in *native coordinates only*."""
-    varx1 = flatten_xz(dump, varx1, sum=True) / dump['n3'] * dump['gdet']
-    varx2 = flatten_xz(dump, varx2, sum=True) / dump['n3'] * dump['gdet']
-    max_J = np.max(np.sqrt(varx1 ** 2 + varx2 ** 2))
-
-    x, z = dump.grid.get_xz_locations(native=True)
-
-    s1 = dump['n1'] // cadence
-    s2 = dump['n2'] // cadence
-
-    ax.quiver(x[::s1, ::s2], z[::s1, ::s2], varx1[::s1, ::s2], varx2[::s1, ::s2],
-              units='xy', angles='xy', scale_units='xy', scale=(cadence * max_J / norm))
-
+        plot_xz(ax, dump1, np.abs(dump1[var] - dump2[var]),
+            log=True, label=pretty(var), **kwargs)

@@ -33,7 +33,6 @@ __license__ = """
 """
 
 import numpy as np
-from matplotlib.patches import Circle
 
 from .plot_utils import *
 
@@ -70,47 +69,7 @@ def plot_emission_origin(ax, grid, Inu, window=None, sz=6, log=False, vmin=None,
     ax.set_aspect('equal')
     ax.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
     ax.tick_params(axis='y', which='both', left=False, labelleft=False)
-    ax.set_xlabel("$x [GM/c^2]$",fontsize=14)
-    ax.set_ylabel("$z [GM/c^2]$",fontsize=14)
+    ax.set_xlabel("$x\;[GM/c^2]$",fontsize=14)
+    ax.set_ylabel("$z\;[GM/c^2]$",fontsize=14)
     ax.tick_params(axis='x', which='both',direction='inout', bottom=True, labelbottom=True, labelsize=14)
     ax.tick_params(axis='y', which='both',direction='inout', left=True, labelleft=True, labelsize=14)
-
-def overlay_eh_border(ax, grid, at_i=5, color='#FFFFFF', linewidth=1.5):
-    """Plot a circle corresponding to the `i`th zone of the simulation.
-    Usually used for the EH at i=5th zone.
-    """
-    X, Y = grid.get_xz_locations(mesh=True, half_cut=True)
-    ax.plot(X[at_i,:], Y[at_i,:], color, linewidth=linewidth) #white
-
-def overlay_circle(ax, at_r=10, color='#FFFFFF'):
-    """Plot a circle at radius 'at_r' in M from the origin."""
-    ax.add_patch(Circle((0,0), radius=at_r, edgecolor=color, facecolor='none'))
-
-def overlay_photon_orbits(ax, a):
-    """Overlay a region representing allowable photon orbits given the black hole spin"""
-    def uplus(a,r):
-        # return allowed photon orbit locations, credit Leo C. Stein
-        #   https://duetosymmetry.com/tool/kerr-circular-photon-orbits/
-        Q = - r**3*(r**3-6.*r*r+9.*r-4.*a*a)/a/a/(r-1.)/(r-1.)
-        Phi = - (r**3 - 3.*r*r+a*a*r+a*a) / a / (r - 1.)
-        return np.sqrt(1./2/a/a*( (a*a-Q-Phi*Phi) + np.sqrt( (a*a-Q-Phi*Phi)**2 + 4*a*a*Q) ))
-    rs = np.linspace(1.,4.,100000)
-    up = uplus(a,rs)
-    xs = rs * np.sin(np.arccos(up))
-    yps = rs * up
-    yms = - rs * up
-    ax.plot(xs,yps,'w--',linewidth=2)
-    ax.plot(xs,yms,'w--',linewidth=2)
-
-def overlay_observer_arrow(ax, angle=163, r_start=4, r_end=5.5):
-    """Place an arrow at 'angle' marking the direction to the observer"""
-    th = angle/180.*np.pi
-    x1 = r_start * np.sin(angle)
-    y1 = r_start * np.cos(angle)
-    x2 = r_end * np.sin(angle)
-    y2 = r_end * np.cos(angle)
-    ax.arrow(x1,y1, (x2-x1),(y2-y1), head_width=0.4, head_length=0.4, fc='#00ff00', ec='#00ff00', width=0.1)
-
-def mark_isco(ax, grid, color='#00FF00'):
-    """Place an x at the ISCO radius in the midplane of a plot."""
-    ax.plot(grid['r_isco'], 0, 'x', color=color, ms=8, mew=3)

@@ -292,6 +292,7 @@ def eh_fluxes(results, kwargs):
         axes = fig.get_axes()
         plot_eh_fluxes(axes, result)
         plt.subplots_adjust(wspace=0.4)
+    return fig #TODO 
 
 def eh_fluxes_per(results, kwargs):
     for result in results.values():
