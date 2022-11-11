@@ -32,8 +32,6 @@ __license__ = """
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-# TODO This should only handle the core 8 prims. If iharm3d stuff needs to override, so be it.
-
 class DumpFile(object):
     """This interface provides the list of functions to implement for new file filters for pyharm.
     A good base set of variables would be to provide something logical for the HARM primitive variables
@@ -46,19 +44,18 @@ class DumpFile(object):
     Usually this is done via a member function self.read_params, which may be called on its own in future
     """
 
-    prim_names_iharm = ("RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3",
-                        "KTOT", "KEL_CONSTANT", "KEL_KAWAZURA", "KEL_WERNER", "KEL_ROWAN", "KEL_SHARMA")
-    
+    prim_names_harm = ("RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3")
+    prim_names_kharma = ("rho", "u", "u1", "u2", "u3")
+
     @classmethod
     def index_of(cls, vname, eprim_names=None, eprim_indices=None):
         # This is provided in the interface, as a bunch of codes (iharmXd, Babel-converted KORAL & BHAC, etc)
-        # uses this ordering of variables, so it's convenient to write once.
-        # Custom names, e.g. e-
-        if eprim_names is not None and vname.upper() in eprim_names:
-            return eprim_indices[eprim_names.index(vname.upper())]
-        # Normal names
-        elif vname.upper() in cls.prim_names_iharm:
-            return cls.prim_names_iharm.index(vname.upper())
+        # use the same ordering for the first 8 variables
+        # If you need to read more than those 8, override this method.
+        if vname in cls.prim_names_harm:
+            return cls.prim_names_harm.index(vname)
+        elif vname in cls.prim_names_kharma:
+            return cls.prim_names_kharma.index(vname)
         # Vectors
         elif vname == "uvec":
             return slice(cls.index_of("u1"), cls.index_of("u3")+1)
@@ -66,7 +63,7 @@ class DumpFile(object):
             return slice(cls.index_of("B1"), cls.index_of("B3")+1)
         # All
         elif vname == "prims" or vname == "primitives" or vname == "all":
-            return slice()
+            return slice(None)
         else:
             return None
 

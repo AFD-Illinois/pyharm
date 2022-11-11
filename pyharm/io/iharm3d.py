@@ -97,7 +97,17 @@ class Iharm3DFile(DumpFile):
             if 'extras' in fil and 'git_version' in fil['extras']:
                 params['git_version'] = fil['/extras/git_version'][()].decode('UTF-8')
 
+            # Unlike in most codes (including kharma!) iharm3d is self-documenting about every primitive
+            # it contains.  Use that to advantage here, circumventing the need to guess.
+            self.prim_names  = [prim_name.decode() for prim_name in fil['header/prim_names']]
+
             return params
+
+    def index_of(self, var):
+        # Translate any "new-style" KHARMA names to versions that would be in header/prim_names
+        if var == 'u':
+            return self.prim_names.index("UU")
+        return self.prim_names.index(var.upper())
 
     def read_var(self, var, slc=(), **kwargs):
         if var in self.cache:
@@ -114,16 +124,8 @@ class Iharm3DFile(DumpFile):
                     else:
                         fil_slc[i] = slc[i]
             fil_slc = tuple(fil_slc)
-            
-            # iharm 3d will by default have 8 primitives, right?
-            # If we decide to implement new prims - that AREN'T electron heating models - then
-            # this sliing will have to be modified.
-            
-            prim_names  = [prim_name.decode() for prim_name in fil['header/prim_names']]
-            eprim_names = [eprim_name.decode() for eprim_name in fil['header/prim_names'][8:]]
-            eprim_indices = [prim_names.index(eprim_name) for eprim_name in eprim_names]
 
-            i = self.index_of(var, eprim_names, eprim_indices)
+            i = self.prim_names
             if i is not None:
                 # This is one of the main vars in the 'prims' array
                 self.cache[var] = self._prep_array(fil['/prims'][fil_slc + (i,)], **kwargs)
