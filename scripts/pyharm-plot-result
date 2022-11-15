@@ -80,7 +80,7 @@ def plot_results(to_plot_str, paths, **kwargs):
     for plotname in to_plot:
         # If this is a local single-result function, just plot it for everything
         if plotname in local_fns.keys():
-            result_figures.__dict__[plotname](results, kwargs=kwargs)
+            fig = result_figures.__dict__[plotname](results, kwargs=kwargs)
         else:
             print("ERROR: Cannot make plot: {}".format(plotname))
 
@@ -93,10 +93,11 @@ def plot_results(to_plot_str, paths, **kwargs):
     if kwargs['tag'] != "":
         kwargs['tag'] += "_"
     # User tag, then fn, then extension
+    print(results.keys())
     if kwargs['pdf']:
-        plt.savefig(kwargs['tag']+tag+".pdf", dpi=200)
+        plt.savefig(kwargs['tag']+results['.'].tag+".pdf", dpi=200)
     else:
-        plt.savefig(kwargs['tag']+tag+".png", dpi=200)
+        plt.savefig(kwargs['tag']+results['.'].tag+".png", dpi=200)
     plt.close(fig)
 
 if __name__ == "__main__":

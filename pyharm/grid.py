@@ -212,8 +212,8 @@ class Grid:
                 x = self.coord(ilist, jlist, [0,], loc)
 
                 gcov_loc = self.coords.gcov(x)
-                gcon_loc = self.coords.gcon(gcov_loc)
-                gdet_loc = self.coords.gdet(gcov_loc)
+                gcon_loc = self.coords.gcon_from_gcov(gcov_loc)
+                gdet_loc = self.coords.gdet_from_gcov(gcov_loc)
 
                 self.gcov[loc.value] = gcov_loc
                 self.gcon[loc.value] = gcon_loc
@@ -238,8 +238,8 @@ class Grid:
                     x_cent = x
 
                 gcov_loc = self.coords.gcov(x)
-                gcon_loc = self.coords.gcon(gcov_loc)
-                gdet_loc = self.coords.gdet(gcov_loc)
+                gcon_loc = self.coords.gcon_from_gcov(gcov_loc)
+                gdet_loc = self.coords.gdet_from_gcov(gcov_loc)
                 if self.GN[2] > 1:
                     self.gcov[loc.value] = gcov_loc
                     self.gcon[loc.value] = gcon_loc
@@ -615,9 +615,13 @@ class Grid:
 
         elif key in ['n1', 'n2', 'n3']:
             return self.NTOT[int(key[-1:])]
-        elif key in ['r', 'th', 'phi', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart']:
+        elif key in ['r', 'th', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart']:
+            # These keys are symmetric in phi, so we cache/return 2D versions
             self.cache[key] = getattr(self.coords, key)(self.coord_ij())
             return self.cache[key]
+        elif key in ['phi']:
+            # phi is not symmetric in phi.  Don't cache, it's big and easy
+            return getattr(self.coords, key)(self.coord_all())
         elif key  == 'r1d':
             self.cache[key] = np.squeeze(self.coords.r(self.coord(np.arange(self.GN[1]), 0, 0)))
             return self.cache[key]
@@ -629,10 +633,12 @@ class Grid:
             self.cache[key] =  np.squeeze(self.coords.phi(self.coord(0, 0, np.arange(self.GN[3]))))
             return self.cache[key]
         elif key in ['x', 'y', 'z']:
-            self.cache[key] = getattr(self.coords, 'cart_' + key)(self.coord_ij())
-            return self.cache[key]
-        elif key in ['X1', 'X2', 'X3']:
-            return self.coord_ij()[:, :, :, np.newaxis][int(key[-1:])]
+            # none of these are phi-symmetric. Ergo, 3D
+            return getattr(self.coords, 'cart_' + key)(self.coord_all())
+        elif key in ['X1', 'X2']:
+            return self.coord_ij()[int(key[-1:])]
+        elif key in ['X3']:
+            return self.coord_all()[int(key[-1:])]
 
         # Finally, any of our attributes.  This is to allow overriding with the above
         elif key in self.__dict__:

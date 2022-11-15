@@ -41,6 +41,7 @@ and returns the LaTeX form of the name, suitable for plot axes/titles.
 # TODO: better tracking/extensibility
 
 pretty_dict = {'rho': r"\rho",
+            'dP': r"\Delta P",
             'bsq': r"b^{2}",
             'sigma': r"\sigma",
             'u': r"u",

@@ -67,8 +67,12 @@ class KHARMAFile(DumpFile):
                        "KEL_ROWAN":    "Kel_Rowan",
                        "KEL_SHARMA":   "Kel_Sharma",
                        "KEL_CONSTANT": "Kel_Constant"}
-    # When (old) KHARMA has ordered "prims" arrays they are only these variables.
-    prim_names_ordered = ['rho', 'u', 'u1', 'u2', 'u3', 'B1', 'B2', 'B3']
+    # The ordering of primitive variables, for returning "prims" and "cons"
+    # The file doesn't need to contain all these, they just need to be in
+    # the order they would appear
+    # If iharm3d ever supports viscous AND e- together we're out of spec here & in general
+    var_names_ordered = ['rho', 'u', 'u1', 'u2', 'u3', 'B1', 'B2', 'B3', 'q', 'dP',
+                         'Ktot', 'Kel_Constant', 'Kel_Werner', 'Kel_Rowan', 'Kel_Sharma']
 
 
     @classmethod
@@ -103,15 +107,6 @@ class KHARMAFile(DumpFile):
             var = "prims."+var
 
         return var, ind
-
-    def index_of(self, var):
-        """Override & call through to the DumpFile version, as KHARMA can have some *very* short versions
-        of names that we don't always want to respect.
-        """
-        if var in self.prim_names_ordered:
-            return self.prim_names_ordered.index(var)
-        else:
-            return DumpFile.index_of(var)
 
     def __init__(self, filename, ghost_zones=False, params=None):
         """Create an Iharm3DFile object -- note that the file handle will stay
@@ -194,7 +189,7 @@ class KHARMAFile(DumpFile):
         del fil
         return params
 
-    def read_var(self, var, astype=None, slc=()):
+    def read_var(self, var, astype=None, slc=(), fail_if_not_found=True):
         var, ind = self.kharma_standardize(var)
         if var in self.cache:
             if ind is not None:
@@ -208,48 +203,39 @@ class KHARMAFile(DumpFile):
         except:
             fil = phdf_old(self.fname)
 
-        # All primitives/conserved. We added this to iharm3d, special case it here
-        if var == "prims":
+        # All primitive or conserved vars. Generally used
+        # for converting file formats.
+        if var == "prims" or var == "cons":
             # Reshape rho to 4D by adding a rank in front for prim index
-            prims = self.read_var('rho')[np.newaxis, Ellipsis]
-            for v2 in self.prim_names_ordered[1:]:
+            all_vars = self.read_var(var+'.rho')[np.newaxis, Ellipsis]
+            for v2 in self.var_names_ordered[1:]:
                 try:
-                    new_prim = self.read_var(v2)
-                    if len(new_prim.shape) < len(prims.shape):
+                    new_var = self.read_var(v2)
+                    if len(new_var.shape) < len(all_vars.shape):
                         # Reshape to 4D if needed to append
-                        new_prim = new_prim[np.newaxis, Ellipsis]
-                    prims = np.append(prims, new_prim, axis=0)
-                except (IOError, OSError, TypeError, IndexError):
+                        new_var = new_var[np.newaxis, Ellipsis]
+                    all_vars = np.append(all_vars, new_var, axis=0)
+                except (IOError, OSError, TypeError, IndexError, KeyError):
                     # Not every file will have all prims
                     pass
             # Save the result
-            self.cache["prims"] = prims
-            return self.cache["prims"]
-        elif var == "cons":
-            cons = self.read_var('cons.rho')[None, :, :, :]
-            for v2 in fil.Variables:
-                if "cons" in v2 and v2 != "cons.rho":
-                    new_con = self.read_var(v2)
-                    if len(new_con.shape) == 3:
-                        new_con = new_con[None, :, :, :]
-                    cons = np.append(cons, new_con, axis=0)
-            self.cache["cons"] = cons
-            return self.cache["cons"]
+            self.cache[var] = all_vars
+            return self.cache[var]
 
         if var not in fil.Variables and self.index_of(var) is None:
             # Try getting it by an index
             if self.index_of(var.replace("prims.", "")) is not None:
                 var = var.replace("prims.", "")
-            # Try to get it from conserved version (e.g. KHARMA restarts lack prims.B)
-            elif "cons" not in var:
-                var_con = "cons"+var.replace("prims", "")
-                if "B" in var_con and var_con in fil.Variables:
-                    grid = Grid(self.params)
-                    return self.read_var(var_con, astype=astype, slc=slc) / \
-                            grid['gdet'][Loci.CENT.value][grid.slices.geom_slc(slc)]
+            # Try to get prims.B from cons.B (for e.g. KHARMA restarts)
+            # Note B1,2,3->B already
+            # Don't try this with other variables
+            if var in ["B","prims.B"] and "cons.B" in fil.Variables:
+                grid = Grid(self.params)
+                return self.read_var('cons.B', astype=astype, slc=slc) / \
+                        grid['gdet'][Loci.CENT.value][grid.slices.geom_slc(slc)]
             else:
                 # If we can't find it at all:
-                raise IOError("Cannot find variable "+var+" in dump "+self.fname+". Should it have been calculated?")
+                raise KeyError("Variable "+var+" is not in file "+self.fname+"! Should it have been calculated?")
 
         params = self.params
         # Recall ng=0 if ghost_zones is False.  Thus this says:
@@ -271,7 +257,7 @@ class KHARMAFile(DumpFile):
         # Get a start and end point based on the *total* size and slice
         file_start, file_stop = slice_to_index((0, 0, 0), ntot, slc)
         out_shape = [file_stop[i] - file_start[i] for i in range(len(file_stop))]
-        # Now that we know which dimensions stay non-trivial, revise our slicing
+        # Now that we know which dimensions *stay* non-trivial, revise our output size slicing
         ng = [params['ng'] if out_shape[0] > 1 else 0,
               params['ng'] if out_shape[1] > 1 else 0,
               params['ng'] if out_shape[2] > 1 else 0]
@@ -304,41 +290,55 @@ class KHARMAFile(DumpFile):
             # If the ghost zones are included (ng_f > 0) but we don't want them (all) (ng_i = 0),
             # then take a portion of the file.  Otherwise take it all.
             # Also include the block number out front
-            fil_slc = (ib, slice(loc_slc[2].start - b[2].start + ng_fz - ng[2], loc_slc[2].stop - b[2].start + ng_fz + ng[2]),
-                           slice(loc_slc[1].start - b[1].start + ng_fy - ng[1], loc_slc[1].stop - b[1].start + ng_fy + ng[1]),
-                           slice(loc_slc[0].start - b[0].start + ng_fx - ng[0], loc_slc[0].stop - b[0].start + ng_fx + ng[0]))
-            if (fil_slc[1].start > fil_slc[1].stop) or (fil_slc[2].start > fil_slc[2].stop) or (fil_slc[3].start > fil_slc[3].stop):
+            fil_slc = (slice(loc_slc[2].start - b[2].start + ng_fz - ng[2], loc_slc[2].stop - b[2].start + ng_fz + ng[2]),
+                       slice(loc_slc[1].start - b[1].start + ng_fy - ng[1], loc_slc[1].stop - b[1].start + ng_fy + ng[1]),
+                       slice(loc_slc[0].start - b[0].start + ng_fx - ng[0], loc_slc[0].stop - b[0].start + ng_fx + ng[0]))
+            if (fil_slc[-3].start > fil_slc[-3].stop) or (fil_slc[-2].start > fil_slc[-2].stop) or (fil_slc[-1].start > fil_slc[-1].stop):
                 # Don't read blocks outside our domain
                 #print("Skipping block: ", b, " would be to location ", out_slc, " from portion ", fil_slc)
                 continue
-            #print("Reading block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
-            #print("{} {} {} {}".format(loc_slc[2].start, b[2].start, ng_fz, ng[2]))
-            #print(fil.Get(var, False).shape)
+            #print("Reading var ", var, " from block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
+            #print(fil.fid[var].shape)
 
             if 'prims.rho' in fil.Variables:
+                if var not in fil.fid:
+                    raise IOError("Cannot read variable "+var+" from file "+self.fname+"!")
                 # New file format. Read whatever
                 if len(out.shape) == 4: # Always read the whole vector, even if we're returning an index
-                    #print("Reading vector size ", fil.Get(var, False)[fil_slc + (slice(None),)].T.shape, " to loc size ", out[(slice(None),) + out_slc].shape)
-                    out[(slice(None),) + out_slc] = fil.Get(var, False)[fil_slc + (slice(None),)].T
-                else: # Read a scalar
-                    #print("Reading scalar size ", fil.Get(var, False)[fil_slc].T.shape," to loc size ", out[out_slc].shape)
-                    out[out_slc] = fil.Get(var, False)[fil_slc].T
+                    #print("Reading vector size ", fil.fid[var][fil_slc + (slice(None),)].T.shape, " to loc size ", out[(slice(None),) + out_slc].shape)
+                    try:
+                        # Newer format: block, var, k, j, i on disk
+                        out[(slice(None),) + out_slc] = fil.fid[var][(ib, slice(None)) + fil_slc].transpose(0,3,2,1)
+                    except ValueError:
+                        # Older format: block, k, j, i, var
+                        out[(slice(None),) + out_slc] = fil.fid[var][(ib,) + fil_slc + (slice(None),)].T
+                else: # Read a scalar, knocking off the extra index if necessary
+                    #print("Reading scalar size ", fil.fid[var][fil_slc].T.shape," to loc size ", out[out_slc].shape)
+                    try:
+                        # Newest (and ironically, also oldest) format: scalars as k, j, i only
+                        out[out_slc] = fil.fid[var][(ib,) + fil_slc].T
+                    except IndexError:
+                        # Newer format: block, var, k, j, i on disk
+                        out[out_slc] = fil.fid[var][(ib, 0) + fil_slc].T
+                    except ValueError:
+                         # Older format: block, k, j, i, var
+                       out[out_slc] = fil.fid[var][(ib,) + fil_slc + (0,)].T
 
             else:
                 # Old file formats.  If we'd split prims/B_prim:
                 if "B" in var and 'c.c.bulk.B_prim' in fil.Variables:
-                        out[(slice(None),) + out_slc] = fil.Get('c.c.bulk.B_prim', False)[fil_slc + (slice(None),)].T
+                        out[(slice(None),) + out_slc] = fil.fid['c.c.bulk.B_prim'][fil_slc + (slice(None),)].T
                 else:
                     i = self.index_of(var)
                     if i is None:
                         # We're not grabbing anything except primitives from old KHARMA files.
-                        raise IOError("Cannot find variable "+var+" in file "+self.fname+"!")
+                        raise IOError("Cannot read variable "+var+" from file "+self.fname+"!")
                     else:
                         # Both the int & slice cases require the same line: first 3 indices of file -> last 3 indices of output
                         #print("Read {} at {}".format(var, i))
                         #print(fil_slc + (i,), file=sys.stderr)
                         #print((Ellipsis,) + out_slc, file=sys.stderr)
-                        out[(Ellipsis,) + out_slc] = fil.Get('c.c.bulk.prims', False)[fil_slc + (i,)].T
+                        out[(Ellipsis,) + out_slc] = fil.fid['c.c.bulk.prims'][fil_slc + (i,)].T
         # Close
         fil.fid.close()
         del fil
@@ -356,6 +356,7 @@ def read_log(fname):
     with open(fname) as inf:
         inf.readline()
         header = [e.split('=')[1].rstrip() for e in inf.readline().split('[')[1:]]
+
     tab = pandas.read_table(fname, delim_whitespace=True, comment='#', names=header)
     out = {}
     for name in header:

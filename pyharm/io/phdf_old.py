@@ -339,9 +339,6 @@ class phdf:
                     self.varData[variable] = tmp.reshape((newShape))
 
         except:
-            print("""
-            ERROR: Unable to read %s from file %s
-            """%(variable,self.file))
             return None
 
         vShape = self.varData[variable].shape

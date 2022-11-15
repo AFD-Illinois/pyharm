@@ -344,7 +344,7 @@ class AnaResults(object):
         In implementation, this is the closest analog to FluidDump's __getitem__ function -- it's the
         place to add any complex new tags/operations/whatever.
         """
-        #print("dvar ", dvar)
+        #print("Getting ivar/dvar ", ivar+"/"+dvar)
 
         # Cache based on *both* variables to avoid collisions e.g. t/Mdot vs rt/Mdot or something
         vname = ivar+"/"+dvar
@@ -352,6 +352,7 @@ class AnaResults(object):
             return self.cache[vname]
 
         # Grab from the file first no matter what it's named
+        #print(self.file[ivar].keys())
         if ivar in self.file and dvar in self.file[ivar]:
             ret_v = self.file[ivar][dvar][()]
             if 't' in ivar:
@@ -423,6 +424,13 @@ class AnaResults(object):
 
         elif self.ftype == "hst":
             return self.file.keys()
+    
+    def keys(self):
+        keylist = []
+        for ivar in self.ivars_present():
+            for dvar in self.dvars_present(ivar):
+                keylist.append(ivar+"/"+dvar)
+        return keylist
     
     def get_time_slice(self, tmin, tmax=0):
         """Get the indices in the (correct, potentially reordered) timeline

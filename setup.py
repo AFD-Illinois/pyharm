@@ -54,7 +54,7 @@ setup(name="pyharm",
       description="Python tools for HARM analysis",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
-      scripts=glob.glob("scripts/pyharm-*"),
+      scripts=glob.glob("scripts/pyharm*"),
 
       install_requires=[
           "psutil",
