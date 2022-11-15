@@ -309,20 +309,22 @@ class KHARMAFile(DumpFile):
                     try:
                         # Newer format: block, var, k, j, i on disk
                         out[(slice(None),) + out_slc] = fil.fid[var][(ib, slice(None)) + fil_slc].transpose(0,3,2,1)
-                    except ValueError:
+                    except (IndexError, ValueError):
                         # Older format: block, k, j, i, var
                         out[(slice(None),) + out_slc] = fil.fid[var][(ib,) + fil_slc + (slice(None),)].T
                 else: # Read a scalar, knocking off the extra index if necessary
-                    #print("Reading scalar size ", fil.fid[var][fil_slc].T.shape," to loc size ", out[out_slc].shape)
+                    #print("Reading scalar ", var, " on-disk size ", fil.fid[var].shape, " to loc size ", out[out_slc].shape)
+                    #print("Using slice ", fil_slc)
                     try:
                         # Newest (and ironically, also oldest) format: scalars as k, j, i only
                         out[out_slc] = fil.fid[var][(ib,) + fil_slc].T
-                    except IndexError:
-                        # Newer format: block, var, k, j, i on disk
-                        out[out_slc] = fil.fid[var][(ib, 0) + fil_slc].T
-                    except ValueError:
-                         # Older format: block, k, j, i, var
-                       out[out_slc] = fil.fid[var][(ib,) + fil_slc + (0,)].T
+                    except (IndexError, ValueError):
+                        try:
+                            # Newer format: block, var, k, j, i on disk
+                            out[out_slc] = fil.fid[var][(ib, 0) + fil_slc].T
+                        except (IndexError, ValueError):
+                            # Older format: block, k, j, i, var
+                            out[out_slc] = fil.fid[var][(ib,) + fil_slc + (0,)].T
 
             else:
                 # Old file formats.  If we'd split prims/B_prim:
