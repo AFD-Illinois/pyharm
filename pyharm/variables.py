@@ -100,7 +100,7 @@ fns_dict = {# 4-vectors
             'lam_MRI_transform': lambda dump: lam_MRI_transform(dump),
             'vA': lambda dump: alfven_speed(dump),
             'jet_psi': lambda dump: jet_psi(dump),
-            'divB': lambda dump: divB(dump.grid, dump['B']),
+            'divB_prims': lambda dump: divB(dump.grid, dump['B']),
             'divB_cons': lambda dump: divB_cons(dump.grid, dump['cons.B']),
             'lumproxy': lambda dump: lum_proxy(dump),
             'jI': lambda dump: jnu(dump),

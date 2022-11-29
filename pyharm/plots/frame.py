@@ -246,14 +246,9 @@ def frame(fname, diag, kwargs):
             # If the figure didn't set a title and we should...
             if "divB" in movie_type:
                 # Special title for diagnostic divB
-                if "con" in movie_type:
-                    divb = np.abs(dump['divB_con'])
-                    divb_max = np.max(divb)
-                    divb_argmax = np.argmax(divb)
-                else:
-                    divb = np.abs(dump['divB'])
-                    divb_max = np.max(divb)
-                    divb_argmax = np.argmax(divb)
+                divb = dump[movie_type]
+                divb_max = np.max(divb)
+                divb_argmax = np.argmax(divb)
                 fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(divb_max))
                 print("divB max", divb_max, "at", np.unravel_index(divb_argmax, divb.shape))
             else:
