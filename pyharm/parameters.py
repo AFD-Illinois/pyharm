@@ -172,6 +172,7 @@ def fix(params):
         params['r_eh'] = (1. + np.sqrt(1. - params['a'] ** 2))
 
     # Metric defaults we're pretty safe in setting
+    # TODO add these to coordinates.py
     if params['coordinates'] == "fmks":
         if not 'mks_smooth' in params:
             params['mks_smooth'] = 0.5
@@ -193,6 +194,7 @@ def fix(params):
 
     if 'x1min' not in params:
         params['x1min'] = np.log(params['r_in'])
+    if 'x1max' not in params:
         params['x1max'] = np.log(params['r_out'])
 
     if 'x2min' not in params:

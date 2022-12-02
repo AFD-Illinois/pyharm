@@ -104,10 +104,12 @@ class Iharm3DFile(DumpFile):
             return params
 
     def index_of(self, var):
-        # Translate any "new-style" KHARMA names to versions that would be in header/prim_names
-        if var == 'u':
-            return self.prim_names.index("UU")
-        return self.prim_names.index(var.upper())
+        # Add any prim names we get from the file, but fall back to guessing from the usual ordering
+        if (self.prim_names is not None) and (var in self.prim_names):
+            return self.prim_names.index(var.upper())
+        else:
+            return DumpFile.index_of(var)
+        
 
     def read_var(self, var, slc=(), **kwargs):
         if var in self.cache:

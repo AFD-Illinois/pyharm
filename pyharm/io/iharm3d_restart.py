@@ -62,12 +62,20 @@ class Iharm3DRestart(Iharm3DFile):
                         'tf', 'tlog', 'version']:
                 if key in fil:
                     params[key] = fil[key][()]
+            if 'x1Min' in fil.keys():
+                for key in ['x1Min', 'x1Max', 'x2Min', 'x2Max', 'x3Min', 'x3Max']:
+                    if key in fil:
+                        params[key.lower()] = fil[key][()]
             if 'a' in fil.keys():
                 for key in ['a', 'hslope', 'R0', 'Rhor', 'Rin', 'Rout']:
                     if key in fil:
                         params[key] = fil[key][()]
                 params['coordinates'] = 'fmks'
-            # TODO ELSE CARTESIAN
+            else:
+                params['coordinates'] = 'cartesian'
+
+            # Since restarts don't list names, always fall back to convention
+            self.prim_names = None
 
             return parameters.fix(params)
 
@@ -76,7 +84,6 @@ class Iharm3DRestart(Iharm3DFile):
             return self.cache[var]
         with h5py.File(self.fname, "r") as fil:
             # Translate the slice to a portion of the file
-            # A bit overkill to stay adaptable: keeps all dimensions until squeeze in _prep_array
             # TODO ghost zones
             fil_slc = [slice(None), slice(None), slice(None)]
             if isinstance(slc, tuple) or isinstance(slc, list):
@@ -90,12 +97,12 @@ class Iharm3DRestart(Iharm3DFile):
             # No indications present in restarts to read any fancy indexing. Only support the basics
             i = self.index_of(var)
             if i is not None:
-                # This is one of the main vars in the 'prims' array
-                arr = fil['/p'][(i,) + fil_slc][()]
+                #print("Reading file slice ", (i,) + fil_slc)
+                arr = fil['/p'][(i,) + fil_slc]
                 if len(arr.shape) > 3:
-                    self.cache[var] = np.squeeze(np.einsum("pkji->pijk", arr))
+                    self.cache[var] = arr.transpose(0,3,2,1)
                 else:
-                    self.cache[var] = np.squeeze(np.einsum("kji->ijk", arr))
+                    self.cache[var] = arr.transpose(2,1,0)
                 return self.cache[var]
             else:
                 raise IOError("Cannot find variable "+var+" in file "+self.fname+"!")
@@ -118,6 +125,15 @@ def write_restart(dump, fname, astype=np.float64):
         outf['cour'] = dump['cour']
         outf['t'] = dump['t']
         outf['dt'] = dump['dt']
+        # Always write native coordinate bounds exactly.
+        # iharm3d reconstitutes these in MKS, but
+        # KHARMA needs exact values
+        outf['x1Min'] = dump['x1min']
+        outf['x1Max'] = dump['x1max']
+        outf['x2Min'] = dump['x2min']
+        outf['x2Max'] = dump['x2max']
+        outf['x3Min'] = dump['x3min']
+        outf['x3Max'] = dump['x3max']
         if 'tf' in dump.params:
             outf['tf'] = dump['tf']
         elif 'tlim' in dump.params:
@@ -129,13 +145,6 @@ def write_restart(dump, fname, astype=np.float64):
             outf['Rin'] = dump['r_in']
             outf['Rout'] = dump['r_out']
             outf['R0'] = 0.0
-        else:
-            outf['x1Min'] = dump['x1min']
-            outf['x1Max'] = dump['x1max']
-            outf['x2Min'] = dump['x2min']
-            outf['x2Max'] = dump['x2max']
-            outf['x3Min'] = dump['x3min']
-            outf['x3Max'] = dump['x3max']
         if 'n_step' in dump.params:
             outf['nstep'] = dump['n_step']
         if 'n_dump' in dump.params:
@@ -149,7 +158,7 @@ def write_restart(dump, fname, astype=np.float64):
         # Every KHARMA dump is full
         outf['DTd'] = dump['dump_cadence']
         outf['DTf'] = dump['dump_cadence']
-        # These isn't recorded from KHARMA
+        # These aren't recorded from KHARMA
         outf['DTl'] = 0.1
         outf['DTp'] = 100
         outf['DTr'] = 10000

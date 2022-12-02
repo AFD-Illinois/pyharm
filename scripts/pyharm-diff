@@ -29,11 +29,12 @@ import matplotlib.pyplot as plt
 @click.option('-a', '--absolute', is_flag=True, help="Plot absolute differences, rather than relative.")
 @click.option('--rel_tol', default=5e-10, help="Relative tolerance to consider a variable different.")
 @click.option('--abs_tol', default=1e20, help="Absolute tolerance to consider a variable different.")
+@click.option('--geometry', is_flag=True, help="Compare domain sizes & shapes.")
 def diff(dump1file, dump2file, **kwargs):
     if kwargs['out_name'] is not None:
         imname = kwargs['out_name']
     else:
-        imname = "diff_"+kwargs['dump1file'].split('.')[:-1]+kwargs['dump2file'].split('.')[:-1]
+        imname = "diff_"+'.'.join(dump1file.split('.')[:-1])+'.'.join(dump2file.split('.')[:-1])
 
     dump1 = pyharm.load_dump(dump1file, ghost_zones=kwargs['ghost_zones'])
     #Hopefully this fails for dumps that shouldn't be compared
@@ -79,6 +80,19 @@ def diff(dump1file, dump2file, **kwargs):
         plt.tight_layout()
         plt.savefig(imname+"_xy.png", dpi=100)
         plt.close(fig)
+
+    if kwargs['geometry']:
+        print(dump1.grid.startx, dump2.grid.startx)
+        print(dump1.grid.stopx, dump2.grid.stopx)
+        print(dump1.grid.dx, dump2.grid.dx)
+        print(dump1.params['a'], dump2.params['a'])
+        if 'hslope' in dump1.params:
+            print(dump1.params['hslope'], dump2.params['hslope'])
+        if 'mks_smooth' in dump1.params:
+            print(dump1.params['mks_smooth'], dump2.params['mks_smooth'])
+            print(dump1.params['poly_xt'], dump2.params['poly_xt'])
+            print(dump1.params['poly_alpha'], dump2.params['poly_alpha'])
+            print(dump1.params['poly_norm'], dump2.params['poly_norm'])
 
     exit(return_code)
 
