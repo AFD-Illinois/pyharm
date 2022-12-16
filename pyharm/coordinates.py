@@ -87,6 +87,11 @@ class CoordinateSystem(object):
         """
         return np.array([self.cart_x(x), self.cart_y(x), self.cart_z(x)])
 
+    def get_bl(self):
+        """Return a Boyer-Lindquist coordinate system with the same black hole spin.
+        """
+        return BL({'a': self.a})
+
     # Coordinates are of course system specific
     def r(self, x):
         raise NotImplementedError
@@ -161,6 +166,12 @@ class CoordinateSystem(object):
 
         return gcov_ks
 
+    def gcon_ks(self, x):
+        """Contravariant metric in Kerr-Schild coordinates at some native location 4-vector X.
+        Inverted numerically, maybe not the most accurate.
+        """
+        return self.gcon_from_gcov(self.gcov_ks(x))
+
     def gcov(self, x):
         """Covariant metric in native coordinates at some native location 4-vector X"""
         gcov_ks = self.gcov_ks(x)
@@ -229,14 +240,17 @@ class CoordinateSystem(object):
     
     def dxdX_cart(self, x):
         raise NotImplementedError
+    
+    def dxdX_bl(self, x):
+        return self.get_bl().dxdX(x)
 
     # Just take an inverse over first (!) 2 indices
     def dXdx(self, x):
         return np.einsum("...ij->ij...", la.inv(np.einsum("ij...->...ij", self.dxdX(x))))
-
-    # Just take an inverse over first (!) 2 indices
     def dXdx_cart(self, x):
         return np.einsum("...ij->ij...", la.inv(np.einsum("ij...->...ij", self.dxdX_cart(x))))
+    def dXdx_bl(self, x):
+        return np.einsum("...ij->ij...", la.inv(np.einsum("ij...->...ij", self.dxdX_bl(x))))
 
 class Minkowski(CoordinateSystem):
     @classmethod
@@ -547,7 +561,8 @@ class CMKS(MKS):
 
 
 class FMKS(MKS):
-    """Funky """
+    """Funky Modified Kerr-Schild coordinates.
+    """
     def __init__(self, met_params=default_met_params):
         super(FMKS, self).__init__(met_params)
         self.poly_xt = met_params['poly_xt']

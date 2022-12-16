@@ -99,14 +99,15 @@ class Iharm3DFile(DumpFile):
 
             # Unlike in most codes (including kharma!) iharm3d is self-documenting about every primitive
             # it contains.  Use that to advantage here, circumventing the need to guess.
-            self.prim_names  = [prim_name.decode() for prim_name in fil['header/prim_names']]
+            params['prim_names']  = [prim_name.decode() for prim_name in fil['header/prim_names']]
 
             return params
 
     def index_of(self, var):
         # Add any prim names we get from the file, but fall back to guessing from the usual ordering
-        if (self.prim_names is not None) and (var in self.prim_names):
-            return self.prim_names.index(var.upper())
+        prim_names = self.params['prim_names']
+        if (prim_names is not None) and (var in prim_names):
+            return prim_names.index(var.upper())
         else:
             return DumpFile.index_of(var)
         
@@ -127,7 +128,7 @@ class Iharm3DFile(DumpFile):
                         fil_slc[i] = slc[i]
             fil_slc = tuple(fil_slc)
 
-            i = self.prim_names
+            i = self.index_of(var)
             if i is not None:
                 # This is one of the main vars in the 'prims' array
                 self.cache[var] = self._prep_array(fil['/prims'][fil_slc + (i,)], **kwargs)

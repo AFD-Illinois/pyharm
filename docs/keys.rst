@@ -37,7 +37,7 @@ Properties draw from two dictionaries, which you can list out for yourself: ``du
 
 Grid Keys
 ~~~~~~~~~
-Several members of the :class:`pyharm.grid.Grid` object are also accessible through keys, e.g. ``grid['gcon']`` for the full contravariant metric or ``grid['gdet']`` for the sqare root of the negative metric determinant.  The full list is avaialble by calling :func:`pyharm.grid.Grid.can_provide()`.  Most ``Grid`` quantities have an extra index in front corresponding to the location of the value within a zone -- i.e. .  See :ref:`ref_defs`
+Several members of the :class:`pyharm.grid.Grid` object are also accessible through keys, e.g. ``grid['gcon']`` for the full contravariant metric or ``grid['gdet']`` for the sqare root of the negative metric determinant.  The full list is avaialble by calling :func:`pyharm.grid.Grid.has()`.  Most ``Grid`` quantities have an extra index in front corresponding to the location of the value within a zone -- i.e. .  See :ref:`ref_defs`
 
 Most of the same elements (or specifically, the portions at zone centers, which is usually what's desired) can be accessed from  :class:`pyharm.fluid_dump.FluidDump` objects as well, e.g. ``dump['gdet']`` to return N3xN2x1 array of metric determinants at zone centers.
 

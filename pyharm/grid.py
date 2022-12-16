@@ -516,7 +516,7 @@ class Grid:
         
         return np.squeeze(x), np.squeeze(y)
 
-    def can_provide(self, key):
+    def __contains__(self, key):
         """Whether the given key would return something from this object.
         Generally for dictionaries the syntax is "if x in dict.keys()" or "if x in dict" but we can't enumerate possibilities.
         So instead, check strings on the fly.
@@ -528,9 +528,9 @@ class Grid:
         elif key in self.cache:
             return True
         elif key[:7] == 'pcoord_':
-            return True
+            return key[8:] in self
         elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z', 'X1', 'X2', 'X3',
-                     'dXdx', 'dxdX', 'dxdX_cart', 'dXdx_cart'):
+                     'dXdx', 'dxdX', 'dxdX_cart', 'dXdx_cart', 'dxdX_bl', 'dXdx_bl', 'gcon_ks', 'gcov_ks'):
             return True
         else:
             return False
@@ -615,10 +615,11 @@ class Grid:
 
         elif key in ['n1', 'n2', 'n3']:
             return self.NTOT[int(key[-1:])]
-        elif key in ['r', 'th', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart']:
+        elif key in ['r', 'th', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart', 'dXdx_bl', 'dxdX_bl', 'gcon_ks', 'gcov_ks']:
             # These keys are symmetric in phi, so we cache/return 2D versions
             self.cache[key] = getattr(self.coords, key)(self.coord_ij())
             return self.cache[key]
+        
         elif key in ['phi']:
             # phi is not symmetric in phi.  Don't cache, it's big and easy
             return getattr(self.coords, key)(self.coord_all())

@@ -167,8 +167,8 @@ class FluidDump:
 
         # Return coordinates and things from the grid
         # Default to centers when returning multi-location vars, to avoid location madness
-        # TODO allow _mesh generally?
-        elif self.grid.can_provide(key):
+        # TODO allow _mesh versions?
+        elif key in self.grid:
             if key in ('gcon', 'gcov', 'gdet', 'lapse'):
                 return self.grid[key][Loci.CENT.value]
             else:
@@ -239,6 +239,7 @@ class FluidDump:
 
         # Return an array of the correct size filled with just zero or one
         # Don't cache these
+        # TODO avoid file read?
         elif key in ('zero', '0'):
             return np.zeros_like(self['rho'])
         elif key in ('one', '1'):

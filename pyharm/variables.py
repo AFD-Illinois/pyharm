@@ -60,6 +60,11 @@ fns_dict = {# 4-vectors
             'ucov_cart': lambda dump: np.einsum("i...,ij...->j...", dump["ucov_base"], dump['dxdX_cart']),
             'bcon_cart': lambda dump: np.einsum("i...,ij...->j...", dump["bcon_base"], dump['dXdx_cart']),
             'bcov_cart': lambda dump: np.einsum("i...,ij...->j...", dump["bcov_base"], dump['dxdX_cart']),
+            # Versions in BL
+            'ucon_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dxdX_bl'], dump['ucon_base']),
+            'ucov_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dXdx_bl'], dump['ucov_base']),
+            'bcon_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dxdX_bl'], dump['bcon_base']),
+            'bcov_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dXdx_bl'], dump['bcov_base']),
             # Miscallany!
             'bsq': lambda dump: dump.grid.dot(dump['bcov'], dump['bcon']),
             'sigma': lambda dump: dump['bsq'] / dump['RHO'],
