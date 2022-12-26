@@ -49,6 +49,7 @@ class DumpFile(object):
 
     @classmethod
     def index_of(cls, vname, eprim_names=None, eprim_indices=None):
+        vname = vname.replace("prims.","").replace("c.c.bulk.","")
         # This is provided in the interface, as a bunch of codes (iharmXd, Babel-converted KORAL & BHAC, etc)
         # use the same ordering for the first 8 variables
         # If you need to read more than those 8, override this method.
@@ -64,6 +65,7 @@ class DumpFile(object):
         # All
         elif vname == "prims" or vname == "primitives" or vname == "all":
             return slice(None)
+        # TODO pflag?
         else:
             return None
 
