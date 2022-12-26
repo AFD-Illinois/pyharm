@@ -222,6 +222,10 @@ class KHARMAFile(DumpFile):
             self.cache[var] = all_vars
             return self.cache[var]
 
+        # Don't require this prefix reading from old files
+        if "c.c.bulk."+var in fil.Variables:
+            var = "c.c.bulk."+var
+
         #print(var, self.index_of(var))
         if var not in fil.Variables and self.index_of(var) is None:
             # Try getting it by an index
@@ -329,7 +333,9 @@ class KHARMAFile(DumpFile):
 
             else:
                 # Old file formats.  If we'd split prims/B_prim:
-                if "B" in var and 'c.c.bulk.B_prim' in fil.Variables:
+                if var in fil.Variables:
+                    out[(Ellipsis,) + out_slc] = fil.fid[var][(ib,) + fil_slc + (slice(None),)].T
+                elif var[0] == "B" and 'c.c.bulk.B_prim' in fil.Variables:
                         out[(slice(None),) + out_slc] = fil.fid['c.c.bulk.B_prim'][(ib,) + fil_slc + (slice(None),)].T
                 else:
                     i = self.index_of(var)
