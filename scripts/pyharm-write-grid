@@ -37,17 +37,24 @@ def write_grid(file_or_system, spin, r_out, n1, n2, n3, outfile, vis):
     """
 
     # Read the header data of a given file to a dictionary
-    try:
-        header = read_hdr(file_or_system)
-        # Generate a grid from the header
-        G = Grid(header, cache_conn=True)
+    make_system = True
+    if ".phdf" in file_or_system or ".h5" in file_or_system:
+        try:
+            header = read_hdr(file_or_system)
+            # Generate a grid from the header
+            G = Grid(header, cache_conn=True)
+            make_system = False
 
-    except IOError:
+        except IOError:
+            print("Could not read first argument as file, assuming grid parameters as arguments.")
+            make_system = True
+
+    if make_system:
         # Not a valid file -> user specified grid parameters instead
-        G = grid.make_some_grid(file_or_system, n1, n2, n3, a=spin, r_out=r_out, cache_conn=True)
-        print("Could not read first argument as file, assuming grid parameters as arguments.")
         print("Building grid: {}, a = {}, {}x{}x{} to r_out of {}".format(
-            file_or_system, spin, n1, n2, n3, r_out))
+              file_or_system, spin, n1, n2, n3, r_out))
+        # Only need connection coeffs for vis grids
+        G = grid.make_some_grid(file_or_system, n1, n2, n3, a=spin, r_out=r_out, cache_conn=vis)
 
     print("Grid startx: ", G.startx)
     print("Grid stopx: ", G.stopx)

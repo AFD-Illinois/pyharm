@@ -51,8 +51,11 @@ def write_grid(G, fname="grid.h5", astype=np.float32):
     a good way of reconstructing all common grids on the fly.
     """
     with h5py.File(fname, "w") as outf:
+        print("ZERO")
         x = G.coord_bulk(Loci.CENT).reshape(4, G.N[1], G.N[2], G.N[3])
         coords = G.coords
+
+        print("ONE")
 
         outf['X'] = coords.cart_x(x).astype(astype)
         outf['Y'] = coords.cart_y(x).astype(astype)
@@ -61,10 +64,14 @@ def write_grid(G, fname="grid.h5", astype=np.float32):
         outf['th'] = coords.th(x).astype(astype)
         outf['phi'] = coords.phi(x).astype(astype)
 
+        print("TWO")
+
         # Native coordinate output
         outf['X1'] = x[1].astype(astype)
         outf['X2'] = x[2].astype(astype)
         outf['X3'] = x[3].astype(astype)
+
+        print("THREE")
 
         # Return only the CENT values, repeated over the N3 axis
         if G.NG > 0:
@@ -75,6 +82,8 @@ def write_grid(G, fname="grid.h5", astype=np.float32):
         gcov3 = G.gcov[Loci.CENT.value, :, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
         gdet3 = G.gdet[Loci.CENT.value, b, b, :].repeat(G.NTOT[3], axis=-1)
         lapse3 = G.lapse[Loci.CENT.value, b, b, :].repeat(G.NTOT[3], axis=-1)
+
+        print("FOUR")
 
         outf['gcon'] = gcon3.astype(astype)
         outf['gcov'] = gcov3.astype(astype)
