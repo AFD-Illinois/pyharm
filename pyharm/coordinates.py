@@ -204,8 +204,6 @@ class CoordinateSystem(object):
         Returns a 3+N dimensional array conn[i,j,k,...]
         """
 
-        print(x.shape)
-
         conn = np.zeros([4, 4, 4, *(x.shape[1:])])
         tmp = np.zeros_like(conn)
 
@@ -227,7 +225,7 @@ class CoordinateSystem(object):
                     tmp[lam, nu, mu] = 0.5 * (conn[nu, lam, mu] + conn[mu, lam, nu] - conn[mu, nu, lam])
 
         # Raise index to get \Gamma ^ lam_{nu mu}
-        gcon = self.gcon(self.gcov(x))
+        gcon = self.gcon(x)
         for lam in range(4):
             for nu in range(4):
                 for mu in range(4):
