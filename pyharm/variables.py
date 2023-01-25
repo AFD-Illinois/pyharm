@@ -110,6 +110,7 @@ fns_dict = {# 4-vectors
             'lumproxy': lambda dump: lum_proxy(dump),
             'jI': lambda dump: jnu(dump),
             'K': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),
+            'cs': lambda dump: np.sqrt(dump['gam'] * dump['Pg'] / (dump['RHO'] + dump['gam'] * dump['UU'])),
             }
 
 ## Physics functions ##
