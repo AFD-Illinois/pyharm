@@ -332,9 +332,10 @@ class KHARMAFile(DumpFile):
                             out[out_slc] = fil.fid[var][(ib,) + fil_slc + (0,)].T
 
             else:
-                # Old file formats.  If we'd split prims/B_prim:
+                # Old file formats.  First anything scalar:
                 if var in fil.Variables:
                     out[(Ellipsis,) + out_slc] = fil.fid[var][(ib,) + fil_slc + (slice(None),)].T
+                # If we'd split out "B" it was called "B_prim" (wasn't find/replaced above)
                 elif var[0] == "B" and 'c.c.bulk.B_prim' in fil.Variables:
                         out[(slice(None),) + out_slc] = fil.fid['c.c.bulk.B_prim'][(ib,) + fil_slc + (slice(None),)].T
                 else:

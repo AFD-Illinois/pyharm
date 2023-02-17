@@ -221,7 +221,7 @@ class Grid:
                 self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
 
         elif caches:
-            # Shapes
+            # Declare shapes so we can fill locations one by one
             self.gcov = np.zeros(self.shapes.locus_geom_tensor)
             self.gdet = np.zeros(self.shapes.locus_geom_scalar)
             # Replicate
@@ -234,26 +234,13 @@ class Grid:
                 x = self.coord(ilist, jlist, [0,], loc)
 
                 # Save zone centers to calculate connection coefficients
-                if loc == Loci.CENT:
-                    x_cent = x
+                if cache_conn and loc == Loci.CENT:
+                    self.conn = self.coords.conn_func(x)
 
-                gcov_loc = self.coords.gcov(x)
-                gcon_loc = self.coords.gcon_from_gcov(gcov_loc)
-                gdet_loc = self.coords.gdet_from_gcov(gcov_loc)
-                if self.GN[2] > 1:
-                    self.gcov[loc.value] = gcov_loc
-                    self.gcon[loc.value] = gcon_loc
-                    self.gdet[loc.value] = gdet_loc
-                    self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
-                else:
-                    self.gcov[loc.value] = gcov_loc
-                    self.gcon[loc.value] = gcon_loc
-                    self.gdet[loc.value] = gdet_loc
-                    self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
-
-            if cache_conn:
-                # It will probably never be advantageous to store this in 3D
-                self.conn = self.coords.conn_func(x_cent)
+                self.gcov[loc.value] = self.coords.gcov(x)
+                self.gcon[loc.value] = self.coords.gcon_from_gcov(self.gcov[loc.value])
+                self.gdet[loc.value] = self.coords.gdet_from_gcov(self.gcov[loc.value])
+                self.lapse[loc.value] = 1./np.sqrt(-self.gcon[loc.value, 0, 0])
 
     def __del__(self):
         # Try to clean up what we can. Anything that may possibly not be a simple ref
@@ -541,6 +528,8 @@ class Grid:
         This function also allows slicing -- slices must be 3D like for fluid dumps, though
         only the X1 and X2 slices are applied.
         """
+        if type(key) in (int,):
+            return self
         if type(key) in (list, tuple) and type(key[0]) in (int, np.int32, np.int64, slice):
             # Grids also support slicing, see analogue in FluidDump
             slc = self.slices.geom_slc(key) # cut 3rd index, geometry is 2D

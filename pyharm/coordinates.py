@@ -225,7 +225,7 @@ class CoordinateSystem(object):
                     tmp[lam, nu, mu] = 0.5 * (conn[nu, lam, mu] + conn[mu, lam, nu] - conn[mu, nu, lam])
 
         # Raise index to get \Gamma ^ lam_{nu mu}
-        gcon = self.gcon(self.gcov(x))
+        gcon = self.gcon(x)
         for lam in range(4):
             for nu in range(4):
                 for mu in range(4):
@@ -402,23 +402,24 @@ class EKS(KS):
     def native_startx(self, met_params):
         # TODO take direct 'startx' from met params?
         if 'startx1' in met_params and 'startx2' in met_params and 'startx3' in met_params:
-            return np.array([0, met_params['startx1'], met_params['startx2'], met_params['startx3']])
+            startx = np.array([0, met_params['startx1'], met_params['startx2'], met_params['startx3']])
         elif 'r_in' in met_params:
             # Set startx1 from r_in
-            return np.array([0, np.log(met_params['r_in']), 0, 0])
+            startx = np.array([0, np.log(met_params['r_in']), 0, 0])
         elif 'n1tot' in met_params and 'r_out' in met_params:
             # Else via a guess, which we propagate back to the originating parameter file
             met_params['r_in'] = np.exp((met_params['n1tot'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
                                     (-1. + met_params['n1tot'] / 5.5))
-            return np.array([0, np.log(met_params['r_in']), 0, 0])
+            startx = np.array([0, np.log(met_params['r_in']), 0, 0])
         elif 'n1' in met_params and 'r_out' in met_params:
             # Or a more questionable guess
             met_params['r_in'] = np.exp((met_params['n1'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
                                     (-1. + met_params['n1'] / 5.5))
-            return np.array([0, np.log(met_params['r_in']), 0, 0])
+            startx = np.array([0, np.log(met_params['r_in']), 0, 0])
         else:
             print("The only parameters provided to native_startx were: ", met_params)
             raise ValueError("Cannot find or guess startx!")
+        return startx
 
     def native_stopx(self, met_params):
         if 'r_out' in met_params:
@@ -480,23 +481,24 @@ class MKS(KS):
     def native_startx(self, met_params):
         # TODO take direct 'startx' from met params?
         if 'startx1' in met_params and 'startx2' in met_params and 'startx3' in met_params:
-            return np.array([0, met_params['startx1'], met_params['startx2'], met_params['startx3']])
+            startx = np.array([0, met_params['startx1'], met_params['startx2'], met_params['startx3']])
         elif 'r_in' in met_params:
             # Set startx1 from r_in
-            return np.array([0, np.log(met_params['r_in']), 0, 0])
+            startx = np.array([0, np.log(met_params['r_in']), 0, 0])
         elif 'n1tot' in met_params and 'r_out' in met_params:
             # Else via a guess, which we propagate back to the originating parameter file
             met_params['r_in'] = np.exp((met_params['n1tot'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
                                         (-1. + met_params['n1tot'] / 5.5))
-            return np.array([0, np.log(met_params['r_in']), 0, 0])
+            startx = np.array([0, np.log(met_params['r_in']), 0, 0])
         elif 'n1' in met_params and 'r_out' in met_params:
             # Or a more questionable guess
             met_params['r_in'] = np.exp((met_params['n1'] * np.log(self.r_eh) / 5.5 - np.log(met_params['r_out'])) /
                                         (-1. + met_params['n1'] / 5.5))
-            return np.array([0, np.log(met_params['r_in']), 0, 0])
+            startx = np.array([0, np.log(met_params['r_in']), 0, 0])
         else:
             print("The only parameters provided to native_startx were: ", met_params)
             raise ValueError("Cannot find or guess startx!")
+        return startx
 
     def native_stopx(self, met_params):
         if 'r_out' in met_params:
