@@ -37,6 +37,7 @@ import matplotlib.pyplot as plt
 
 import pyharm
 from pyharm.defs import Loci
+from pyharm.util import i_of
 
 __doc__ = \
 """Plots of post-reduction results as computed by pyharm-analysis & read by ana_results.py.
@@ -66,7 +67,7 @@ def _get_r_slice(result, rrange):
     """Get a slice of radial zones matching the plot window.
     Plotting only the necessary radial range makes auto-scaling of the y-axis work
     """
-    return slice(max(pyharm.util.i_of(result['r'], rrange[0]), 0), pyharm.util.i_of(result['r'], rrange[1]))
+    return slice(max(i_of(result['r'], rrange[0]), 0), i_of(result['r'], rrange[1]))
 
 def _trunc_at_spin(tag):
     model_lst = tag.split(" ")
@@ -286,9 +287,9 @@ def plot_eh_phi_versions(ax, result):
     ax[0].plot(result['t'], np.abs(result['t/phi_b_upper'])+np.abs(result['t/phi_b_lower']), label=result.tag+" hemispheres")
 
 def eh_fluxes(results, kwargs):
+    fig, _ = plt.subplots(4,1, figsize=(7,7))
     for result in results.values():
         # Event horizon fluxes
-        fig, _ = plt.subplots(4,1, figsize=(7,7))
         axes = fig.get_axes()
         plot_eh_fluxes(axes, result)
         plt.subplots_adjust(wspace=0.4)

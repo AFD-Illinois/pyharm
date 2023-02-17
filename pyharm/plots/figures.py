@@ -32,9 +32,7 @@ __license__ = """
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-import os
 import sys
-import psutil
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
@@ -52,6 +50,14 @@ Similar to the file of the same name in imtools.
 # TODO a call-through interface here in the form:
 # def figure(name, dump, output **kwargs)
 # Set sensible defaults for actually calling these things, update w/kwargs
+
+def oned(fig, dump, diag, plotrc, var='RHO'):
+    ax = plt.subplot(1,1,1)
+    ax.plot(np.squeeze(dump['x']), np.squeeze(dump[var]))
+    return fig
+
+# TODO radial profiles as movies better, e.g.
+#def radial(fig, dump, diag, plotrc, var):
 
 def simplest(fig, dump, diag, plotrc, type="both", var='log_rho'):
     """Slices of the log10 of one variable without color bars for outreach animations.
