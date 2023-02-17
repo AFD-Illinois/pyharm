@@ -131,7 +131,6 @@ class KHARMAFile(DumpFile):
                 del self.__dict__[cache]
 
     def read_params(self):
-        # TODO if reading very old output, fall back to text .par file in dumps folder
         # TODO there's likely a nice way to get all this from phdf
         try:
             fil = phdf(self.fname)

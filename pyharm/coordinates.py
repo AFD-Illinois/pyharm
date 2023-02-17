@@ -336,6 +336,7 @@ class Minkowski(CoordinateSystem):
 class KS(CoordinateSystem):
     def __init__(self, met_params={'a': 0.9375}):
         self.a = met_params['a']
+        self.small_th = 1.e-20
 
     def r(self, x):
         return x[1]
