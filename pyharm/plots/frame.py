@@ -59,10 +59,11 @@ def frame(fname, diag, kwargs):
     tstart, tend = kwargs['tstart'], kwargs['tend']
     tdump = io.get_dump_time(fname)
     if tdump is None:
+        # TODO yell about not knowing dump times
         return
 
-    if (tstart is not None and tdump < tstart) or \
-        (tend is not None and tdump > tend):
+    if (tstart is not None and tdump < float(tstart)) or \
+        (tend is not None and tdump > float(tend)):
         return
 
     # Check through movies for which we've run/need to run,
@@ -72,9 +73,11 @@ def frame(fname, diag, kwargs):
     for movie_type in kwargs['movie_types'].split(","):
         frame_folder = os.path.join(os.getcwd().replace(kwargs['base_path'], kwargs['out_path']), "frames_"+movie_type)
         if 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
-            frame_name = os.path.join(frame_folder, "frame_t%03.2f.png" % tdump)
+            time_formatted = ("%.2f"%tdump).rjust(kwargs['time_digits'],'0')
+            frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
         else:
-            frame_name = os.path.join(frame_folder, "frame_t%08d.png" % int(tdump))
+            time_formatted = ("%d"%int(tdump)).rjust(kwargs['time_digits'],'0')
+            frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
 
         if 'resume' in kwargs and kwargs['resume'] and os.path.exists(frame_name):
             continue
@@ -104,19 +107,21 @@ def frame(fname, diag, kwargs):
         for key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax', # float
                     'left', 'right', 'top', 'bottom', 'wspace', 'hspace', # float
                     'at', 'nlines', # int
-                    'native', 'bh', 'no_title', 'average', 'sum', # bool
+                    'native', 'bh', 'no_title', 'average', 'sum', 'log', 'log_r', # bool
                     'shading', 'cmap'): # string
             if key in kwargs:
                 plotrc[key] = kwargs[key]
                 if key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax',
                             'left', 'right', 'top', 'bottom', 'wspace', 'hspace'):
                     # Should be floats or none
-                    if plotrc[key] is not None:
+                    if plotrc[key] is not None and plotrc[key] != "None":
                         plotrc[key] = float(plotrc[key])
+                    else:
+                        plotrc[key] = None
                 if key in ('at', 'nlines'):
                     # Should be ints
                     plotrc[key] = int(plotrc[key])
-                if key in ('native', 'bh', 'no_title', 'average', 'sum'):
+                if key in ('native', 'bh', 'no_title', 'average', 'sum', 'log', 'log_r'):
                     # Should be bools
                     plotrc[key] = bool(plotrc[key])
 

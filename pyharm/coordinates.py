@@ -288,15 +288,15 @@ class Minkowski(CoordinateSystem):
         return np.arctan(np.sqrt(x[1] ** 2 + x[2] ** 2) / x[3])
 
     @classmethod
-    def cart_x(cls, x):
+    def cart_x(cls, x, log_r=False):
         return x[1]
 
     @classmethod
-    def cart_y(cls, x):
+    def cart_y(cls, x, log_r=False):
         return x[2]
 
     @classmethod
-    def cart_z(cls, x):
+    def cart_z(cls, x, log_r=False):
         return x[3]
 
     @classmethod
@@ -349,14 +349,17 @@ class KS(CoordinateSystem):
     def bl_coord(self, x):
         return self.r(x), self.th(x), self.phi(x)
 
-    def cart_x(self, x):
-        return self.r(x)*np.sin(self.th(x))*np.cos(self.phi(x))
+    def cart_x(self, x, log_r=False):
+        r = np.log(self.r(x)) if log_r else self.r(x)
+        return r*np.sin(self.th(x))*np.cos(self.phi(x))
 
-    def cart_y(self, x):
-        return self.r(x)*np.sin(self.th(x))*np.sin(self.phi(x))
+    def cart_y(self, x, log_r=False):
+        r = np.log(self.r(x)) if log_r else self.r(x)
+        return r*np.sin(self.th(x))*np.sin(self.phi(x))
 
-    def cart_z(self, x):
-        return self.r(x)*np.cos(self.th(x))
+    def cart_z(self, x, log_r=False):
+        r = np.log(self.r(x)) if log_r else self.r(x)
+        return r*np.cos(self.th(x))
 
     def dxdX(self, x):
         """Null Transformation"""
@@ -437,21 +440,6 @@ class EKS(KS):
     def r(self, x):
         return np.exp(x[1])
 
-    def th(self, x):
-        return self.correct_small_th(x[2])
-
-    def phi(self, x):
-        return x[3]
-
-    def cart_x(self, x):
-        return self.r(x)*np.sin(self.th(x))*np.cos(self.phi(x))
-
-    def cart_y(self, x):
-        return self.r(x)*np.sin(self.th(x))*np.sin(self.phi(x))
-
-    def cart_z(self, x):
-        return self.r(x)*np.cos(self.th(x))
-
     def dxdX(self, x):
         dxdX = np.zeros([4, 4, *x.shape[1:]])
         dxdX[0, 0] = 1
@@ -519,18 +507,6 @@ class MKS(KS):
     def th(self, x):
         return self.correct_small_th(np.pi*x[2] + ((1. - self.hslope)/2.)*np.sin(2.*np.pi*x[2]))
         #return np.pi*x[2] + ((1. - self.hslope)/2.)*np.sin(2.*np.pi*x[2])
-
-    def phi(self, x):
-        return x[3]
-
-    def cart_x(self, x):
-        return self.r(x)*np.sin(self.th(x))*np.cos(self.phi(x))
-
-    def cart_y(self, x):
-        return self.r(x)*np.sin(self.th(x))*np.sin(self.phi(x))
-
-    def cart_z(self, x):
-        return self.r(x)*np.cos(self.th(x))
 
     def dxdX(self, x):
         dxdX = np.zeros([4, 4, *x.shape[1:]])
@@ -613,6 +589,7 @@ class FMKS(MKS):
         pass
 
 
+# TODO Make this inherit from KS
 class BHAC_MKS(CoordinateSystem):
     # Don't set a default, be careful as we only ever translate existing data with this coordinate system
     def __init__(self, met_params):

@@ -390,7 +390,7 @@ class Grid:
         return np.min(dt_light_local)
 
     ### PLOTTING/CONVENIENCE
-    def get_xz_locations(self, mesh=False, native=False, half_cut=False):
+    def get_xz_locations(self, mesh=False, native=False, half_cut=False, log_r=False):
         """Get the mesh locations x_ij and z_ij needed for plotting a poloidal slice.
         By default, gets locations at zone centers in slices phi=0,180.
         Note there is no need for an 'at' parameter, at least for plotting: 2D plots should be face-on.
@@ -424,17 +424,18 @@ class Grid:
             x = m[1]
             z = m[2]
         else:
-            x = self.coords.cart_x(m)
-            z = self.coords.cart_z(m)
+            x = self.coords.cart_x(m, log_r)
+            z = self.coords.cart_z(m, log_r)
 
         return np.squeeze(x), np.squeeze(z)
 
-    def get_xy_locations(self, mesh=False, native=False):
+    def get_xy_locations(self, mesh=False, native=False, log_r=False):
         """Get the mesh locations x_ij and y_ij needed for plotting a midplane slice.
         Note there is no need for an 'at' parameter, at least for plotting: 2D plots should be face-on.
 
         :param mesh: get mesh corners rather than centers, for flat shading
         :param native: get native X1/X3 coordinates rather than Cartesian x,z locations
+        :param log_r: logarithmically compress the radial coordinate
         """
         # TODO cache this!
         # TODO oblate option for x,y=sqrt(r^2 + a^2) rather than r
@@ -447,8 +448,8 @@ class Grid:
             x = m[1]
             y = m[3]
         else:
-            x = self.coords.cart_x(m)
-            y = self.coords.cart_y(m)
+            x = self.coords.cart_x(m, log_r)
+            y = self.coords.cart_y(m, log_r)
         
         return np.squeeze(x), np.squeeze(y)
 

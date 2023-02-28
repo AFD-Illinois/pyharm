@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+
+import sys
+import pyharm
+
+for fname in sys.argv[1:]:
+    print(pyharm.io.get_dump_time(fname))

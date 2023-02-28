@@ -1,0 +1,43 @@
+#!/bin/bash -i
+
+# Admin stuff
+#SBATCH -J pyharm_ana
+#SBATCH -t 12:00:00
+#SBATCH -N 1
+#SBATCH -p standard
+#SBATCH -o "out-%j.txt"
+
+# Nodes we want
+#SBATCH --tasks-per-node=128
+#SBATCH --cpus-per-task=1
+# ALWAYS reserve full nodes to mitigate memory leaks
+#SBATCH --exclusive
+#SBATCH --mem=0
+
+# TODO if conda loaded...
+#conda deactivate
+#module unload anaconda3_cpu
+
+# Run analysis as an MPI job on Delta.
+# See pyharm-analysis docs/help for options, test on a few dumps
+# before committing to big jobs.
+
+# Better to oversubscribe CPU than serialize as there are
+# relatively few numpy ops
+export OMP_NUM_THREADS=1
+export OMP_NESTED=TRUE
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export MKL_DYNAMIC=FALSE
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+# Start 1 task/cpu by default. -O option allows more tasks,
+# if this proves efficient for simple stuff.
+# --cpu-bind=no
+if [[ "$*" != *"-d "* ]]
+then
+  srun -n $(($SLURM_JOB_NUM_NODES * 128)) pyharm-analysis "${@}"
+else
+  pyharm-analysis "${@}"
+fi

@@ -100,7 +100,7 @@ def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None, frame=True,
 def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             xlabel=True, ylabel=True, native=False, log=False,
             half_cut=False, cmap='jet', shading='gouraud',
-            at=None, average=False, sum=False, cbar=True, **kwargs):
+            at=None, average=False, sum=False, cbar=True, log_r=False, **kwargs):
     """Plot a poloidal or X1/X2 slice of a dump file.
     Note this function also accepts all keyword arguments to _decorate_plot()
 
@@ -123,7 +123,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             var = var.replace("log_","")
         vname = var
 
-    x, z = dump.grid.get_xz_locations(mesh=(shading == 'flat'), native=native, half_cut=(half_cut or native))
+    x, z = dump.grid.get_xz_locations(mesh=(shading == 'flat'), native=native, half_cut=(half_cut or native), log_r=log_r)
     var = flatten_xz(dump, var, at, sum or average, half_cut or native)
     if average:
         var /= dump['n3']
@@ -161,9 +161,18 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             # Just set to th
             ax.set_xlim([np.min(x), np.max(x)])
             ax.set_ylim([np.min(z), np.max(z)])
+    elif log_r:
+        if xlabel: ax.set_xlabel(r"$x$ ($r \rightarrow \log_{10}(r)$)")
+        if ylabel: ax.set_ylabel(r"$z$ ($r \rightarrow \log_{10}(r)$)")
+        if window is not None:
+            ax.set_xlim(window[:2])
+            ax.set_ylim(window[2:])
+        else:
+            ax.set_xlim([np.min(x), np.max(x)])
+            ax.set_ylim([np.min(z), np.max(z)])
     else:
-        if xlabel: ax.set_xlabel(r"x ($r_g$)")
-        if ylabel: ax.set_ylabel(r"z ($r_g$)")
+        if xlabel: ax.set_xlabel(r"$x$ ($r_g$)")
+        if ylabel: ax.set_ylabel(r"$z$ ($r_g$)")
         if window:
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
@@ -189,7 +198,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
 def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             xlabel=True, ylabel=True, native=False, log=False,
             cmap='jet', shading='gouraud',
-            at=None, average=False, sum=False, cbar=True, **kwargs):
+            at=None, average=False, sum=False, cbar=True, log_r=True, **kwargs):
     """Plot a toroidal or X1/X3 slice of a dump file.
     Note this function also accepts all keyword arguments to _decorate_plot()
 
@@ -212,9 +221,12 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
         if 'symlog_' in var:
             log = True
             var = var.replace("symlog_","")
+        elif 'log_' in var:
+            log = True
+            var = var.replace("log_","")
         vname = var
 
-    x, y = dump.grid.get_xy_locations(mesh=(shading == 'flat'), native=native)
+    x, y = dump.grid.get_xy_locations(mesh=(shading == 'flat'), native=native, log_r=log_r)
     var = flatten_xy(dump, var, at, sum or average)
     if average:
         var /= dump['n2']
@@ -224,15 +236,22 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
         var = wrap(var)
 
     # Use symlog only when we need it
+    # TODO test only inside our window?
     if log and np.any(var < 0.0):
         if cmap == 'jet':
             cmap = 'RdBu_r'
         mesh = pcolormesh_symlog(ax, x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
-                        shading=shading, cbar=cbar) # We add a colorbar later
+                        shading=shading, cbar=cbar)
         cbar = False
+    elif log:
+        # Support legacy calling convention
+        if vmin is not None and vmin < 0:
+            vmin = 10**vmin
+            vmax = 10**vmax
+        mesh = pcolormesh_log(ax, x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
+                              shading=shading, cbar=cbar) # Use this cbar, it's customized
+        cbar = False # We don't need another later on
     else:
-        if log:
-            var = np.log10(var)
         mesh = ax.pcolormesh(x, y, var, cmap=cmap, vmin=vmin, vmax=vmax,
                          shading=shading)
 
@@ -245,9 +264,18 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
         else:
             ax.set_xlim([x[0,0], x[-1,-1]])
             ax.set_ylim([y[0,0], y[-1,-1]])
+    elif log_r:
+        if xlabel: ax.set_xlabel(r"$x$ ($r \rightarrow \log_{10}(r)$)")
+        if ylabel: ax.set_ylabel(r"$y$ ($r \rightarrow \log_{10}(r)$)")
+        if window is not None:
+            ax.set_xlim(window[:2])
+            ax.set_ylim(window[2:])
+        else:
+            ax.set_xlim([np.min(x), np.max(x)])
+            ax.set_ylim([np.min(y), np.max(y)])
     else:
-        if xlabel: ax.set_xlabel(r"x ($r_g$)")  # or \frac{G M}{c^2}
-        if ylabel: ax.set_ylabel(r"y ($r_g$)")
+        if xlabel: ax.set_xlabel(r"$x$ ($r_g$)")  # or \frac{G M}{c^2}
+        if ylabel: ax.set_ylabel(r"$y$ ($r_g$)")
         if window is not None:
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])

@@ -13,6 +13,8 @@ import warnings
 import inspect
 import textwrap
 
+import numpy as np
+
 # Make sure we use Agg
 import matplotlib
 matplotlib.use('Agg')
@@ -61,8 +63,8 @@ class ExtensibleCmd(click.Command):
 @click.argument('movie_types', nargs=1)
 @click.argument('paths', nargs=-1, type=click.Path(exists=True))
 # Common options
-@click.option('-s', '--tstart', default=0., help="Start time.")
-@click.option('-e', '--tend', default=1e7, help="End time.")
+@click.option('-s', '--tstart', default=None, help="Start time.")
+@click.option('-e', '--tend', default=None, help="End time.")
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
 @click.option('-o', '--output_dir', default=".", help="Base directory for outputs. Any folder structure of models will be preserved.")
 # Figure options
@@ -81,15 +83,17 @@ class ExtensibleCmd(click.Command):
 @click.option('-at','--at','--at_zone', 'at', default=0, help="Phi zone to plot at.")
 @click.option('-av','--av','--average', 'average', is_flag=True, help="Average quantities over phi.")
 @click.option('--sum', is_flag=True, help="Sum quantities over phi.")
-@click.option('-sz','--sz','--size', 'size', default=None, help="Window size, in M each side of central object.")
 @click.option('-sh','--sh','--shading', 'shading', default='flat', help="Shading: flat, nearest, gouraud.")
 @click.option('--vmin', default=None, help="Colorscale minimum.")
 @click.option('--vmax', default=None, help="Colorscale maximum.")
 @click.option('--cmap', default='jet', help="Colormap.")
+@click.option('--log', is_flag=True, help="Plot natural log of the specified variable. Colorbar is properly marked vs prepending log_")
+@click.option('-sz','--sz','--size', 'size', default=None, help="Window size, in M each side of central object.")
 @click.option('--xmin', default=None, help="Window X minimum.")
 @click.option('--xmax', default=None, help="Window X maximum.")
 @click.option('--ymin', default=None, help="Window Y minimum.")
 @click.option('--ymax', default=None, help="Window Y maximum.")
+@click.option('--log_r', is_flag=True, help="Make the plots logarithmic in radius.")
 @click.option('--overlay_field', is_flag=True, help="Overlay field lines.")
 @click.option('--overlay_grid', is_flag=True, help="Overlay simulation zone borders.")
 @click.option('--native', is_flag=True, help="Plot in native coordinates X1,X2,X3 rather than converting to Cartesian.")
@@ -146,10 +150,19 @@ def movie(movie_types, paths, **kwargs):
         else:
             files = [path]
 
-        # Add these so we can pass on just the args
+        # Timestamp formatting: appropriate left padding...
+        if kwargs['tend'] is None:
+            kwargs['time_digits'] = int(np.log10(pyharm.io.get_dump_time(files[-1])))+1
+        else:
+            kwargs['time_digits'] = int(np.log10(float(kwargs['tend'])))+1
+        # ...and automatically make times accurate to hundredths if t_end < 10
+        if kwargs['time_digits'] == 1:
+            kwargs['accurate_fnames'] = True
+
+        # Add these so we can pass on just the kwargs object to worker function
         kwargs['movie_types'] = movie_types
         kwargs['path'] = path
-        # Including where to output: what to replace from cwd, and what with
+        # Include where to output: what to replace from cwd, and what with
         kwargs['base_path'] = base_path
         kwargs['out_path'] = out_path
 
