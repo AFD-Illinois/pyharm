@@ -114,6 +114,9 @@ class FluidDump:
         """Associate a scale & units with this dump, for calculating scale-dependent quantities in CGS.
         :param MBH: Black hole mass in solar masses
         :param M_unit: Density unit in grams, as fit by imaging with e.g. ``ipole``
+
+        Note this function will not *change* anything -- rather it *adds* a dict 'units' and a number of keys:
+        'M_unit', 'RHO_unit', 'T_unit', etc.  See ``units.py`` for definitions.
         """
         self.units = get_units(MBH, M_unit, gam=self.params['gam'])
 
@@ -145,11 +148,12 @@ class FluidDump:
             # TODO somehow proper copy constructor
             slc = tuple(new_slc)
             #print("FluidDump slice copy: ", self.cache, key)
-            out = FluidDump(self.fname, add_grid=False, params=self.params)
+            out = FluidDump(self.fname, add_grid=False, params=self.params, units=self.units)
             #out = copy.deepcopy(self) # In case this proves faster
             for c in self.cache:
                 out.cache[c] = self.cache[c][(Ellipsis,) + slc]
-            out.grid = self.grid[slc]
+            if self.grid is not None:
+                out.grid = self.grid[slc]
             out.slice = slc
             return out
 
@@ -158,6 +162,8 @@ class FluidDump:
             return self.cache[key]
         elif key in self.params:
             return self.params[key]
+        elif self.units is not None and key in self.units:
+            return self.units[key]
 
         # Otherwise run functions and cache the result
         # Putting this before reading lets us translate & standardize reads/caches
@@ -168,7 +174,7 @@ class FluidDump:
         # Return coordinates and things from the grid
         # Default to centers when returning multi-location vars, to avoid location madness
         # TODO allow _mesh versions?
-        elif key in self.grid:
+        elif self.grid is not None and key in self.grid:
             if key in ('gcon', 'gcov', 'gdet', 'lapse'):
                 return self.grid[key][Loci.CENT.value]
             else:
