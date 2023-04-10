@@ -152,7 +152,7 @@ def movie(movie_types, paths, **kwargs):
 
         # Timestamp formatting: appropriate left padding...
         if kwargs['tend'] is None:
-            kwargs['time_digits'] = int(np.log10(pyharm.io.get_dump_time(files[-1])))+1
+            kwargs['time_digits'] = int(np.log10(pyharm.io.get_dump_time(files[-1])+1))+1
         else:
             kwargs['time_digits'] = int(np.log10(float(kwargs['tend'])))+1
         # ...and automatically make times accurate to hundredths if t_end < 10

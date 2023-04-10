@@ -104,6 +104,7 @@ def parse_parthenon_dat(string):
             params[ls[0]] = ls[-1]
 
     # Translate coordinate naming scheme
+    # TODO will there be exp/superexp w/BL? Likely not, but...
     if "cartesian" in params['base']:
         params['coordinates'] = "cartesian"
     elif "fmks" in params['transform'] or "funky" in params['transform']:
@@ -116,6 +117,8 @@ def parse_parthenon_dat(string):
         params['coordinates'] = "ks"
     elif "null" in params['transform'] and "bl" in params['base']:
         params['coordinates'] = "bl"
+    elif "super" in params['transform']:
+        params['coordinates'] = "superexp"
     else:
         print("Defaulting KHARMA coordinate system to fmks...")
         params['coordinates'] = params['metric'] = "fmks"

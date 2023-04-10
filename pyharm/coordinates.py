@@ -47,7 +47,8 @@ TODO Coordinate system descriptions forthcoming.
 """
 
 default_met_params = {'a': 0.9375, 'hslope': 0.3, 'r_out': 50.0, 'n1tot': 192,
-                      'poly_xt': 0.82, 'poly_alpha': 14.0, 'mks_smooth': 0.5}
+                      'poly_xt': 0.82, 'poly_alpha': 14.0, 'mks_smooth': 0.5,
+                      'r_br': 1.e6, 'npow': 1., 'cpow': 4.}
 
 legacy_small_th = True
 
@@ -336,7 +337,19 @@ class Minkowski(CoordinateSystem):
 class KS(CoordinateSystem):
     def __init__(self, met_params={'a': 0.9375}):
         self.a = met_params['a']
-        self.small_th = 1.e-20
+
+        # For avoiding coordinate singularity
+        # We can usually leave this default
+        if 'small_theta' in met_params:
+            self.small_th = met_params['small_theta']
+        else:
+            self.small_th = 1.e-20
+
+        # Set radii
+        self.r_eh = 1. + np.sqrt(1. - self.a ** 2)
+        z1 = 1. + (1. - self.a**2)**(1/3) * ((1. + self.a)**(1/3) + (1. - self.a)**(1. / 3.))
+        z2 = np.sqrt(3. * self.a**2 + z1**2)
+        self.r_isco = 3. + z2 - (np.sqrt((3. - z1) * (3. + z1 + 2. * z2))) * np.sign(self.a)
 
     def r(self, x):
         return x[1]
@@ -388,20 +401,7 @@ class KS(CoordinateSystem):
 
 class EKS(KS):
     def __init__(self, met_params=default_met_params):
-        self.a = met_params['a']
-
-        # For avoiding coordinate singularity
-        # We can usually leave this default
-        if 'small_theta' in met_params:
-            self.small_th = met_params['small_theta']
-        else:
-            self.small_th = 1.e-20
-
-        # Set radii
-        self.r_eh = 1. + np.sqrt(1. - self.a ** 2)
-        z1 = 1. + (1. - self.a**2)**(1/3) * ((1. + self.a)**(1/3) + (1. - self.a)**(1. / 3.))
-        z2 = np.sqrt(3. * self.a**2 + z1**2)
-        self.r_isco = 3. + z2 - (np.sqrt((3. - z1) * (3. + z1 + 2. * z2))) * np.sign(self.a)
+        super(EKS, self).__init__(met_params)
 
     def native_startx(self, met_params):
         # TODO take direct 'startx' from met params?
@@ -449,23 +449,57 @@ class EKS(KS):
         dxdX[3, 3] = 1
         return dxdX
 
+class SEKS(KS):
+    def __init__(self, met_params=default_met_params):
+        self.xe1br = met_params['r_br']
+        self.xn1br = np.log(self.xe1br)
+        self.npow2 = met_params['npow']
+        self.cpow2 = met_params['cpow']
+        super(SEKS, self).__init__(met_params)
+
+    def native_startx(self, met_params):
+        # TODO take direct 'startx' from met params?
+        if 'startx1' in met_params and 'startx2' in met_params and 'startx3' in met_params:
+            startx = np.array([0, met_params['startx1'], met_params['startx2'], met_params['startx3']])
+        elif 'r_in' in met_params:
+            # Set startx1 from r_in
+            startx = np.array([0, np.log(met_params['r_in']), 0, 0])
+        else:
+            print("The only parameters provided to native_startx were: ", met_params)
+            raise ValueError("Cannot find or guess startx!")
+        return startx
+
+    def native_stopx(self, met_params):
+        if 'r_out' in met_params:
+            return np.array([0, np.log(met_params['r_out']), np.pi, 2*np.pi])
+        elif ('startx1' in met_params and 'dx1' in met_params and 'n1' in met_params and
+               'startx2' in met_params and 'dx2' in met_params and 'n2' in met_params and
+               'startx3' in met_params and 'dx3' in met_params and 'n3' in met_params):
+            return np.array([0, met_params['startx1'] + met_params['n1']*met_params['dx1'],
+                            met_params['startx2'] + met_params['n2']*met_params['dx2'],
+                            met_params['startx3'] + met_params['n3']*met_params['dx3']])
+        else:
+            raise ValueError("Cannot find or guess stopx!")
+
+
+    def r(self, x):
+        super_dist = x[1] - self.xn1br
+        return np.exp(x[1] + (super_dist > 0) * self.cpow2 * np.power(super_dist, self.npow2))
+
+    def dxdX(self, x):
+        super_dist = x[1] - self.xn1br
+        dxdX = np.zeros([4, 4, *x.shape[1:]])
+        dxdX[0, 0] = 1
+        dxdX[1, 1] = np.exp(x[1] + (super_dist > 0) * self.cpow2 * np.power(super_dist, self.npow2)) \
+                            * (1 + (super_dist > 0) * self.cpow2 * self.npow2 * np.power(super_dist, self.npow2-1))
+        dxdX[2, 2] = 1
+        dxdX[3, 3] = 1
+        return dxdX
+
 class MKS(KS):
     def __init__(self, met_params=default_met_params):
-        self.a = met_params['a']
         self.hslope = met_params['hslope']
-
-        # For avoiding coordinate singularity
-        # We can usually leave this default
-        if 'small_theta' in met_params:
-            self.small_th = met_params['small_theta']
-        else:
-            self.small_th = 1.e-20
-
-        # Set radii
-        self.r_eh = 1. + np.sqrt(1. - self.a ** 2)
-        z1 = 1. + (1. - self.a**2)**(1/3) * ((1. + self.a)**(1/3) + (1. - self.a)**(1. / 3.))
-        z2 = np.sqrt(3. * self.a**2 + z1**2)
-        self.r_isco = 3. + z2 - (np.sqrt((3. - z1) * (3. + z1 + 2. * z2))) * np.sign(self.a)
+        super(MKS, self).__init__(met_params)
 
     def native_startx(self, met_params):
         # TODO take direct 'startx' from met params?
