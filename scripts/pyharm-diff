@@ -26,6 +26,9 @@ import matplotlib.pyplot as plt
 @click.option('--xmax', default=None, help="Window X maximum.")
 @click.option('--ymin', default=None, help="Window Y minimum.")
 @click.option('--ymax', default=None, help="Window Y maximum.")
+@click.option('--bh', default=True, help="Whether to show the BH shadow.")
+@click.option('--array', is_flag=True, help="Use array coordinates")
+@click.option('--vmax', default=None, help="Max comparison plot value")
 @click.option('-a', '--absolute', is_flag=True, help="Plot absolute differences, rather than relative.")
 @click.option('--rel_tol', default=5e-10, help="Relative tolerance to consider a variable different.")
 @click.option('--abs_tol', default=1e20, help="Absolute tolerance to consider a variable different.")
@@ -40,8 +43,17 @@ def diff(dump1file, dump2file, **kwargs):
     #Hopefully this fails for dumps that shouldn't be compared
     dump2 = pyharm.load_dump(dump2file, ghost_zones=kwargs['ghost_zones'])
 
-    # TODO accommodate >9 prims
-    vars = list(dump2['prim_names']) # Parthenon isn't dealing with KEL
+    vars = ['RHO', 'UU', 'U1', 'U2', 'U3'] #list(dump2['prim_names']) # Parthenon isn't dealing with KEL
+
+    kwargs['vmin'] = 0 # Making plots without this is irresponsible
+    if 'vmax' not in kwargs and not kwargs['absolute']:
+        kwargs['vmax'] = 1
+
+    if kwargs['array']:
+        kwargs['native'] = True
+        kwargs['shading'] = 'flat'
+        kwargs['half_cut'] = True
+        kwargs['window'] = None
 
     return_code = 0
 
@@ -50,9 +62,9 @@ def diff(dump1file, dump2file, **kwargs):
     axes = fig.get_axes()
     for var, ax in zip(vars, axes):
         if kwargs['absolute']:
-            pplt.plot_diff_xz(ax, dump1, dump2, var, rel=False)
+            pplt.plot_diff_xz(ax, dump1, dump2, var, rel=False, **kwargs)
         else:
-            pplt.plot_diff_xz(ax, dump1, dump2, var, rel=True, vmax=1)
+            pplt.plot_diff_xz(ax, dump1, dump2, var, rel=True, **kwargs)
         ax.set_xlabel('')
         ax.set_ylabel('')
 
@@ -71,9 +83,9 @@ def diff(dump1file, dump2file, **kwargs):
         axes = fig.get_axes()
         for var,ax in zip(vars, axes):
             if kwargs['absolute']:
-                pplt.plot_diff_xy(ax, dump1, dump2, var, rel=False)
+                pplt.plot_diff_xy(ax, dump1, dump2, var, rel=False, **kwargs)
             else:
-                pplt.plot_diff_xy(ax, dump1, dump2, var, rel=True, vmax=1)
+                pplt.plot_diff_xy(ax, dump1, dump2, var, rel=True, **kwargs)
             ax.set_xlabel('')
             ax.set_ylabel('')
 
