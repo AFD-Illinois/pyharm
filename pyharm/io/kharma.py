@@ -206,6 +206,7 @@ class KHARMAFile(DumpFile):
         # for converting file formats.
         if var == "prims" or var == "cons":
             # Reshape rho to 4D by adding a rank in front for prim index
+            # TODO THIS DOES NOT WORK FOR KHARMA HARM-DRIVER RESTARTS
             all_vars = self.read_var(var+'.rho')[np.newaxis, Ellipsis]
             for v2 in self.var_names_ordered[1:]:
                 try:
