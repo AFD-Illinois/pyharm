@@ -14,7 +14,7 @@ import inspect
 import textwrap
 
 import numpy as np
-
+import pandas
 # Make sure we use Agg
 import matplotlib
 matplotlib.use('Agg')
@@ -201,7 +201,7 @@ def movie(movie_types, paths, **kwargs):
                     diag = pyharm.io.read_log(fname)
                 else:
                     diag = None
-            except (IndexError, IOError):
+            except (IndexError, IOError, pandas.errors.ParserError):
                 diag = None
 
         if do_out(): print("Imaging model {} with movie {}".format(path, movie_type), file=sys.stderr)

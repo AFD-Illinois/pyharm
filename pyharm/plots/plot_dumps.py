@@ -162,8 +162,8 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             ax.set_xlim([np.min(x), np.max(x)])
             ax.set_ylim([np.min(z), np.max(z)])
     elif log_r:
-        if xlabel: ax.set_xlabel(r"$x$ ($r \rightarrow \log_{10}(r)$)")
-        if ylabel: ax.set_ylabel(r"$z$ ($r \rightarrow \log_{10}(r)$)")
+        if xlabel: ax.set_xlabel(r"$x$ ($r \rightarrow \ln(r)$)")
+        if ylabel: ax.set_ylabel(r"$z$ ($r \rightarrow \ln(r)$)")
         if window is not None:
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
@@ -265,8 +265,8 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             ax.set_xlim([x[0,0], x[-1,-1]])
             ax.set_ylim([y[0,0], y[-1,-1]])
     elif log_r:
-        if xlabel: ax.set_xlabel(r"$x$ ($r \rightarrow \log_{10}(r)$)")
-        if ylabel: ax.set_ylabel(r"$y$ ($r \rightarrow \log_{10}(r)$)")
+        if xlabel: ax.set_xlabel(r"$x$ ($r \rightarrow \ln(r)$)")
+        if ylabel: ax.set_ylabel(r"$y$ ($r \rightarrow \ln(r)$)")
         if window is not None:
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
