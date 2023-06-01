@@ -51,6 +51,7 @@ class ExtensibleCmd(click.Command):
 @click.option('-pdf', '--pdf', is_flag=True, help="Output to pdf rather than png")
 @click.option('--fig_x', default=None, help="Figure width in inches")
 @click.option('--fig_y', default=None, help="Figure height in inches")
+@click.version_option(package_name='pyharm')
 def plot_results(to_plot_str, paths, **kwargs):
     """Plot a result or set of results in a standard form, usually the contents of one or more
     analyses done by pyharm-analysis.

@@ -483,15 +483,15 @@ class SEKS(KS):
 
 
     def r(self, x):
-        super_dist = x[1] - self.xn1br
-        return np.exp(x[1] + (super_dist > 0) * self.cpow2 * np.power(super_dist, self.npow2))
+        super_dist = np.where(x[1] > self.xn1br, x[1] - self.xn1br, 0.0)
+        return np.exp(x[1] + self.cpow2 * np.power(super_dist, self.npow2))
 
     def dxdX(self, x):
-        super_dist = x[1] - self.xn1br
+        super_dist = np.where(x[1] > self.xn1br, x[1] - self.xn1br, 0.0)
         dxdX = np.zeros([4, 4, *x.shape[1:]])
         dxdX[0, 0] = 1
-        dxdX[1, 1] = np.exp(x[1] + (super_dist > 0) * self.cpow2 * np.power(super_dist, self.npow2)) \
-                            * (1 + (super_dist > 0) * self.cpow2 * self.npow2 * np.power(super_dist, self.npow2-1))
+        dxdX[1, 1] = np.exp(x[1] + self.cpow2 * np.power(super_dist, self.npow2)) \
+                            * (1 + self.cpow2 * self.npow2 * np.power(super_dist, self.npow2-1))
         dxdX[2, 2] = 1
         dxdX[3, 3] = 1
         return dxdX

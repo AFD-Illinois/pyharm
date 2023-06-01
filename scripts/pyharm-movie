@@ -97,7 +97,7 @@ class ExtensibleCmd(click.Command):
 @click.option('--overlay_field', is_flag=True, help="Overlay field lines.")
 @click.option('--overlay_grid', is_flag=True, help="Overlay simulation zone borders.")
 @click.option('--native', is_flag=True, help="Plot in native coordinates X1,X2,X3 rather than converting to Cartesian.")
-@click.option('--bh', default=True, help="Whether to show the BH shadow.")
+@click.option('--bh/--no-bh', default=True, help="Whether to show the BH shadow.")
 @click.option('--no_grid_cache', is_flag=True, help="Don't cache geometry.  For plotting large Cartesian simulations.")
 @click.option('--prefer_iharm3d', is_flag=True, help="Prefer iharm3d-format files if available alongside KHARMA output")
 # Extras
@@ -106,6 +106,7 @@ class ExtensibleCmd(click.Command):
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
 @click.option('--nompi', is_flag=True, help="Avoid MPI even if available")
 #@click.option('-m', '--memory_limit', default=1, help="Memory limit in GB for each process, enforced by starting total/m processes.")
+@click.version_option(package_name='pyharm')
 def movie(movie_types, paths, **kwargs):
     """Generate movies of type MOVIE_TYPE from dumps at each of PATHS.
 
@@ -125,8 +126,8 @@ def movie(movie_types, paths, **kwargs):
     """
     path_dirs = [p for p in paths if os.path.isdir(p)]
     if len(path_dirs) == 0:
-        # Single file argument, pass this
-        path_dirs = paths
+        # Single file arguments.  Signal to treat as one movie.
+        path_dirs = [None]
     if do_out(): print("Generating ",len(path_dirs)*len(movie_types.split(","))," movie(s)", file=sys.stderr)
 
     start_path = os.path.abspath(os.getcwd())
@@ -147,7 +148,11 @@ def movie(movie_types, paths, **kwargs):
             os.chdir(path)
             # Try to load known filenames
             files = pyharm.io.get_fnames(".", prefer_iharm3d=kwargs['prefer_iharm3d'])
+        elif path is None:
+            # We passed in a bunch of files as one movie
+            files = paths
         else:
+            # One file amid directories
             files = [path]
 
         # Timestamp formatting: appropriate left padding...
@@ -155,8 +160,8 @@ def movie(movie_types, paths, **kwargs):
             kwargs['time_digits'] = int(np.log10(pyharm.io.get_dump_time(files[-1])+1))+1
         else:
             kwargs['time_digits'] = int(np.log10(float(kwargs['tend'])))+1
-        # ...and automatically make times accurate to hundredths if t_end < 10
-        if kwargs['time_digits'] == 1:
+        # ...and automatically make times accurate to hundredths if t_end < 100
+        if kwargs['time_digits'] < 3:
             kwargs['accurate_fnames'] = True
 
         # Add these so we can pass on just the kwargs object to worker function
@@ -235,7 +240,6 @@ def movie(movie_types, paths, **kwargs):
                 nthreads = int(kwargs['nthreads'])
             # This application is entirely side-effects (frame creation)
             # So we map & ignore result
-            # TODO pass single figure & blit/encode within Python?
             if use_mpi and not kwargs['nompi']:
                 print("Using MPI")
                 # Everything is set by MPI.  We inherit a situation and use it

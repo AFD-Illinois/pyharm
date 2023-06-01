@@ -209,6 +209,7 @@ def tensor_component(fp, name, sourcename, precision, mu, nu):
 @click.option('-rout', '--rout_vis', default=100., help="Default outer radius when visualizing")
 @click.option('-nt', '--nthreads', default=None, help="Number of parallel conversions -- defaults to nprocs")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
+@click.version_option(package_name='pyharm')
 def gen_xdmf(dumpnames, rout_vis, nthreads, debug):
     if debug:
         for dumpname in dumpnames:

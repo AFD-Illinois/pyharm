@@ -195,10 +195,10 @@ def fix(params):
         else:
             params['r_in'] = np.exp(params['x1min'])
 
-    if 'x1min' not in params:
-        params['x1min'] = np.log(params['r_in'])
-    if 'x1max' not in params:
-        params['x1max'] = np.log(params['r_out'])
+    # if 'x1min' not in params:
+    #     params['x1min'] = np.log(params['r_in'])
+    # if 'x1max' not in params:
+    #     params['x1max'] = np.log(params['r_out'])
 
     if 'x2min' not in params:
         params['x2min'] = 0.

@@ -378,9 +378,10 @@ def plot_slices(ax1, ax2, dump, var, field_overlay=False, nlines=10, **kwargs):
     """
     kwargs_left = {**kwargs, **{'cbar': False}}
     plot_xz(ax1, dump, var, **kwargs_left)
+
     # If we're not plotting in native coordinates, plot contours.
     # They are very unintuitive in native coords
-    if field_overlay and not ('native' in kwargs.keys() and kwargs['native']):
+    if field_overlay and not (kwargs.get('native', False)):
         overlay_field(ax1, dump, nlines=nlines)
 
     # If we specified 'at', it was *certainly* for the xz slice, not this one.

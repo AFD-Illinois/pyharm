@@ -6,26 +6,29 @@ from pyharm.io import read_hdr
 import pyharm.io.gridfile as gridfile
 
 @click.command()
-@click.argument('file_or_system', nargs=1)
-@click.argument('spin', default=0.9375, nargs=1)
-@click.argument('r_out', default=1000., nargs=1)
-@click.argument('n1', default=192, nargs=1)
-@click.argument('n2', default=128, nargs=1)
-@click.argument('n3', default=128, nargs=1)
+@click.argument('file', nargs=1, type=click.Path(exists=True), required=False)
+@click.option('-c', '--coords', default='fmks', help="Coordinate SYSTEM in {fmks, mks, eks, ks, mks3, etc.}")
+@click.option('-s', '--spin', default=0.9375, help="Spin of the black hole")
+@click.option('--r_out', default=1000., help="Outer radius in r_g")
+@click.option('--r_in', is_flag=True, help="Inner radius in r_g")
+@click.option('-n1', '--n1', default=192, nargs=1)
+@click.option('-n2', '--n2', default=128, nargs=1)
+@click.option('-n3', '--n3', default=128, nargs=1)
 # Common options
 @click.option('-o', '--outfile', default="grid.h5", help="Output file.")
 @click.option('-vis', '--vis', is_flag=True, help="Whether to write to ebhlight/visualization format.")
-def write_some_grid(file_or_system, spin, r_out, n1, n2, n3, outfile, vis):
-    """Script to write files listing geometry information at each cell of a simulation.
+@click.version_option(package_name='pyharm')
+def write_some_grid(file, coords, spin, r_out, n1, n2, n3, outfile, vis):
+    """Script to write files listing geometry information at each cell of a spherical simulation grid.
     Used to avoid recalculating boring things like the metric, metric determinant, etc.
     Won't match iharm3d's grids bit-for-bit in gcon due to inversions, but should in all other variables.
 
     \b
-    Usage: write_grid.py FILE.{phdf,h5} 
+    Usage: pyharm write-grid FILE.{phdf,h5} 
     Writes a grid file using parameters for the simulation, given a dump of the simulation output
 
     \b
-    Usage: write_grid.py SYSTEM SPIN R_OUT [N1 N2 N3]
+    OR: pyharm write-grid [SYSTEM OPTIONS]
     Writes a grid of given parameters and size:
     1. Coordinate SYSTEM in {fmks, mks, eks, ks, mks3, etc.}.
     2. SPIN of BH. Default 0.9375.

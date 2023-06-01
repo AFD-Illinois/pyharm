@@ -73,7 +73,7 @@ def frame(fname, diag, kwargs):
     for movie_type in kwargs['movie_types'].split(","):
         frame_folder = os.path.join(os.getcwd().replace(kwargs['base_path'], kwargs['out_path']), "frames_"+movie_type)
         if 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
-            time_formatted = ("%.2f"%tdump).rjust(kwargs['time_digits'],'0')
+            time_formatted = ("%.2f"%tdump).rjust(kwargs['time_digits']+3,'0')
             frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
         else:
             time_formatted = ("%d"%int(tdump)).rjust(kwargs['time_digits'],'0')
@@ -83,7 +83,7 @@ def frame(fname, diag, kwargs):
             continue
 
         # Load ghosts?  Set a flag and strip the option from the name
-        if "_ghost" in movie_type:
+        if "_ghost" in movie_type or kwargs['ghost_zones']:
             ghost_zones = True
             movie_type = movie_type.replace("_ghost","")
 
@@ -101,29 +101,24 @@ def frame(fname, diag, kwargs):
     dump = FluidDump(fname, ghost_zones=ghost_zones, grid_cache=(not kwargs['no_grid_cache']))
 
     for movie_type in movie_types:
-        # Set some plot options
+        # Set plotting options we'll pass on to figure-specific code
         plotrc = {}
-        # Copy in the equivalent options, casting them to what below code expects
-        for key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax', # float
-                    'left', 'right', 'top', 'bottom', 'wspace', 'hspace', # float
-                    'at', 'nlines', # int
-                    'native', 'bh', 'no_title', 'average', 'sum', 'log', 'log_r', # bool
-                    'shading', 'cmap'): # string
-            if key in kwargs:
-                plotrc[key] = kwargs[key]
-                if key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax',
-                            'left', 'right', 'top', 'bottom', 'wspace', 'hspace'):
-                    # Should be floats or none
-                    if plotrc[key] is not None and plotrc[key] != "None":
-                        plotrc[key] = float(plotrc[key])
-                    else:
-                        plotrc[key] = None
-                if key in ('at', 'nlines'):
-                    # Should be ints
-                    plotrc[key] = int(plotrc[key])
-                if key in ('native', 'bh', 'no_title', 'average', 'sum', 'log', 'log_r'):
-                    # Should be bools
-                    plotrc[key] = bool(plotrc[key])
+        # Plotting options are copied from kwargs and share the same names
+        for key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax',
+                    'left', 'right', 'top', 'bottom', 'wspace', 'hspace'):
+            # Should be floats or none
+            if kwargs[key] is not None and kwargs[key].lower() != "none":
+                plotrc[key] = float(kwargs[key])
+            else:
+                plotrc[key] = None
+        for key in ('at', 'nlines'):
+            # Should be ints
+            plotrc[key] = int(kwargs[key])
+        for key in ('native', 'bh', 'no_title', 'average', 'sum', 'log', 'log_r'):
+            # Should be bools
+            plotrc[key] = bool(kwargs[key])
+        for key in ('shading', 'cmap'):
+            plotrc[key] = kwargs[key] #lower()?
 
         # Choose a domain size 
         if kwargs['size'] is not None:
@@ -212,8 +207,21 @@ def frame(fname, diag, kwargs):
             elif "_1d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
                 var = movie_type.replace("_1d","")
-                sec = dump[:, 0, 0]
-                ax.plot(sec['r'], sec[var]) # TODO some kind of radial_plot back in plot_dumps?
+                if "log_" in movie_type:
+                    var = var.replace("log_","")
+                    ax.set_yscale('log')
+                ax.plot(dump['r1d'], np.squeeze(dump[:, 0, 0][var])) # TODO some kind of radial_plot back in plot_dumps?
+                ax.set_ylim((plotrc['vmin'], plotrc['vmax']))
+                ax.set_xlim((plotrc['window'][0], plotrc['window'][1]))
+                if plotrc['log_r']:
+                    ax.set_xscale('log')
+                # TODO multiple variables w/user title?
+                ax.set_title(pretty(var))
+            elif "_av1d" in movie_type:
+                ax = plt.subplot(1, 1, 1)
+                var = movie_type.replace("_av1d","")
+                vardata = np.mean(dump[var], axis=(1,2))
+                ax.plot(dump['r1d'], vardata) # TODO some kind of radial_plot back in plot_dumps?
                 ax.set_ylim((plotrc['vmin'], plotrc['vmax']))
                 # TODO multiple variables w/user title?
                 ax.set_title(pretty(var))

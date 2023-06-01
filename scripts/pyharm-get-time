@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 
 import sys
+import click
+
 import pyharm
 
-for fname in sys.argv[1:]:
-    print(pyharm.io.get_dump_time(fname))
+@click.command()
+@click.argument('fnames', nargs=-1, type=click.Path(exists=True))
+@click.version_option(package_name='pyharm')
+def get_time(fnames):
+    for fname in fnames:
+        print(pyharm.io.get_dump_time(fname))
