@@ -62,7 +62,7 @@ def plot_frame(seq, kwargs={}):
         ax[i].set_xticks([])
         ax[i].set_yticks([])
         ax[i].axis('off')
-        
+
         # Spin is recorded as a string but we sorted as float
         spin = "{:.2f}".format(fspin)
         if spin in ["0.94", "-0.94", "0.13", "-0.13"]:
@@ -92,7 +92,9 @@ def plot_frame(seq, kwargs={}):
 # Plot size
 @click.option('--nplotsx', default=13, help="Horizontal plots: spin")
 @click.option('--nplotsy', default=8, help="Vertical plots: disk flux, tilt")
-@click.option('--fig_dpi', default=200, help="Vertical plots: disk flux, tilt")
+@click.option('--fig_x', default=16, help="Figure vertical size in inches")
+@click.option('--fig_y', default=9, help="Figure horizontal size in inches")
+@click.option('--fig_dpi', default=200, help="Figure DPI resolution")
 # Plot options
 @click.option('-d', '--out_dir', default="frames_collage", help="Directory for output")
 # Range (TODO time range)
@@ -103,12 +105,12 @@ def collage_movie(src_fmt, **kwargs):
     runtime.  Models can be introduced in some order and cut out according to a table of models passing certain
     constraints.
 
-    Usage: collage_movie.py [src_fmt] [-bc] [options]
+    Usage: pyharm-collage [src_fmt] [options]
     """
     # Find input models using hallmark `ParaFrame`
     # This finds all values of replacements in src_fmt which will generate valid filenames
     pf = hm.ParaFrame(src_fmt)
-    
+
     #print(pf.keys())
 
     # Automatically determine parameters, and turn `params` into
@@ -118,12 +120,11 @@ def collage_movie(src_fmt, **kwargs):
     params = {p:np.unique(pf[p]) for p in params}
 
     #print(params)
-    
+
     # Stash things in the 'kwargs' dict for plot_frame calls later
     kwargs['pf'] = pf
     kwargs['params'] = params
 
-    # 
     if not os.path.exists(kwargs['out_dir']):
         os.mkdir(kwargs['out_dir'])
 

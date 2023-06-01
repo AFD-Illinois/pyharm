@@ -72,8 +72,10 @@ def frame(fname, diag, kwargs):
     ghost_zones = False
     for movie_type in kwargs['movie_types'].split(","):
         frame_folder = os.path.join(os.getcwd().replace(kwargs['base_path'], kwargs['out_path']), "frames_"+movie_type)
-        if 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
-            time_formatted = ("%.2f"%tdump).rjust(kwargs['time_digits']+3,'0')
+        if 'numeric_fnames' in kwargs and kwargs['numeric_fnames']:
+            frame_name = os.path.join(frame_folder, "frame_"+fname.split('.')[-2]+".png")
+        elif 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
+            time_formatted = ("%.2f"%tdump).rjust(kwargs['time_digits'],'0')
             frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
         else:
             time_formatted = ("%d"%int(tdump)).rjust(kwargs['time_digits'],'0')
@@ -191,6 +193,10 @@ def frame(fname, diag, kwargs):
                 if plotrc['vmax'] is None:
                     plotrc['vmax'] = 1.5
 
+            if "log_" in movie_type:
+                var = var.replace("log_","")
+                plotrc['log'] = True
+
             # Various options 
             if "_poloidal" in movie_type or "_2d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
@@ -204,25 +210,25 @@ def frame(fname, diag, kwargs):
                 if "divB" in var:
                     var = dump[var]
                 plot_xy(ax, dump, var, **plotrc)
-            elif "_1d" in movie_type:
-                ax = plt.subplot(1, 1, 1)
-                var = movie_type.replace("_1d","")
-                if "log_" in movie_type:
-                    var = var.replace("log_","")
-                    ax.set_yscale('log')
-                ax.plot(dump['r1d'], np.squeeze(dump[:, 0, 0][var])) # TODO some kind of radial_plot back in plot_dumps?
-                ax.set_ylim((plotrc['vmin'], plotrc['vmax']))
-                ax.set_xlim((plotrc['window'][0], plotrc['window'][1]))
-                if plotrc['log_r']:
-                    ax.set_xscale('log')
-                # TODO multiple variables w/user title?
-                ax.set_title(pretty(var))
             elif "_av1d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
                 var = movie_type.replace("_av1d","")
                 vardata = np.mean(dump[var], axis=(1,2))
                 ax.plot(dump['r1d'], vardata) # TODO some kind of radial_plot back in plot_dumps?
+
                 ax.set_ylim((plotrc['vmin'], plotrc['vmax']))
+                # TODO multiple variables w/user title?
+                ax.set_title(pretty(var))
+            elif "_1d" in movie_type:
+                ax = plt.subplot(1, 1, 1)
+                var = movie_type.replace("_1d","")
+                sec = dump[:, 0, 0]
+                ax.plot(sec['r1d'], sec[var]) # TODO some kind of radial_plot back in plot_dumps?
+
+                ax.set_ylim((plotrc['vmin'], plotrc['vmax']))
+                ax.set_xlim((plotrc['window'][0], plotrc['window'][1]))
+                if plotrc['log_r']:
+                    ax.set_xscale('log')
                 # TODO multiple variables w/user title?
                 ax.set_title(pretty(var))
             else:

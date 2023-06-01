@@ -102,6 +102,7 @@ class ExtensibleCmd(click.Command):
 @click.option('--prefer_iharm3d', is_flag=True, help="Prefer iharm3d-format files if available alongside KHARMA output")
 # Extras
 @click.option('--accurate_fnames', is_flag=True, help="Name frames by 1/100M, for short runs.")
+@click.option('--numeric_fnames', is_flag=True, help="Name frames by file number.")
 @click.option('-r', '--resume', is_flag=True, help="Continue a previous run, by skipping existing frames")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
 @click.option('--nompi', is_flag=True, help="Avoid MPI even if available")
@@ -238,6 +239,10 @@ def movie(movie_types, paths, **kwargs):
                     nthreads = psutil.cpu_count()
             else:
                 nthreads = int(kwargs['nthreads'])
+
+            # Only use as many processes at files
+            nthreads = min(nthreads, len(files))
+
             # This application is entirely side-effects (frame creation)
             # So we map & ignore result
             if use_mpi and not kwargs['nompi']:

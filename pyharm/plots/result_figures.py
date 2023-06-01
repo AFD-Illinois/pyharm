@@ -135,8 +135,9 @@ def radial_profile(ax, result, var, arange=-1000, window=(2,50), disk=True, plot
     ax.legend()
     ax.grid(True)
 
-def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-1000, selector=None, tag="",
-                  print_time=False, print_only_time=False, model_shared_portion=0, no_print_flux=False, **kwargs):
+def _point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-1000, selector=None, tag="",
+                  print_time=False, print_only_time=False, model_shared_portion=0, no_print_flux=False, plotrc={},
+                  **kwargs):
     if plot_vs == 'spin':
         get_xval = lambda tag: float(tag.split(" ")[-1].lstrip("A"))
         get_modelname = _trunc_at_spin
@@ -198,10 +199,10 @@ def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-100
         if to_plot == 'avg_std':
             # Sort all arrrays by x value to avoid weird back and forth lines
             xvals, yvals, ystd = zip(*sorted(zip(model_xvals[model], model_yvals[model], model_stds[model]), key=lambda x: x[0]))
-            axis.errorbar(xvals, yvals, yerr=ystd, fmt='.--', capsize=5, label=mname, **kwargs)
+            axis.errorbar(xvals, yvals, yerr=ystd, fmt='.--', capsize=5, label=mname, **plotrc)
         else:
             xvals, yvals = zip(*sorted(zip(model_xvals[model], model_yvals[model]), key=lambda x: x[0]))
-            axis.plot(xvals, yvals, '.--', label=mname, **kwargs)
+            axis.plot(xvals, yvals, '.--', label=mname, **plotrc)
 
     axis.set_title(title)
     axis.grid(True)
@@ -227,19 +228,31 @@ def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-100
     axis.legend()
 
 # Ready-made names: figsize, save name, etc. TODO handle kwargs not passed on to line plot
-def std_vs_spin(ax, results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'std', 'spin', **kwargs)
-def avg_vs_spin(results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'avg', 'spin', **kwargs)
-def avg_std_vs_spin(results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'avg_std', 'spin', **kwargs)
+def std_vs_spin(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'std', 'spin', plotrc=plotrc, **kwargs)
+    return fig
+def avg_vs_spin(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'avg', 'spin', plotrc=plotrc, **kwargs)
+    return fig
+def avg_std_vs_spin(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'avg_std', 'spin', plotrc=plotrc, **kwargs)
+    return fig
 
-def res_study_std(results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'std', 'res', **kwargs)
-def res_study_avg(results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'avg', 'res', **kwargs)
-def res_study_avg_std(results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'avg_std', 'res', **kwargs)
+def res_study_std(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'std', 'res', plotrc=plotrc, **kwargs)
+    return fig
+def res_study_avg(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'avg', 'res', plotrc=plotrc, **kwargs)
+    return fig
+def res_study_avg_std(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'avg_std', 'res', plotrc=plotrc, **kwargs)
+    return fig
 
 # TODO dump. Radial stuff
 def default_radial_averages(results, kwargs):

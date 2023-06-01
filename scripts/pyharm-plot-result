@@ -56,9 +56,7 @@ def plot_results(to_plot_str, paths, **kwargs):
     """Plot a result or set of results in a standard form, usually the contents of one or more
     analyses done by pyharm-analysis.
 
-    Current plots: eh_fluxes,radial_averages_window,radial_fluxes_window,disk_momentum
-
-    Usage: pyharm-plot-result  list,of,names folder1 [folder2]
+    Usage: pyharm-plot-result plot_type [options] folder1 [folder2]
     """
     to_plot = to_plot_str.split(",")
     if kwargs['varlist'] is not None:
@@ -95,10 +93,15 @@ def plot_results(to_plot_str, paths, **kwargs):
         kwargs['tag'] += "_"
     # User tag, then fn, then extension
     print(results.keys())
-    if kwargs['pdf']:
-        plt.savefig(kwargs['tag']+results['.'].tag+".pdf", dpi=200)
+    if len(results.keys()) == 1:
+        out_name = kwargs['tag']+to_plot_str+results['.'].tag
     else:
-        plt.savefig(kwargs['tag']+results['.'].tag+".png", dpi=200)
+        out_name = kwargs['tag']+to_plot_str
+
+    if kwargs['pdf']:
+        plt.savefig(out_name+".pdf", dpi=200)
+    else:
+        plt.savefig(out_name+".png", dpi=200)
     plt.close(fig)
 
 if __name__ == "__main__":
