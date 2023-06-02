@@ -95,6 +95,7 @@ class ExtensibleCmd(click.Command):
 @click.option('--ymax', default=None, help="Window Y maximum.")
 @click.option('--log_r', is_flag=True, help="Make the plots logarithmic in radius.")
 @click.option('--overlay_field', is_flag=True, help="Overlay field lines.")
+@click.option('--nlines', default=20, help="Number of total field lines to overlay.")
 @click.option('--overlay_grid', is_flag=True, help="Overlay simulation zone borders.")
 @click.option('--native', is_flag=True, help="Plot in native coordinates X1,X2,X3 rather than converting to Cartesian.")
 @click.option('--bh/--no-bh', default=True, help="Whether to show the BH shadow.")

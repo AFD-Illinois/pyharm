@@ -129,7 +129,19 @@ def r_flux_profiles(dump, out, vars=('FM', 'FE', 'FL'), **kwargs):
             out['r/' + var + '_all'] = out['rt/' + var + '_all']
             out['r/' + var + '_disk'] = out['rt/' + var + '_disk']
 
-# TODO more rth profiles, gather those
+def slices(dump, out, **kwargs):
+    """Capture midplane, poloidal, and accretion-region slices of the original primitive variables.
+    """
+
+    out['thphit/i5.prims'] = np.squeeze(dump[5, :, :]['prims'])
+    i5m = i_of(dump['r1d'], 5)
+    out['thphit/5M.prims'] = np.squeeze(dump[i5m, :, :]['prims'])
+
+    out['rtht/i0.prims'] = np.squeeze(dump[:, :, 0]['prims'])
+    out['rtht/iN_2.prims'] = np.squeeze(dump[:, :, dump['n3']//2-1]['prims'])
+
+    out['rphit/iN_2.prims'] = np.squeeze(dump[:, dump['n2']//2-1, :]['prims'])
+
 
 def th_profiles(dump, out, vars=('inv_beta', 'sigma'), **kwargs):
     """Calculate any full-theta profiles: 5-zone radial averages starting from 'rTh' (also averaged in phi).

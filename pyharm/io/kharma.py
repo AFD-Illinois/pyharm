@@ -207,10 +207,11 @@ class KHARMAFile(DumpFile):
         if var == "prims" or var == "cons":
             # Reshape rho to 4D by adding a rank in front for prim index
             # TODO THIS DOES NOT WORK FOR KHARMA HARM-DRIVER RESTARTS
-            all_vars = self.read_var(var+'.rho')[np.newaxis, Ellipsis]
+            kwargs = {'astype': astype, 'slc': slc, 'fail_if_not_found': fail_if_not_found}
+            all_vars = self.read_var(var+'.rho', **kwargs)[np.newaxis, Ellipsis]
             for v2 in self.var_names_ordered[1:]:
                 try:
-                    new_var = self.read_var(v2)
+                    new_var = self.read_var(v2, **kwargs)
                     if len(new_var.shape) < len(all_vars.shape):
                         # Reshape to 4D if needed to append
                         new_var = new_var[np.newaxis, Ellipsis]

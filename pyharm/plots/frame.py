@@ -109,9 +109,10 @@ def frame(fname, diag, kwargs):
         for key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax',
                     'left', 'right', 'top', 'bottom', 'wspace', 'hspace'):
             # Should be floats or none
-            if kwargs[key] is not None and kwargs[key].lower() != "none":
+            try:
                 plotrc[key] = float(kwargs[key])
-            else:
+            except TypeError:
+                # Make everything else None
                 plotrc[key] = None
         for key in ('at', 'nlines'):
             # Should be ints
@@ -194,7 +195,7 @@ def frame(fname, diag, kwargs):
                     plotrc['vmax'] = 1.5
 
             if "log_" in movie_type:
-                var = var.replace("log_","")
+                movie_type = movie_type.replace("log_","")
                 plotrc['log'] = True
 
             # Various options 
