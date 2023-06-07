@@ -102,10 +102,18 @@ def smoothed(a, window_sz=101):
     """A potentially reasonably fast smoothing operation.
     Averages only available data, i.e. only half window-size at edges.
     """
+    window_sz = min(window_sz, len(a))
     ret = np.array([np.mean(a[:n+window_sz//2]) for n in range(1,window_sz//2+1)])
     ret = np.append(ret, np.convolve(a, np.ones(window_sz), 'valid') / window_sz)
     ret = np.append(ret, np.array([np.mean(a[-n-window_sz//2:]) for n in range(1,window_sz//2+1)]))
     return ret
+
+def _get_mdot(diag):
+    try:
+        # Get mass flux at r=5 to avoid floor effects
+        return np.abs(diag.get_dvar('rt','FM_disk')[:, i_of(diag['r'], 5)])
+    except IOError:
+        return np.abs(diag['Mdot'])
 
 class AnaResults(object):
     """Tools for dealing with the results computed by scripts/pyharm-analysis.
@@ -158,8 +166,7 @@ class AnaResults(object):
                  'Edot': lambda diag: diag['Edot_EH'],
                  'Ldot': lambda diag: diag['Ldot_EH']}
     # How to load from analysis results
-    diags_ana = {#'mdot': lambda diag: np.abs(diag['Mdot'])
-                 'mdot': lambda diag: np.abs(diag.get_dvar('rt','FM_disk')[:, i_of(diag['r'], 5)]) # Get mass flux at r=5 to avoid floor effects
+    diags_ana = {'mdot': lambda diag: _get_mdot(diag),
                 }
 
     def __init__(self, fname, tag=""):

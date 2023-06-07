@@ -90,6 +90,9 @@ fns_dict = {# 4-vectors
             'jcov': lambda dump: dump.grid.lower_grid(dump['jcon']),
             'jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']),
             'Jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,
+            # Split version, differs by constant
+            #'J': lambda dump: dump['jcon'] + dump.grid.dot(dump['jcon'], dump['ucov']) * dump['ucon'],
+            #'Jsq': lambda dump: dump['J'][1]**2 + dump['J'][2]**2 + dump['J'][3]**2,
             'b': lambda dump: np.sqrt(dump['bsq']),
             'Gamma': lambda dump: lorentz_calc(dump),
             'betagamma': lambda dump: np.sqrt((dump['FE'] / dump['FM'])**2 - 1),
@@ -241,7 +244,7 @@ def lam_MRI_old(dump):
     return (2*np.pi)/(dump['u^3']/dump['u^0']) * dump['b^th']/np.sqrt(dump['rho'] + dump['u'] + dump['p'] + dump['bsq'])
 
 def alfven_speed(dump):
-    return dump['b']/np.sqrt(4*np.pi*dump['rho'])
+    return dump['b']/np.sqrt(dump['rho'])
 
 def lam_MRI(dump):
     return dump['vA'] / (dump['u^3']/dump['u^0'])

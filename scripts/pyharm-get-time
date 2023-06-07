@@ -9,5 +9,9 @@ import pyharm
 @click.argument('fnames', nargs=-1, type=click.Path(exists=True))
 @click.version_option(package_name='pyharm')
 def get_time(fnames):
+    print("Getting {} times".format(len(fnames)))
     for fname in fnames:
-        print(pyharm.io.get_dump_time(fname))
+        print(pyharm.io.get_dump_time(fname), file=sys.stderr)
+
+if __name__ == "__main__":
+    get_time()

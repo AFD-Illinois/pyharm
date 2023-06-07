@@ -59,6 +59,9 @@ def pcolormesh_symlog(ax, X, Y, Z, vmax=None, vmin=None, linthresh=None, decades
             vmin = -vmax
             #print("Using automatic range {} to {}".format(vmin, vmax))
     else:
+        # Allow specifying vmin/vmax as if everything was positive
+        if vmin is not None and vmin*vmax > 0:
+            decades = np.log10(vmax/vmin)
         vmin = -vmax
 
     int_min_pow, int_max_pow = int(np.ceil(np.log10(-vmin))), int(np.ceil(np.log10(vmax)))

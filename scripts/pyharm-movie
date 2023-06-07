@@ -144,15 +144,15 @@ def movie(movie_types, paths, **kwargs):
         out_path = os.path.abspath(kwargs['output_dir'])
 
     for path in path_dirs:
+        if path is None:
+            # We passed in a bunch of files as one movie
+            files = paths
         # If a path...
-        if os.path.isdir(path):
+        elif os.path.isdir(path):
             # change dir to path we want to image
             os.chdir(path)
             # Try to load known filenames
             files = pyharm.io.get_fnames(".", prefer_iharm3d=kwargs['prefer_iharm3d'])
-        elif path is None:
-            # We passed in a bunch of files as one movie
-            files = paths
         else:
             # One file amid directories
             files = [path]

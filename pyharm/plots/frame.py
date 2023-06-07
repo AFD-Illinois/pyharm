@@ -145,7 +145,10 @@ def frame(fname, diag, kwargs):
             plotrc['window'] = (plotrc['xmin'], plotrc['xmax'], plotrc['ymin'], plotrc['ymax'])
             user_window = True
         elif sz is not None:
-            plotrc['window'] = (-sz, sz, -sz, sz)
+            if "1d" in movie_type:
+                plotrc['window'] = (1.0, sz)
+            else:
+                plotrc['window'] = (-sz, sz, -sz, sz)
         else:
             plotrc['window'] = None
 
@@ -187,13 +190,6 @@ def frame(fname, diag, kwargs):
                             'cbar': False, 'frame': False})
                 movie_type = movie_type.replace("_simple","")
 
-            # Set "rho" movies to have a consistent colorbar
-            if "log_rho" in movie_type:
-                if plotrc['vmin'] is None:
-                    plotrc['vmin'] = -4
-                if plotrc['vmax'] is None:
-                    plotrc['vmax'] = 1.5
-
             if "log_" in movie_type:
                 movie_type = movie_type.replace("log_","")
                 plotrc['log'] = True
@@ -218,7 +214,13 @@ def frame(fname, diag, kwargs):
                 ax.plot(dump['r1d'], vardata) # TODO some kind of radial_plot back in plot_dumps?
 
                 ax.set_ylim((plotrc['vmin'], plotrc['vmax']))
+                if plotrc['log']:
+                    ax.set_yscale('log')
+                ax.set_xlim((plotrc['window'][0], plotrc['window'][1]))
+                if plotrc['log_r']:
+                    ax.set_xscale('log')
                 # TODO multiple variables w/user title?
+                ax.grid(True, axis='both')
                 ax.set_title(pretty(var))
             elif "_1d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
@@ -227,10 +229,12 @@ def frame(fname, diag, kwargs):
                 ax.plot(sec['r1d'], sec[var]) # TODO some kind of radial_plot back in plot_dumps?
 
                 ax.set_ylim((plotrc['vmin'], plotrc['vmax']))
+                if plotrc['log']:
+                    ax.set_yscale('log')
                 ax.set_xlim((plotrc['window'][0], plotrc['window'][1]))
                 if plotrc['log_r']:
                     ax.set_xscale('log')
-                # TODO multiple variables w/user title?
+                ax.grid(True, axis='both')
                 ax.set_title(pretty(var))
             else:
                 ax_slc = [plt.subplot(1, 2, 1), plt.subplot(1, 2, 2)]

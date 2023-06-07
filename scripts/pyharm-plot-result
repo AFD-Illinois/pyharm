@@ -82,6 +82,7 @@ def plot_results(to_plot_str, paths, **kwargs):
             fig = result_figures.__dict__[plotname](results, kwargs=kwargs)
         else:
             print("ERROR: Cannot make plot: {}".format(plotname))
+            exit(-1)
 
     # Any other closing/format stuff. PDF format, etc, etc
     for ax in fig.get_axes():
