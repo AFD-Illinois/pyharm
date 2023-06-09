@@ -385,7 +385,7 @@ class Grid:
                                          gcon[CENT, mu, mu] * gcon[CENT, 0, 0] >= 0.,
                                          light_phase_speed, 1e-20)
 
-            dt_light_local += 1. / (self.dx[mu] / light_phase_speed)
+            dt_light_local += 1. / (self.dx[mu] / np.squeeze(light_phase_speed))
 
         dt_light_local = 1. / dt_light_local
 
