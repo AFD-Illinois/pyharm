@@ -226,12 +226,13 @@ def frame(fname, diag, kwargs):
                 ax = plt.subplot(1, 1, 1)
                 var = movie_type.replace("_1d","")
                 sec = dump[:, 0, 0]
-                ax.plot(sec['r1d'], sec[var]) # TODO some kind of radial_plot back in plot_dumps?
+                ax.plot(sec['r1d'], np.squeeze(sec[var])) # TODO some kind of radial_plot back in plot_dumps?
 
                 ax.set_ylim((plotrc['vmin'], plotrc['vmax']))
                 if plotrc['log']:
                     ax.set_yscale('log')
-                ax.set_xlim((plotrc['window'][0], plotrc['window'][1]))
+                if plotrc['window'] is not None:
+                    ax.set_xlim((plotrc['window'][0], plotrc['window'][1]))
                 if plotrc['log_r']:
                     ax.set_xscale('log')
                 ax.grid(True, axis='both')

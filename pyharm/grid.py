@@ -520,7 +520,7 @@ class Grid:
         elif key[:7] == 'pcoord_':
             return key[8:] in self
         elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z', 'X1', 'X2', 'X3',
-                     'dXdx', 'dxdX', 'dxdX_cart', 'dXdx_cart', 'dxdX_bl', 'dXdx_bl', 'gcon_ks', 'gcov_ks'):
+                     'dXdx', 'dxdX', 'dxdX_cart', 'dXdx_cart', 'dxdX_bl', 'dXdx_bl', 'gcon_ks', 'gcov_ks', 'gcon_bl', 'gcov_bl'):
             return True
         else:
             return False
@@ -607,7 +607,9 @@ class Grid:
 
         elif key in ['n1', 'n2', 'n3']:
             return self.NTOT[int(key[-1:])]
-        elif key in ['r', 'th', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart', 'dXdx_bl', 'dxdX_bl', 'gcon_ks', 'gcov_ks']:
+        elif key in ['dx1', 'dx2', 'dx3']:
+            return self.dx[int(key[-1:])]
+        elif key in ['r', 'th', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart', 'dXdx_bl', 'dxdX_bl', 'gcon_ks', 'gcov_ks', 'gcon_bl', 'gcov_bl']:
             # These keys are symmetric in phi, so we cache/return 2D versions
             self.cache[key] = getattr(self.coords, key)(self.coord_ij())
             return self.cache[key]
@@ -633,10 +635,13 @@ class Grid:
         elif key in ['X3']:
             return self.coord_all()[int(key[-1:])]
 
-        # Finally, any of our attributes.  This is to allow overriding with the above
+        # Finally, any of our attributes or coords attributes
+        # These are last to allow overriding with the above
         elif key in self.__dict__:
             # Return anything we have a member for
             return self.__dict__[key]
+        elif key in self.coords.__dict__:
+            return self.coords.__dict__[key]
 
         else:
             raise ValueError("Grid cannot find or compute {}".format(key))

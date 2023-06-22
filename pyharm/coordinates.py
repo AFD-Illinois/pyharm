@@ -173,6 +173,12 @@ class CoordinateSystem(object):
         """
         return self.gcon_from_gcov(self.gcov_ks(x))
 
+    def gcov_bl(self, x):
+        return self.get_bl().gcov(x)
+    
+    def gcon_bl(self, x):
+        return self.gcon_from_gcov(self.gcov_bl(x))
+
     def gcov(self, x):
         """Covariant metric in native coordinates at some native location 4-vector X"""
         gcov_ks = self.gcov_ks(x)
