@@ -135,7 +135,7 @@ def file_reader(fname, **kwargs):
     You can override it by just constructing a filter of your desired type.
     :param fname: A filename (or HDF5 file handle)
 
-    Note that you can use this more easily through the FluidDump object
+    Note that you can use this more easily through the FluidState object
     """
     # This gets the class with _get_filter(fname),
     # and the subsequent call (fname) constructs one

@@ -35,7 +35,7 @@ __license__ = """
 import sys
 import numpy as np
 
-from ..fluid_dump import FluidDump
+from ..fluid_state import FluidState
 from . import analyses
 
 __doc__ = \
@@ -73,7 +73,7 @@ def write_ana_dict(out, out_full, n, n_dumps):
 def analyze(args):
     fname, kwargs = args
     out = {}
-    dump = FluidDump(fname)
+    dump = FluidState(fname)
     ana_types = kwargs['ana_types'].split(",")
     # Always start with "basic" as it's got some things we'll need
     if ana_types[0] != "basic":

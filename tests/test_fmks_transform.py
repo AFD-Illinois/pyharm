@@ -64,7 +64,7 @@ def test_fmks_functions():
     X = G.coord(11,12,13)
     rhp = np.squeeze(G.coords.ks_coord(X))
     assert compare(rhp, np.array([1.488590864996909, 0.7666458987406977, 0.4417864669110646]))
-    # Also test the __getitem__ versions we would call through to from a FluidDump
+    # Also test the __getitem__ versions we would call through to from a FluidState
     # Note 'r' and 'th' are length-1 in the last index to save memory & are intended to be broadcast
     rhp = np.array((G['r'][11,12,0], G['th'][11,12,0], G['phi'][11,12,13]))
     assert compare(rhp, np.array([1.488590864996909, 0.7666458987406977, 0.4417864669110646]))

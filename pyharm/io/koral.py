@@ -41,7 +41,7 @@ from .iharm3d_header import read_hdr
 
 class KORALFile(DumpFile):
     """File filter class for KORAL dump files.  Usually used through
-    file-agnostic interface: see file_reader and the FluidDump class for details.
+    file-agnostic interface: see file_reader and the FluidState class for details.
     """
 
     @classmethod

@@ -40,7 +40,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from .. import io
-from ..fluid_dump import FluidDump
+from ..fluid_state import FluidState
 
 from . import figures
 from .plot_dumps import *
@@ -100,7 +100,7 @@ def frame(fname, diag, kwargs):
 
     # This just attaches the file and creates a grid.  We do need to specify
     # if any movie will need ghosts, for the index math
-    dump = FluidDump(fname, ghost_zones=ghost_zones, grid_cache=(not kwargs['no_grid_cache']))
+    dump = FluidState(fname, ghost_zones=ghost_zones, grid_cache=(not kwargs['no_grid_cache']))
 
     for movie_type in movie_types:
         # Set plotting options we'll pass on to figure-specific code

@@ -20,7 +20,7 @@ Plotting from Analysis Results
 .. automodule:: pyharm.plots.plot_results
    :members:
 
-Plotting Emission Origin and Non-``FluidDump`` Data
+Plotting Emission Origin and Non-``FluidState`` Data
 ---------------------------------------------------
 
 .. automodule:: pyharm.plots.origin

@@ -76,17 +76,23 @@ class CoordinateSystem(object):
         """
         raise NotImplementedError
 
-    def ks_coord(self, x):
+    def ks_coord(self, x, fourv=False):
         """Return Spherical Kerr-Schild or Minkowski coordinates corresponding to a point X in native coordinates.
         Individual coordinates below.
         """
-        return np.array([self.r(x), self.th(x), self.phi(x)])
+        if fourv:
+            return np.array([np.zeros_like(self.r(x)), self.r(x), self.th(x), self.phi(x)])
+        else:
+           return np.array([self.r(x), self.th(x), self.phi(x)])
 
-    def cart_coord(self, x):
+    def cart_coord(self, x, fourv=False):
         """Return Cartesian Kerr-Schild or Minkowski coordinates corresponding to a point X in native coordinates.
         Individual coordinates below.
         """
-        return np.array([self.cart_x(x), self.cart_y(x), self.cart_z(x)])
+        if fourv:
+            return np.array([np.zeros_like(self.cart_x(x)), self.cart_x(x), self.cart_y(x), self.cart_z(x)])
+        else:
+            return np.array([self.cart_x(x), self.cart_y(x), self.cart_z(x)])
 
     def get_bl(self):
         """Return a Boyer-Lindquist coordinate system with the same black hole spin.
@@ -174,7 +180,7 @@ class CoordinateSystem(object):
         return self.gcon_from_gcov(self.gcov_ks(x))
 
     def gcov_bl(self, x):
-        return self.get_bl().gcov(x)
+        return self.get_bl().gcov(self.ks_coord(x, True))
     
     def gcon_bl(self, x):
         return self.gcon_from_gcov(self.gcov_bl(x))
@@ -249,7 +255,7 @@ class CoordinateSystem(object):
         raise NotImplementedError
     
     def dxdX_bl(self, x):
-        return self.get_bl().dxdX(x)
+        return self.get_bl().dxdX(self.ks_coord(x, True))
 
     # Just take an inverse over first (!) 2 indices
     def dXdx(self, x):

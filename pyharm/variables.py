@@ -38,8 +38,14 @@ __doc__ = \
 
 import numpy as np
 
+from numpy import array
+from scipy.interpolate import splrep, splev
+from scipy.interpolate import RegularGridInterpolator as rgi
+
 from .defs import Loci
 from .grmhd.b_field import *
+
+import matplotlib.pyplot as plt
 
 # Define a dict of names, coupled with the functions required to obtain their variables.
 # That way, we only need to specify lists and final operations in eht_analysis,
@@ -65,11 +71,28 @@ fns_dict = {# 4-vectors
             'ucov_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dXdx_bl'], dump['ucov_base']),
             'bcon_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dxdX_bl'], dump['bcon_base']),
             'bcov_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dXdx_bl'], dump['bcov_base']),
-            # Miscallany!
-            'bsq': lambda dump: dump.grid.dot(dump['bcov'], dump['bcon']),
-            'sigma': lambda dump: dump['bsq'] / dump['RHO'],
+            # Renaming
             'u': lambda dump: dump['UU'],
+            'p': lambda dump: dump['Pg'],
+            'T': lambda dump: dump['Theta'],
+            # Fluid parameters: B, pressure, temperature
+            'bsq': lambda dump: dump.grid.dot(dump['bcov'], dump['bcon']),
+            'b': lambda dump: np.sqrt(dump['bsq']),
+            'Pg': lambda dump: (dump['gam'] - 1.) * dump['UU'],
+            'Pb': lambda dump: dump['bsq'] / 2,
+            'Ptot': lambda dump: dump['Pg'] + dump['Pb'],
+            'beta': lambda dump: dump['Pg'] / dump['Pb'],
+            'sigma': lambda dump: dump['bsq'] / dump['RHO'],
+            'Theta': lambda dump: (dump['gam'] - 1) * dump['UU'] / dump['RHO'],
+            # entropy
+            'K': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),
             'h': lambda dump: enthalpy(dump),
+            # Speeds
+            'Gamma': lambda dump: lorentz_calc(dump),
+            'cs': lambda dump: np.sqrt(dump['gam'] * dump['Pg'] / (dump['RHO'] + dump['gam'] * dump['UU'])),
+            'vA': lambda dump: alfven_speed(dump),
+            # TODO magnetosonic, EMHD speed, effective timestep
+            # Fluxes in radial direction: Mass, Energy, Angular Momentum
             'FM': lambda dump: dump['RHO'] * dump['ucon'][1],
             'FE': lambda dump: -T_mixed(dump, 1, 0),
             'FE_EM': lambda dump: -TEM_mixed(dump, 1, 0),
@@ -80,40 +103,36 @@ fns_dict = {# 4-vectors
             'FL': lambda dump: T_mixed(dump, 1, 3),
             'FL_EM': lambda dump: TEM_mixed(dump, 1, 3),
             'FL_Fl': lambda dump: TFl_mixed(dump, 1, 3),
-            'Be_b': lambda dump: bernoulli(dump, with_B=True),
-            'Be_nob': lambda dump: bernoulli(dump, with_B=False),
-            'Pg': lambda dump: (dump['gam'] - 1.) * dump['UU'],
-            'p': lambda dump: dump['Pg'],
-            'Pb': lambda dump: dump['bsq'] / 2,
-            'Ptot': lambda dump: dump['Pg'] + dump['Pb'],
-            'beta': lambda dump: dump['Pg'] / dump['Pb'],
-            'jcov': lambda dump: dump.grid.lower_grid(dump['jcon']),
-            'jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']),
-            'Jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,
-            # Split version, differs by constant
-            #'J': lambda dump: dump['jcon'] + dump.grid.dot(dump['jcon'], dump['ucov']) * dump['ucon'],
-            #'Jsq': lambda dump: dump['J'][1]**2 + dump['J'][2]**2 + dump['J'][3]**2,
-            'b': lambda dump: np.sqrt(dump['bsq']),
-            'Gamma': lambda dump: lorentz_calc(dump),
-            'betagamma': lambda dump: np.sqrt((dump['FE'] / dump['FM'])**2 - 1),
-            'Theta': lambda dump: (dump['gam'] - 1) * dump['UU'] / dump['RHO'],
-            'Thetap': lambda dump: (dump['gam_p'] - 1) * dump['UU'] / dump['RHO'],
-            'Thetae': lambda dump: (dump['gam_e'] - 1) * dump['UU'] / dump['RHO'],
-            'Thetae_rhigh': lambda dump: thetae_rhigh(dump),
+            # Energy current
             'JE0': lambda dump: -T_mixed(dump, 0, 0),
             'JE1': lambda dump: -T_mixed(dump, 1, 0),
             'JE2': lambda dump: -T_mixed(dump, 2, 0),
+            # Bernoulli parameter
+            'Be_b': lambda dump: bernoulli(dump, with_B=True),
+            'Be_nob': lambda dump: bernoulli(dump, with_B=False),
+            'betagamma': lambda dump: np.sqrt((dump['FE'] / dump['FM'])**2 - 1),
+            # Luminosity proxy (Porth et al '19)
+            'lumproxy': lambda dump: lum_proxy(dump),
+            # Jet area measure
+            'jet_psi': lambda dump: jet_psi(dump),
+            # Current
+            'jcov': lambda dump: dump.grid.lower_grid(dump['jcon']),
+            'jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']),
+            'Jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,
+            # Diagnostics
             'lam_MRI': lambda dump: lam_MRI(dump),
             'lam_MRI_old': lambda dump: lam_MRI_old(dump),
             'lam_MRI_transform': lambda dump: lam_MRI_transform(dump),
-            'vA': lambda dump: alfven_speed(dump),
-            'jet_psi': lambda dump: jet_psi(dump),
             'divB_prims': lambda dump: divB(dump.grid, dump['B']),
             'divB_cons': lambda dump: divB_cons(dump.grid, dump['cons.B']),
-            'lumproxy': lambda dump: lum_proxy(dump),
+            # Electrons: largely need units
+            'Thetap': lambda dump: (dump['gam_p'] - 1) * dump['UU'] / dump['RHO'],
+            'Thetae': lambda dump: (dump['gam_e'] - 1) * dump['UU'] / dump['RHO'],
+            'Thetae_rhigh': lambda dump: thetae_rhigh(dump),
+            # TODO: electron temps from file, maybe as parsed?
             'jI': lambda dump: jnu(dump),
-            'K': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),
-            'cs': lambda dump: np.sqrt(dump['gam'] * dump['Pg'] / (dump['RHO'] + dump['gam'] * dump['UU'])),
+            # Extended MHD variables
+            'dP0': lambda dump: braginskii_dP(dump)
             }
 
 ## Physics functions ##
@@ -288,6 +307,63 @@ def jnu(dump, nu=230e9, theta=np.pi/3):
     j[nu > 1.e12 * nus] = 0.
     return j / nu**2
 
+def braginskii_dP(state, delta=1.e-5):
+    """Braginskii pressure anisotropy"""
+
+    dP0         = np.zeros_like(state['rho'])
+
+    # Compute derivatives of 4-velocity
+    x11    = state['X1'][:,0,0]
+    x21    = state['X2'][0,:,0]
+    x31    = state['X3'][0,0,:]
+    x1p    = state['X1']
+    x2p    = state['X2']
+    x3p    = state['X3']
+    x1hp   = x1p + delta
+    x1lp   = x1p - delta
+    if state['n3'] > 1:
+        og_points = (x11,x21,x31)
+        h_points = (x1hp,x2p,x3p)
+        l_points = (x1lp,x2p,x3p)
+    elif state['n2'] > 1:
+        og_points = (x11, x21)
+        h_points = (x1hp,x2p)
+        l_points = (x1lp,x2p)
+    else:
+        og_points = (x11,)
+        h_points = (x1hp,)
+        l_points = (x1lp,)
+
+    # TODO this may not do 2/3D gracefully
+    ucovt_interp = rgi(og_points, state['ucov'][0], bounds_error=False, fill_value=None)
+    ucovt_h = ucovt_interp(h_points)[:,:,:,0]
+    ucovt_l = ucovt_interp(l_points)[:,:,:,0]
+    ucovr_interp = rgi(og_points, state['ucov'][1], bounds_error=False, fill_value=None)
+    ucovr_h = ucovr_interp(h_points)[:,:,:,0]
+    ucovr_l = ucovr_interp(l_points)[:,:,:,0]
+
+    ducovDx1 = np.zeros_like(state['ucov']) # Represents d_x1(u_\mu)
+    ducovDx1[0] = (ucovt_h - ucovt_l) / (2*delta)
+    ducovDx1[1] = (ucovr_h - ucovr_l) / (2*delta)
+
+    for mu in range(4):
+        for nu in range(4):
+            bcon_munu = (state['bcon'][mu]*state['bcon'][nu] / state['bsq'])
+            if mu == 1:
+                dP0 += 3 * state['eta'] * bcon_munu * ducovDx1[nu]
+
+            for sigma in range(4):
+                dP0 += (3 * state['eta'] * bcon_munu) * -state['conn'][sigma, mu, nu] * state['ucov'][sigma]
+
+        if mu == 1:
+            for sigma in range(4):
+                dP0 += -state['eta'] * ducovDx1[sigma] * state['gcon'][mu, sigma]
+
+        for sigma in range(4):
+            for delta in range(4):
+                dP0 += state['eta'] * state['conn'][sigma, mu, delta] * state['gcon'][mu, delta] * state['ucov'][sigma]
+
+    return dP0
 
 ## Internal functions ##
 

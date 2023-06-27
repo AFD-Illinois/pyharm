@@ -1,5 +1,5 @@
 __license__ = """
- File: fluid_dump.py
+ File: fluid_state.py
  
  BSD 3-Clause License
  
@@ -49,17 +49,17 @@ The object serves as a cohesive interface for any data or calculations concernin
 """
 
 def load_dump(fname, **kwargs):
-    """Wrapper to create a new FluidDump object using the given file
+    """Wrapper to create a new FluidState object using the given file
     """
-    return FluidDump(fname, **kwargs)
+    return FluidState(fname, **kwargs)
 
-class FluidDump:
+class FluidState:
     """Read and cache data from a fluid dump file in any supported format, and allow accessing
     various derived properties directly.
     """
 
-    def __init__(self, fname, tag="", ghost_zones=False, grid_cache=True, cache_conn=False, units=None, add_grid=True, params=None):
-        """Attach the fluid dump file 'fname' and make its contents accessible like a dictionary.  For a list of some
+    def __init__(self, data_source, tag="", ghost_zones=False, add_grid=True, use_grid_cache=True, cache_conn=False, grid=None, units=None, params=None):
+        """Attach the fluid dump file 'data_source' and make its contents accessible like a dictionary.  For a list of some
         variables and properties accessible this way, see the README.
 
         Fluid dumps can be sliced like arrays!  That is, ``dump[i,j,k]['var_name']`` will read or compute ``'var_name'`` only for the
@@ -74,41 +74,63 @@ class FluidDump:
         Generally this will just behave how you want, but it can be confusing if you're really digging around.  If you have the memory,
         you can use ``copy.copy`` or ``copy.deepcopy`` to be certain.
 
-        :param fname: file name or path to dump
+        :param data_source: file name or path to dump, OR dictionary with 
         :param tag: any string, usually long name of dump/model for plotting
         :param ghost_zones: Load ghost zones when reading from a dump file
-        :param grid_cache: Cache geometry values in the grid file.  These are *not* yet automatically added,
+        :param add_grid: Whether to construct a Grid object at all.  Only used for copy construction.
+        :param use_grid_cache: Cache geometry values in the grid file.  These are *not* yet automatically added,
                            so keep this True unless plotting a very simple variable
         :param cache_conn: Cache the connection coefficients at zone centers. Default off as memory-intensive and rarely needed
+        :param grid: used to pass in a ``Grid`` object directly (rarely needed).  Used instead of constructing a grid with previous parameters.
         :param units: a 'Units' object representing a physical scale for the dump (density M_unit and BH mass MBH)
-        :param add_grid: Whether to construct a Grid object at all.  Only used for copy construction.
         :param params: dictionary of parameters. Only used for copy construction.
         """
-        self.fname = fname
+
+        # This chooses an importer based on what we know of filenames/structures
+        if isinstance(data_source, str):
+            self.fname = data_source
+            self.reader = io.file_reader(data_source, params=params, ghost_zones=ghost_zones)
+        else:
+            self.fname = "memory_array"
+
         if tag == "":
-            self.tag = fname
+            self.tag = self.fname
         else:
             self.tag = tag
-        self.units = units
 
-        # Choose an importer based on what we know of filenames
-        self.reader = io.file_reader(fname, params=params, ghost_zones=ghost_zones)
         if params is None:
-            self.params = self.reader.params
-        else:
+            try:
+                self.params = self.reader.params
+            except AttributeError as e:
+                print("No parameters provided for in-memory fluid state.  Are you sure?")
+        else: # TODO extend?
             self.params = params
-        self.cache = {}
-        self.slice = ()
-        if add_grid:
-            self.grid = Grid(self.params, caches=grid_cache, cache_conn=cache_conn)
+        self.units = units
+        
+        if isinstance(data_source, dict):
+            self.cache = data_source
         else:
-            self.grid = None
+            self.cache = {}
+
+        if grid is None:
+            if add_grid:
+                self.grid = Grid(self.params, caches=use_grid_cache, cache_conn=cache_conn)
+            else:
+                self.grid = None
+        else:
+            self.grid = grid
+        
+        self.slice = ()
 
     def __del__(self):
         # Try to clean up what we can. Anything that may possibly not be a simple ref
         for cache in ('cache', 'units', 'params', 'grid'):
             if cache in self.__dict__:
                 del self.__dict__[cache]
+
+    def set_grid(self, grid):
+        """Set the coordinate grid to be used by this FluidState.  Dimensions must match backing file's dimensions"""
+        self.grid = grid
 
     def set_units(self, MBH, M_unit):
         """Associate a scale & units with this dump, for calculating scale-dependent quantities in CGS.
@@ -124,7 +146,7 @@ class FluidDump:
         """Get any of a number of different things from the backing dump file, or from a cached version.
         The full list of keys is covered in depth in the documentation at :ref:`keys`.
 
-        Also allows slicing FluidDump objects to get just a section, and read/operate on just that section
+        Also allows slicing FluidState objects to get just a section, and read/operate on just that section
         thereafter. This supports only a small subset of slicing operations:  you must pass a tuple of three
         elements, all of which must either be integers or slice objects (not None).
         Due to overloading, it is thus impossible to allow requesting lists of variables at once.
@@ -147,8 +169,8 @@ class FluidDump:
 
             # TODO somehow proper copy constructor
             slc = tuple(new_slc)
-            #print("FluidDump slice copy: ", self.cache, key)
-            out = FluidDump(self.fname, add_grid=False, params=self.params, units=self.units)
+            #print("FluidState slice copy: ", self.cache, key)
+            out = FluidState(self.fname, add_grid=False, params=self.params, units=self.units)
             #out = copy.deepcopy(self) # In case this proves faster
             for c in self.cache:
                 out.cache[c] = self.cache[c][(Ellipsis,) + slc]
@@ -259,10 +281,10 @@ class FluidDump:
                 # TODO Option for double
                 out = self.reader.read_var(key, astype=np.float64, slc=self.slice)
             if out is None:
-                raise ValueError("FluidDump cannot find or compute {}".format(key))
+                raise ValueError("FluidState cannot find or compute {}".format(key))
             else:
                 return out
 
-        raise RuntimeError("Reached the end of FluidDump.__getitem__, should have returned a value!")
+        raise RuntimeError("Reached the end of FluidState.__getitem__, should have returned a value!")
 
 

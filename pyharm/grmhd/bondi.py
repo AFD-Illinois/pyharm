@@ -32,12 +32,18 @@ __license__ = """
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import copy
+
 import numpy as np
 from scipy import optimize
 from scipy.interpolate import splrep, splev
 from scipy.integrate import odeint, solve_ivp
 
 from pyharm.defs import Loci
+from pyharm.grid import Grid
+from pyharm.grmhd.init_tools import *
+from pyharm.fluid_state import FluidState
+from pyharm.variables import braginskii_dP
 
 __doc__ = \
 """Compute the Bondi solution, and viscous extensions.
@@ -47,23 +53,24 @@ Originally from a script by Vedant Dhruv
 ############### COMPUTE ANALYTIC IDEAL BONDI SOLUTION ###############
 
 # Nonlinear expression to solve for T
-def T_func(T, r, C3, C4, N):
+def _T_func(T, r, C3, C4, N):
     return (1 + (1 + N/2)*T)**2 * (1 - 2./r + (C4**2/(r**4 * T**N))) - C3
 
 # Obtain primitives for Bondi problem
-def get_bondi_soln(mdot, rc, gam, grid, add_fourv=True, add_dP=True):
+def get_bondi_soln(mdot, rc, gam, r_values):
     N    = 2./ (gam - 1)
     vc   = np.sqrt(1. / (2 * rc))
     csc  = np.sqrt(vc**2 / (1 - 3*vc**2))
     Tc   = 2*N*csc**2 / ((N + 2)*(2 - N*csc**2))
     C4   = Tc**(N/2)*vc*rc**2
     C3   = (1 + (1 + N/2)*Tc)**2 * (1 - 2./rc + vc**2)
+    K = (4*np.pi*C4 / mdot) ** (2./N)
 
     # Root find T
-    T = np.zeros_like(grid['r1d'])
-    for index, r in enumerate(grid['r1d']):
+    T = np.zeros_like(r_values)
+    for index, r in enumerate(r_values):
         T0       = Tc
-        sol      = optimize.root(T_func, [T0], args=(r, C3, C4, N))
+        sol      = optimize.root(_T_func, [T0], args=(r, C3, C4, N))
         T[index] = sol.x[0]
         if (sol.success!=True):
             print("Not converged at r = {:.2f}", r)
@@ -71,185 +78,108 @@ def get_bondi_soln(mdot, rc, gam, grid, add_fourv=True, add_dP=True):
     # Compute remaining fluid variables
     soln = {}
     soln['T'] = T
-    soln['v'] = -C4 / (T**(N/2) * grid['r1d']**2)
-    soln['K'] = (4*np.pi*C4 / mdot) ** (2./N)
 
-    soln['rho'] = soln['K']**(-N/2) * T**(N/2)
-    soln['u']   = (N/2) * soln['K']**(-N/2) * T**(N/2 + 1)
-
-    soln['mdot'] = mdot
-    soln['N']    = N
-    soln['rc']   = rc
-
-    if add_fourv:
-        compute_ub(soln, grid)
-    
-    if add_dP:
-        compute_dP0(soln, grid)
+    soln['rho'] = K**(-N/2) * T**(N/2)
+    soln['u']   = (N/2) * K**(-N/2) * T**(N/2 + 1)
+    soln['ur'] = -C4 / (T**(N/2) * r_values**2)
 
     return soln
 
-# Compute four vectors
-def compute_ub(soln, grid):
+def get_bondi_fluid_state(mdot, rc, gam, grid):
+    soln = get_bondi_soln(mdot, rc, gam, grid['r1d'])
 
-    # We have u^r in BL. We need to convert this to ucon in MKS
-    # First compute u^t in BL
-    ucon_bl = np.zeros((4, grid['n1'], grid['n2'], 1), dtype=float)
-    gcov_bl = grid['gcov_bl']
-    AA = gcov_bl[0,0]
-    BB = 2. * gcov_bl[0,1]*soln['v'][:,None]
-    CC = 1. + gcov_bl[1,1]*soln['v'][:,None]**2
-    
-    discr = BB*BB - 4.*AA*CC
-    ucon_bl[0] = (-BB - np.sqrt(discr)) / (2.*AA)
-    ucon_bl[1] = soln['v'][:,None]
-
+    # We have u^r in BL from the soln,
+    # which we must convert to primitive U1,2,3 in native coords
+    ucon_bl = np.zeros((4, grid['n1'], grid['n2'], grid['n3']), dtype=float)
+    ucon_bl[1] = soln['ur'][:,None,None]
+    set_fourvel_t(grid['gcov_bl'], ucon_bl)
     # Convert ucon(Bl) to ucon(KS)
-    dxdX = np.zeros((4, 4, grid['n1'], grid['n2'], 1), dtype=float)
-    dxdX[0,0] = dxdX[1,1] = dxdX[2,2] = dxdX[3,3] = 1.
-    dxdX[0,1] = 2*grid['r'] / (grid['r']**2 - 2.*grid['r'] + grid['a']**2)
-    dxdX[3,1] = grid['a']/(grid['r']**2 - 2.*grid['r'] + grid['a']**2)
-
-    ucon_ks = np.zeros_like(ucon_bl)
-    for mu in range(4):
-        for nu in range(4):
-            ucon_ks[mu] += dxdX[mu,nu] * ucon_bl[nu]
-
+    ucon_ks = np.einsum("ij...,j...->i...", grid['dXdx_bl'], ucon_bl)
     # Convert ucon(KS) to ucon(MKS/FMKS)
-    ucon_mks = np.zeros_like(ucon_bl)
-    dxdX = grid.coords.dxdX(grid.coord_ij())
-    for mu in range(4):
-        for nu in range(4):
-            ucon_mks[mu] += dxdX[mu,nu] * ucon_ks[nu]
-
-    gcov = grid['gcov'][Loci.CENT.value]
-    ucov_mks = np.einsum('mn...,n...->m...', gcov, ucon_mks)
-
-    # Compute velocity primitives
-    utilde = np.zeros((3, grid['n1'], grid['n2'], 1), dtype=float)
-
+    ucon_mks = np.einsum("i...,ij...->j...", ucon_ks, grid['dXdx'])
+    # Convert to primitive vars (TODO do I even need this?)
     gcon = grid['gcon'][Loci.CENT.value]
-    alpha = 1./np.sqrt(-gcon[0,0])
-    beta  = np.zeros_like(utilde)
-    beta[0] = alpha * alpha * gcon[0,1]
-    beta[1] = alpha * alpha * gcon[0,2]
-    beta[2] = alpha * alpha * gcon[0,3]
-    gamma = ucon_mks[0] * alpha
+    utilde = fourvel_to_prim(gcon, ucon_mks)
 
-    utilde[0] = ucon_mks[1] + beta[0]*gamma/alpha
-    utilde[1] = ucon_mks[2] + beta[1]*gamma/alpha
-    utilde[2] = ucon_mks[3] + beta[2]*gamma/alpha
+    # Construct a fluid state object
+    state_data = {}
+    state_data['RHO'] = state_data['rho'] = soln['rho'][:,None,None]*np.ones_like(grid['r'])
+    state_data['UU'] = soln['u'][:,None,None]*np.ones_like(grid['r'])
+    state_data['U1'] = utilde[0]
+    state_data['U2'] = utilde[1]
+    state_data['U3'] = utilde[2]
+    state_data['uvec'] = utilde
+    state_data['B1'] = 1/grid['r']**3
+    state_data['B2'] = np.zeros_like(state_data['B1'])
+    state_data['B3'] = np.zeros_like(state_data['B1'])
+    state_data['B'] = np.array([state_data['B1'], state_data['B2'], state_data['B3']])
+    state_data['ucon'] = ucon_mks
+    # For good measure
+    state_data['ur'] = soln['ur']
 
-    # compute magnetic 4-vector
-    B = np.zeros_like(utilde)
-    # radial magnetic field (B1 = 1/r^3)
-    B[0] = 1. / grid['r']**3
+    # Add the parameters
+    params = {}
+    params['mdot'] = mdot
+    params['rc'] = params['rs'] = rc
+    params['gam'] = gam
 
-    lapse = grid['lapse'][Loci.CENT.value]
-    gti    = gcon[0,1:4]
-    gij    = gcov[1:4,1:4]
-    beta_i = np.einsum('si...,i...->si...', gti, lapse**2)
-    qsq    = np.einsum('yi...,yi...->i...', np.einsum('xy...,x...->y...', gij, utilde), utilde)
-    gamma  = np.sqrt(1 + qsq)
-    ui     = utilde - np.einsum('si...,i...->si...', beta_i, gamma/lapse)
-    ut     = gamma/lapse
-
-    bt = np.einsum('yi...,yi...->i...', np.einsum('sm...,s...->m...', gcov[1:4,:], B), ucon_mks)
-    bi = (B + np.einsum('si...,i...->si...', ucon_mks[1:4], bt)) / ucon_mks[0,None]
-    bcon_mks = np.append(bt[None], bi, axis=0)
-    bcov_mks = np.einsum('mn...,n...->m...', gcov, bcon_mks)
-
-    soln['ucon'] = ucon_mks[:,:,0,0]
-    soln['ucov'] = ucov_mks[:,:,0,0]
-    soln['bcon'] = bcon_mks[:,:,0,0]
-    soln['bcov'] = bcov_mks[:,:,0,0]
-    soln['bsq']  = np.einsum('mi...,mi...->i...', soln['bcon'], soln['bcov'])
-
-
+    return FluidState(state_data, params=params, grid=grid)
 
 ############### ADDITIONAL FUNCTIONS FOR VISCOUS BONDI FLOW ###############
-# Compute Braginskii pressure anisotropy value
-def compute_dP0(soln, grid):
-    soln['tau'] = 30.
-    soln['eta'] = 0.01
-    nu_emhd     = soln['eta'] / soln['rho']
-    dP0         = np.zeros(grid['n1'], dtype=float)
 
-    # Compute derivatives of 4-velocity
-    ducovDx1 = np.zeros((grid['n1'], 4), dtype=float) # Represents d_x1(u_\mu)
-    delta = 1.e-5
-    x1    = grid['X1'][:,0]
-    x1h   = x1 + delta
-    x1l   = x1 - delta
-
-    ucovt_splrep = splrep(x1, soln['ucov'][0])
-    ucovr_splrep = splrep(x1, soln['ucov'][1])
-    ucovt_h = splev(x1h, ucovt_splrep) 
-    ucovt_l = splev(x1l, ucovt_splrep) 
-    ucovr_h = splev(x1h, ucovr_splrep) 
-    ucovr_l = splev(x1l, ucovr_splrep)
-
-    ducovDx1[:,0] = np.squeeze((ucovt_h - ucovt_l) / (x1h - x1l))
-    ducovDx1[:,1] = np.squeeze((ucovr_h - ucovr_l) / (x1h - x1l))
-
-    print(ducovDx1.shape)
-
-    gcon = grid['gcon'][Loci.CENT.value]
-
-    for mu in range(4):
-        for nu in range(4):
-            if mu == 1:
-                dP0 += 3*soln['rho']*nu_emhd * (soln['bcon'][mu]*soln['bcon'][nu] / soln['bsq']) \
-                        * ducovDx1[:,nu]
-                
-            gamma_term_1 = np.zeros((grid['n1'], grid['n2']), dtype=float)
-            for sigma in range(4):
-                gamma_term_1 += (3*soln['rho']*nu_emhd * (soln['bcon'][mu]*soln['bcon'][nu] / soln['bsq'])) \
-                                * np.squeeze(-grid['conn'][sigma, mu, nu][:,0,0] * soln['ucov'][sigma])
-
-            dP0 += np.mean(gamma_term_1, axis=1)
-
-        derv_term_2 = np.zeros((grid['n1'], grid['n2']), dtype=float)
-        if mu == 1:
-            for sigma in range(4):
-                derv_term_2 += (-soln['rho']*nu_emhd * ducovDx1[:,sigma]) * gcon[mu,sigma][:,0,0]
-
-        dP0 += np.mean(derv_term_2, axis=1)
-
-        gamma_term_2 = np.zeros((grid['n1'], grid['n2']), dtype=float)
-        for sigma in range(4):
-            for delta in range(4):
-                    gamma_term_2 += (soln['rho']*nu_emhd)* np.squeeze(grid['conn'][sigma, mu, delta][:,0,0] * gcon[mu, delta][:,0,0]) * soln['ucov'][sigma]
-
-        dP0 += np.mean(gamma_term_2, axis=1)
-    
-    soln['dP0'] = dP0
-    return dP0
-
-def ddP_dX1(dP, x1, tau, ur_splrep, dP0_splrep, coeff_splrep):
+def _ddP_dX1(x1, dP, tau, ur_splrep, dP0_splrep, coeff_splrep):
     """Return derivative d(dP)/dx1. Refer Equation (36) in grim paper"""
     ur    = splev(x1, ur_splrep)
     dP0   = splev(x1, dP0_splrep)
     coeff = splev(x1, coeff_splrep)
 
     derivative = -((dP - dP0) / (tau * ur)) - (dP * coeff)
+    #print("ddp eval: x1 {} dP {} ur {} dP0 {} coeff {} derivative {}".format(x1, dP, ur, dP0, coeff, derivative))
     return derivative
 
-# Compute the coefficient of the second term on the RHS of the evolution equation of dP
-def compute_rhs_second_term(soln, grid, gam):
-    nu_emhd = soln['eta'] / soln['rho']
-    P = soln['u'] * (gam - 1.)
+def compute_rhs_second_term(state):
+    """Compute the coefficient of the second term on the RHS of the evolution
+    equation of dP.
+    """
 
     # compute derivative
     delta = 1.e-5
-    x1    = grid['X1'][:,0,0]
+    x1    = state['X1'][:,0,0]
     x1h   = x1 + delta
     x1l   = x1 - delta
-    expr  = np.log(soln['tau'] / (soln['rho'] * nu_emhd * P))
-    expr_splrep = splrep(x1, expr)
+    expr  = np.log(state['tau'] / (state['eta'] * state['u'] * (state['gam'] - 1.)))
+    expr_splrep = splrep(x1, expr[:,0,0])
     expr_h = splev(x1h, expr_splrep)
     expr_l = splev(x1l, expr_splrep)
 
-    coeff  = 0.5 * (expr_h - expr_l) / (x1h - x1l)
+    coeff  = 0.5 * (expr_h - expr_l) / (2*delta)
 
     return coeff
+
+def compute_dP(mdot, rc, gam, input_grid, eta=0.01, tau=30, npoints=1000):
+    # Make sure we have enough points for an accurate solution
+    # grid_params = {}
+    # grid_params['n1'] = npoints
+    # grid_params['n2'] = 1
+    # grid_params['n3'] = 1
+    # for key in ['startx1', 'startx2', 'startx3', 'r_in',
+    #             'r_out', 'coordinates', 'a', 'hslope']:
+    #     grid_params[key] = input_grid.params[key]
+    # grid = Grid(grid_params, cache_conn=True)
+    grid = input_grid
+
+    # Get the solution on the greater number of points
+    state = get_bondi_fluid_state(mdot, rc, gam, grid)
+    state.params['eta'] = eta
+    state.params['tau'] = tau
+    coeff = compute_rhs_second_term(state)
+
+    x1 = grid['X1'][:,0,0]
+    ur_splrep    = splrep(x1, state['ucon'][1][:,0,0])
+    dP0_splrep   = splrep(x1, np.mean(state['dP0'], axis=(1,2))) # TODO call to pass eta?
+    coeff_splrep = splrep(x1, coeff)
+
+    ode_soln = solve_ivp(_ddP_dX1, (x1[-1], x1[0]), [0.],
+                        args=(tau, ur_splrep, dP0_splrep, coeff_splrep),
+                        dense_output=True)
+    return ode_soln.sol(input_grid['X1'][:,0,0])[0,:]

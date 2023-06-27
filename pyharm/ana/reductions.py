@@ -40,7 +40,7 @@ from pyharm.util import i_of
 
 __doc__ = \
 """The general interface for reductions is (dump, var, options)
-| dump: FluidDump object, generally pre-slice.
+| dump: FluidState object, generally pre-slice.
 | var: either the name of a variable to compute over the necessary slice,
 or a pre-sliced & computed variable of the right shape.
 

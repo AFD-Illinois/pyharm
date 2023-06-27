@@ -129,7 +129,7 @@ class AnaResults(object):
     variability.
 
     When using __getitem__ (i.e. res[]), the name after the slash doesn't have to be something
-    directly present in the file -- it can include many of the 'key' features available in FluidDump,
+    directly present in the file -- it can include many of the 'key' features available in FluidState,
     notably unary operators (sqrt_, abs_, etc), but this is all separate functions so YMMV.
     Time-dependent variables may also append '_smoothed' or '_smoothed_xx' to calculate a
     running average over xx values (that is, samples, not simulation time units).
@@ -206,7 +206,7 @@ class AnaResults(object):
             self.file.close()
 
     def __getitem__(self, key):
-        """This operates a bit differently from its analog in FluidDump.
+        """This operates a bit differently from its analog in FluidState.
 
         Variables in reductions are specified by remaining independent variable, e.g.
         r/FM_disk for the mass flux in the "disk" region as a function of r (that is,
@@ -348,7 +348,7 @@ class AnaResults(object):
         the appropriate reduction of the dependent variable.
         Usually, this is called from __getitem__.
 
-        In implementation, this is the closest analog to FluidDump's __getitem__ function -- it's the
+        In implementation, this is the closest analog to FluidState's __getitem__ function -- it's the
         place to add any complex new tags/operations/whatever.
         """
         #print("Getting ivar/dvar ", ivar+"/"+dvar)

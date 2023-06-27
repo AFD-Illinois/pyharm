@@ -42,7 +42,7 @@ class HARM2DFile(DumpFile):
     """Read iharm2d_v3 dumps (ASCII-format files usually named dumpXYZ).
     Caches all values on creation, which is bad for larger file types.
     Usually used through file-agnostic interface:
-    see file_reader and the FluidDump class for details.
+    see file_reader and the FluidState class for details.
     """
 
     @classmethod

@@ -43,7 +43,7 @@ from .interface import DumpFile
 class HAMRFile(DumpFile):
     """File filter class for H-AMR dump files, specifically the "grmonty" regular-grid
     files in HDF5 format.  Usually used through file-agnostic interface:
-    see file_reader and the FluidDump class for details.
+    see file_reader and the FluidState class for details.
     """
 
     @classmethod

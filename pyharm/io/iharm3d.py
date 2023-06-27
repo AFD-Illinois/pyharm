@@ -49,7 +49,7 @@ as well as iharm3d's log files.
 class Iharm3DFile(DumpFile):
     """File filter class for Illinois HDF5 format dump files, from iharm3d, ebhlight, pyharm, or converted
     from KHARMA output or potentially more exotic formats.
-    Usually used through file-agnostic interface: see file_reader and the FluidDump class for details.
+    Usually used through file-agnostic interface: see file_reader and the FluidState class for details.
     """
 
     @classmethod
@@ -194,7 +194,7 @@ def read_log(logfname):
     return log
 
 def write_dump(dump, fname, astype=np.float32, ghost_zones=False):
-    """Write the data in FluidDump 'dump' to file 'fname' in iharm3d/Illinois HDF format.
+    """Write the data in FluidState 'dump' to file 'fname' in iharm3d/Illinois HDF format.
     """
     with h5py.File(fname, "w") as outf:
         write_hdr(dump.params, outf)
