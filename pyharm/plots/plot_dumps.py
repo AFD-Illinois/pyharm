@@ -389,16 +389,16 @@ def plot_slices(ax1, ax2, dump, var, field_overlay=False, nlines=10, **kwargs):
     kwargs_right = {**kwargs, **{'at': None}}
     plot_xy(ax2, dump, var, **kwargs_right)
 
-def plot_diff_xy(ax, dump1, dump2, var, rel=False, **kwargs):
-    if rel:
+def plot_diff_xy(ax, dump1, dump2, var, absolute=False, **kwargs):
+    if not absolute:
         plot_xy(ax, dump1, np.abs((dump1[var] - dump2[var])/dump1[var]),
             label=pretty(var), **kwargs)
     else:
         plot_xy(ax, dump1, np.abs(dump1[var] - dump2[var]),
             log=True, label=pretty(var), **kwargs)
 
-def plot_diff_xz(ax, dump1, dump2, var, rel=False, **kwargs):
-    if rel:
+def plot_diff_xz(ax, dump1, dump2, var, absolute=False, **kwargs):
+    if not absolute:
         plot_xz(ax, dump1, np.abs((dump1[var] - dump2[var])/dump1[var]),
             label=pretty(var), **kwargs)
     else:

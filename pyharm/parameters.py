@@ -86,13 +86,21 @@ def parse_parthenon_dat(string):
     params['gridfile'] = "NONE"
     params['n_prims_passive'] = 0
 
+    current_block = ""
     for line in string.split("\n"):
         # Trim out trailing newline, anything after '#', stray parentheses, headers
-        ls = [token.strip().strip('()') for token in line.split("#")[0].split("<")[0].split("=") if token != '']
+        ls = [token.strip().strip('()') for token in line.split("#")[0].split("=") if token != '']
         # And blank lines
         if len(ls) == 0:
             continue
-        # Parse, assuming float->int->str and taking the largest surviving numbers (to avoid block-specific nxN)
+        if ls[0][0] == '<':
+            current_block = ls[0][1:-1]
+            continue
+        
+        # Prepend parameters with block
+        dest = current_block+"/"+ls[0]
+
+        # Parse, assuming float->int->str
         try:
             if "." in ls[-1]:
                 if ls[0] not in params or float(params[ls[0]]) < float(ls[-1]):

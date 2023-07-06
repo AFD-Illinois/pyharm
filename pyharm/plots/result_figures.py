@@ -85,14 +85,7 @@ def _model_pretty(folder):
             return model[-3]
         return model[-2].upper()+r" $"+model[-1]+r"^\circ$"
     else:
-        return folder
-
-
-def initial_conditions(results, kwargs, overplot=False): # TODO radial_averages_at
-    """
-    """
-    if kwargs['varlist'] is None:
-        vars=('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post')
+        return folder.replace("")
 
 def radial_profile(ax, result, var, arange=-1000, window=(2,50), disk=True, plot_std=False, plot_eh=False, selector=None, tag="",
                    print_time=False, model_shared_portion=0, **kwargs):
@@ -254,7 +247,6 @@ def res_study_avg_std(results, kwargs, plotrc={}):
     _point_per_run(ax, results, kwargs['varlist'][0], 'avg_std', 'res', plotrc=plotrc, **kwargs)
     return fig
 
-# TODO dump. Radial stuff
 def default_radial_averages(results, kwargs):
     if kwargs['vars'] is None:
         vars = ('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post')
@@ -299,24 +291,6 @@ def plot_eh_phi_versions(ax, result):
     # Additionally plot
     ax[0].plot(result['t'], np.abs(result['t/phi_b_upper'])+np.abs(result['t/phi_b_lower']), label=result.tag+" hemispheres")
 
-def eh_fluxes(results, kwargs):
-    fig, _ = plt.subplots(4,1, figsize=(7,7))
-    for result in results.values():
-        # Event horizon fluxes
-        axes = fig.get_axes()
-        plot_eh_fluxes(axes, result)
-        plt.subplots_adjust(wspace=0.4)
-    return fig #TODO 
-
-def eh_fluxes_per(results, kwargs):
-    for result in results.values():
-        print(result.fname)
-        # Event horizon fluxes
-        fig, _ = plt.subplots(4,1, figsize=(7,7))
-        axes = fig.get_axes()
-        plot_eh_fluxes(axes, result, per=True)
-        plt.subplots_adjust(wspace=0.4)
-
 def eh_phi_versions(results, kwargs):
     for result in results.values():
         # Event horizon fluxes
@@ -324,16 +298,9 @@ def eh_phi_versions(results, kwargs):
         axes = fig.get_axes()
         plot_eh_phi_versions(axes, result)
         plt.subplots_adjust(wspace=0.4)
+    return fig
 
-def overplot_eh_phi_versions(results, kwargs):
-    for result in results.values():
-        # Event horizon fluxes
-        fig, _ = plt.subplots(3,1, figsize=(7,7))
-        axes = fig.get_axes()
-        plot_eh_phi_versions(axes, result)
-        plt.subplots_adjust(wspace=0.4)
-
-def overplot_eh_fluxes(results, kwargs):
+def eh_fluxes(results, kwargs):
     fig, _ = plt.subplots(4,1, figsize=(7,7))
     ax = fig.get_axes()
     for result in results.values():
@@ -341,3 +308,4 @@ def overplot_eh_fluxes(results, kwargs):
 
     ax[0].legend()
     plt.subplots_adjust(wspace=0.4)
+    return fig
