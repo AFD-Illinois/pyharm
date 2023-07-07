@@ -119,6 +119,7 @@ fns_dict = {# 4-vectors
             'jcov': lambda dump: dump.grid.lower_grid(dump['jcon']),
             'jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']),
             'Jsq': lambda dump: dump.grid.dot(dump['jcon'], dump['jcov']) + dump.grid.dot(dump['jcon'], dump['ucov'])**2,
+            'Jsq_corr': lambda dump: dump.grid.dot(dump['jcon'], dump['ucov'])**2,
             # Diagnostics
             'lam_MRI': lambda dump: lam_MRI(dump),
             'lam_MRI_old': lambda dump: lam_MRI_old(dump),
@@ -230,7 +231,7 @@ def TFl_mixed(dump, i, j):
 def F_con(dump, i, j):
     """Return the i,j component of contravariant Maxwell tensor"""
 
-    Fconij = np.zeros_like(dump['RHO'])
+    Fconij = np.zeros_like(dump['RHO']) # TODO(BSP)
     if i != j:
         for mu in range(4):
             for nu in range(4):

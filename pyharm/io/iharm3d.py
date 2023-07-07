@@ -141,6 +141,7 @@ class Iharm3DFile(DumpFile):
                 # Read desired slice
                 if var in fil:
                     self.cache[var] = self._prep_array(fil[var][fil_slc], **kwargs)
+                    print(var, self.cache[var].shape)
                     return self.cache[var]
                 elif var in fil['/extras']:
                     self.cache[var] = self._prep_array(fil['/extras/'+var][fil_slc], **kwargs)

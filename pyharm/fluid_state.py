@@ -154,7 +154,6 @@ class FluidState:
         """
         if type(key) in (list, tuple):
             slc = key
-            # TODO handle further slicing after this is a 2D object?
             relevant = [False, False, False]
             new_slc = list(slc)
             for i in range(3):
@@ -169,8 +168,8 @@ class FluidState:
 
             # TODO somehow proper copy constructor
             slc = tuple(new_slc)
-            #print("FluidState slice copy: ", self.cache, key)
-            # Pass the cache only if we're an in-memory state, or the file backing
+
+            # Pass nothing if we're in-memory only -- we'll copy the cache
             if self.fname == "memory_array":
                 out = FluidState({}, add_grid=False, params=self.params, units=self.units)
             else:

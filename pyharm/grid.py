@@ -32,6 +32,8 @@ __license__ = """
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import inspect
+
 import numpy as np
 
 from pyharm.defs import Loci, Slices, Shapes
@@ -519,7 +521,7 @@ class Grid:
             return True
         elif key in self.cache:
             return True
-        elif key in self.coords.__dict__:
+        elif key in dir(self.coords):
             return True
         elif key[:7] == 'pcoord_':
             return key[8:] in self
@@ -535,54 +537,52 @@ class Grid:
         This function also allows slicing -- slices must be 3D like for fluid dumps, though
         only the X1 and X2 slices are applied.
         """
-        if type(key) in (int,):
-            return self
-        if type(key) in (list, tuple) and type(key[0]) in (int, np.int32, np.int64, slice):
-            # Grids also support slicing, see analogue in FluidState
-            slc = self.slices.geom_slc(key) # cut 3rd index, geometry is 2D
-            relevant_0 = isinstance(slc[0], int) or isinstance(slc[0], np.int32) or isinstance(slc[0], np.int64) \
-                         or isinstance(slc[0].start, int) or isinstance(slc[0].stop, int)
-            relevant_1 = len(slc) > 1 and isinstance(slc[1], int) or isinstance(slc[1], np.int32) or isinstance(slc[1], np.int64) \
-                         or isinstance(slc[1].start, int) or isinstance(slc[1].stop, int)
-            relevant_2 = len(slc) > 2 and isinstance(slc[2], int) or isinstance(slc[2], np.int32) or isinstance(slc[2], np.int64) \
-                         or isinstance(slc[2].start, int) or isinstance(slc[2].stop, int)
-            if not (relevant_0 or relevant_1 or relevant_2):
+        print("Grid computing", key)
+        if type(key) in (list, tuple):
+            slc = key
+            relevant = [False, False, False]
+            new_slc = list(slc)
+            for i in range(3):
+                if isinstance(slc[i], slice):
+                    new_slc[i] = slc[i]
+                else:
+                    new_slc[i] = slice(slc[i], slc[i]+1) # For gauging relevance later
+                relevant[i] = ((new_slc[i].start is not None) or (new_slc[i].stop is not None))
+
+            if not (relevant[0] or relevant[1] or relevant[2]):
                 return self
+
             # Otherwise it's worth it to make a new grid & return a part.
             # TODO this can be a proper copy constructor right?
-            #print("Grid slice copy, ",key)
+            slc = tuple(new_slc)
+
             out = Grid(self.params, caches=False)
-            #out = copy.deepcopy(self) # In case this proves faster
-            out.slice = slc
+
             # Revise size numbers for this grid
-            for i in range(len(out.slice)):
-                if isinstance(out.slice[i], int) or isinstance(slc[i], np.int32) or isinstance(slc[i], np.int64):
-                    out.global_start[i] = out.slice[i]
-                    out.global_stop[i] = out.slice[i] + 1
-                elif out.slice[i] is not None:
-                    if out.slice[i].start is not None:
-                        out.global_start[i] = self.global_start[i] + out.slice[i].start
-                    if out.slice[i].stop is not None:
+            # Note we keep the same global numbers, just update our starting/stopping/size
+            for i in range(len(slc)):
+                if isinstance(slc[i], int) or isinstance(slc[i], np.int32) or isinstance(slc[i], np.int64):
+                    out.global_start[i] = slc[i]
+                    out.global_stop[i] = slc[i] + 1
+                elif slc[i] is not None:
+                    if slc[i].start is not None:
+                        out.global_start[i] = self.global_start[i] + slc[i].start
+                    if slc[i].stop is not None:
                         # Count forward from global_start, or backward from global_stop
-                        out.global_stop[i] = self.global_start[i] + out.slice[i].stop if out.slice[i].stop > 0 else self.global_stop[i] + out.slice[i].stop
+                        out.global_stop[i] = self.global_start[i] + slc[i].stop if slc[i].stop > 0 else self.global_stop[i] + slc[i].stop
                 # Revise/reset size
                 out.N[i+1] = out.global_stop[i] - out.global_start[i]
             # Reset GN
             out.GN = out.N + (out.N > 1) * 2*out.NG
+
             # Finally, slice the caches with the revised slice
             # Except make sure they get their own memory, grids don't like to be re-used otherwise
-            for cache in ('gdet', 'lapse'):
-                if cache in self.__dict__:
-                    # Slice over all locations in 1st index
-                    out.__dict__[cache] = self.__dict__[cache][(slice(None),) + out.slice]
-                    if len(out.__dict__[cache].shape) < 4:
-                        out.__dict__[cache] = out.__dict__[cache][Ellipsis, np.newaxis]
-            for cache in ('gcon', 'gcov', 'conn'):
-                if cache in self.__dict__:
-                    # Slice over all loc + 2 indices in gcon/gcov, 3 indices in conn
-                    out.__dict__[cache] = self.__dict__[cache][(slice(None), slice(None), slice(None)) + out.slice]
-                    if len(out.__dict__[cache].shape) < 6:
-                        out.__dict__[cache] = out.__dict__[cache][Ellipsis, np.newaxis]
+            for key in self.cache:
+                # Last 3 indexes are always the slice
+                out.cache[key] = self.cache[key][(Ellipsis,) + slc]
+
+            # Record the slice, in case?
+            #out.slice = slc
 
             return out
 

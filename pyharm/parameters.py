@@ -86,8 +86,8 @@ def parse_parthenon_dat(string):
 
     # This parser expects [section], and uses indents for line continuation
     # Otherwise it should match the Parthenon input deck spec exactly & flexibly
-    config = configparser.ConfigParser()
-    config.read_string(string.replace("<","[").replace(">","]").replace("&",""))
+    config = configparser.ConfigParser(inline_comment_prefixes=(';','#','&'))
+    config.read_string(string.replace("<","[").replace(">","]"))
 
     # Pick out some keys we usually put in the base parameters
     for block in ['parthenon/mesh', 'coordinates', 'parthenon/time', 'GRMHD', 'torus']:
@@ -105,7 +105,8 @@ def parse_parthenon_dat(string):
     params['config'] = config
 
     # Translate coordinate naming scheme
-    # TODO will there be exp/superexp w/BL? Likely not, but...
+    # TODO deprecate params['coordinates'] entirely!
+    # Parse base/transform from old iharm3d output instead
     if "cartesian" in params['base']:
         params['coordinates'] = "cartesian"
     elif "fmks" in params['transform'] or "funky" in params['transform']:
