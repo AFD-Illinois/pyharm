@@ -537,7 +537,6 @@ class Grid:
         This function also allows slicing -- slices must be 3D like for fluid dumps, though
         only the X1 and X2 slices are applied.
         """
-        print("Grid computing", key)
         if type(key) in (list, tuple):
             slc = key
             relevant = [False, False, False]
