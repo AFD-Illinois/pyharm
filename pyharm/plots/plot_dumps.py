@@ -198,7 +198,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
 def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             xlabel=True, ylabel=True, native=False, log=False,
             cmap='jet', shading='gouraud',
-            at=None, average=False, sum=False, cbar=True, log_r=True, **kwargs):
+            at=None, average=False, sum=False, cbar=True, log_r=False, **kwargs):
     """Plot a toroidal or X1/X3 slice of a dump file.
     Note this function also accepts all keyword arguments to _decorate_plot()
 

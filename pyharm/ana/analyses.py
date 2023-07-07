@@ -368,7 +368,7 @@ def omega_bz_advanced(dump, out, **kwargs):
         out['rhth/F23'] = np.zeros((dump['n1'],dump['n2']//2))
         out['rhth/F02'] = np.zeros((dump['n1'],dump['n2']//2))
         coord_hth = dump.grid.coord_all()[:,:,:dump['n2']//2,0]
-        alpha_over_omega =  dump.grid.lapse[Loci.CENT.value, :, :dump['n2']//2] / (dump['r_eh'] * np.sin(dump.grid.coords.th(coord_hth)))
+        alpha_over_omega =  dump['lapse'][:, :dump['n2']//2] / (dump['r_eh'] * np.sin(dump.grid.coords.th(coord_hth)))
         for i in range(dump['n1']):
             out['rhth/F01'][i] = theta_profile(dump, Fcov01, i, 1)
             out['rhth/F13'][i] = theta_profile(dump, Fcov13, i, 1)

@@ -76,7 +76,7 @@ def test_fmks_functions():
                             [ 0.        , -2.82071735, 66.60209297,  0.        ],
                             [-0.5027359 , -1.41998137,  0.        ,  1.71620473]])
     assert compare(gcov_computed, gcov_example)
-    gcov_computed = G['gcov'][Loci.CENT.value, :, :, 11,12,0]
+    gcov_computed = G['gcov'][:, :, 11,12,0]
     assert compare(gcov_computed, gcov_example)
 
     gcon_computed = np.squeeze(G.coords.gcon(X))
@@ -85,7 +85,7 @@ def test_fmks_functions():
                             [ 3.17024113e-02,  8.41433249e-04,  1.50501794e-02,  9.98293464e-03],
                             [-1.42468631e-17,  2.35714628e-01,  9.98293464e-03,  7.77710464e-01]])
     assert compare(gcon_computed, gcon_example)
-    gcon_computed = G['gcon'][Loci.CENT.value, :, :, 11,12,0]
+    gcon_computed = G['gcon'][:, :, 11,12,0]
     assert compare(gcon_computed, gcon_example)
 
     # TODO gcon_ks before vs after

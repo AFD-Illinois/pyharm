@@ -82,6 +82,33 @@ def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
     return Grid(params, caches=caches, cache_conn=cache_conn)
 
 
+def _loc_tag(l):
+    if l == Loci.CENT:
+        return ""
+    elif l == Loci.CORN:
+        return "corner"
+    elif l == Loci.FACE1:
+        return "face1"
+    elif l == Loci.FACE2:
+        return "face2"
+    elif l == Loci.FACE3:
+        return "face3"
+    else:
+        return ""
+
+def _loc_from_tag(t):
+    if t == "":
+        return Loci.CENT
+    elif t == "corner":
+        return Loci.CORN
+    elif t == "face1":
+        return Loci.FACE1
+    elif t == "face2":
+        return Loci.FACE2
+    elif t == "face3":
+        return Loci.FACE3
+    else:
+        raise ValueError("Geometry requested at invalid location: {} (corner, face1, face2, face3)".format(t))
 
 class Grid:
     """The Grid object divides a domain in native coordinates into zones, and caches the
@@ -198,52 +225,6 @@ class Grid:
 
         self.dV = self.dx[1]*self.dx[2]*self.dx[3]
 
-        # If we're in Cartesian Minkowski, keep a "grid" of just one zone
-        if caches and (self.coords == Minkowski):
-            # Shapes. Store like a 0-dim array:
-            # locations, tensor dims, grid dims
-            self.gcov = np.zeros((5,4,4,1,1,1))
-            self.gdet = np.zeros((5,1,1,1))
-            # Replicate
-            self.gcon = np.zeros_like(self.gcov)
-            self.lapse = np.zeros_like(self.gdet)
-
-            for loc in Loci:
-                ilist = np.arange(1)
-                jlist = np.arange(1)
-                x = self.coord(ilist, jlist, [0,], loc)
-
-                gcov_loc = self.coords.gcov(x)
-                gcon_loc = self.coords.gcon_from_gcov(gcov_loc)
-                gdet_loc = self.coords.gdet_from_gcov(gcov_loc)
-
-                self.gcov[loc.value] = gcov_loc
-                self.gcon[loc.value] = gcon_loc
-                self.gdet[loc.value] = gdet_loc
-                self.lapse[loc.value] = 1./np.sqrt(-gcon_loc[0, 0])
-
-        elif caches:
-            # Declare shapes so we can fill locations one by one
-            self.gcov = np.zeros(self.shapes.locus_geom_tensor)
-            self.gdet = np.zeros(self.shapes.locus_geom_scalar)
-            # Replicate
-            self.gcon = np.zeros_like(self.gcov)
-            self.lapse = np.zeros_like(self.gdet)
-
-            for loc in Loci:
-                ilist = np.arange(self.GN[1])
-                jlist = np.arange(self.GN[2])
-                x = self.coord(ilist, jlist, [0,], loc)
-
-                # Save zone centers to calculate connection coefficients
-                if cache_conn and loc == Loci.CENT:
-                    self.conn = self.coords.conn_func(x)
-
-                self.gcov[loc.value] = self.coords.gcov(x)
-                self.gcon[loc.value] = self.coords.gcon_from_gcov(self.gcov[loc.value])
-                self.gdet[loc.value] = self.coords.gdet_from_gcov(self.gcov[loc.value])
-                self.lapse[loc.value] = 1./np.sqrt(-self.gcon[loc.value, 0, 0])
-
     def __del__(self):
         # Try to clean up what we can. Anything that may possibly not be a simple ref
         for cache in ('gcon', 'gcov', 'gdet', 'lapse', 'conn', 'slices', 'shapes', 'coords', 'params', 'cache'):
@@ -325,17 +306,17 @@ class Grid:
                             np.arange(self.GN[2]),
                             np.arange(self.GN[3]), loc=loc)
 
-    def coord_ij(self, at=0):
+    def coord_ij(self, at=0, loc=Loci.CENT):
         """Get just a 2D meshgrid of locations, usually for plotting"""
-        return self.coord(np.arange(self.GN[1]), np.arange(self.GN[2]), at, loc=Loci.CENT)
+        return self.coord(np.arange(self.GN[1]), np.arange(self.GN[2]), at, loc=loc)
 
-    def coord_ik(self, at=0):
+    def coord_ik(self, at=0, loc=Loci.CENT):
         """Get just a 2D meshgrid of locations, usually for plotting"""
-        return self.coord(np.arange(self.GN[1]), at, np.arange(self.GN[3]), loc=Loci.CENT)
+        return self.coord(np.arange(self.GN[1]), at, np.arange(self.GN[3]), loc=loc)
 
-    def coord_jk(self, at=0):
+    def coord_jk(self, at=0, loc=Loci.CENT):
         """Get just a 2D meshgrid of locations, usually for plotting"""
-        return self.coord(at, np.arange(self.GN[2]), np.arange(self.GN[3]), loc=Loci.CENT)
+        return self.coord(at, np.arange(self.GN[2]), np.arange(self.GN[3]), loc=loc)
 
     def coord_ij_mesh(self, at=0):
         """Get just a 2D meshgrid of locations, usually for plotting"""
@@ -352,11 +333,31 @@ class Grid:
     ### OPERATIONS
     def lower_grid(self, vcon, loc=Loci.CENT):
         """Lower a grid of contravariant rank-1 tensors to covariant ones."""
-        return np.einsum("ij...,j...->i...", self.gcov[loc.value], vcon)
+        return np.einsum("ij...,j...->i...", self['gcov'+_loc_tag(loc.value)], vcon)
 
     def raise_grid(self, vcov, loc=Loci.CENT):
         """Raise a grid of covariant rank-1 tensors to contravariant ones."""
-        return np.einsum("ij...,j...->i...", self.gcon[loc.value], vcov)
+        return np.einsum("ij...,j...->i...", self['gcon'+_loc_tag(loc.value)], vcov)
+
+    # Converstion functions for native (F)MKS etc <-> KS
+    def ks_to_native_con(self, ucon_ks):
+        return np.einsum("i...,ij...->j...", ucon_ks, self['dXdx'])
+    def native_to_ks_con(self, ucon):
+        return np.einsum("i...,ij...->j...", ucon, self['dxdX'])
+    def ks_to_native_cov(self, ucov_ks):
+        return self.native_to_ks_con(ucov_ks)
+    def native_to_ks_cov(self, ucov):
+        return self.ks_to_native_con(ucov)
+    # Conversion functions for BL<->KS
+    def bl_to_ks_con(self, ucon_bl):
+        return np.einsum("ij...,j...->i...", self['dXdx_bl'], ucon_bl)
+    def ks_to_bl_con(self, ucon_ks):
+        return np.einsum("ij...,j...->i...", self['dxdX_bl'], ucon_ks)
+    def bl_to_ks_cov(self, ucov_bl):
+        return self.ks_to_bl_con(ucov_bl)
+    def ks_to_bl_cov(self, ucov_ks):
+        return self.bl_to_ks_con(ucov_ks)
+
 
     def dot(self, ucon, ucov):
         """Inner product along first index."""
@@ -367,22 +368,21 @@ class Grid:
         # Following stolen from bhlight's dt_light calculation
 
         dt_light_local = np.zeros((self.N[1], self.N[2]), dtype=np.float64)
-        gcon = self.gcon
-        CENT = Loci.CENT.value
+        gcon = self['gcon']
         for mu in range(1,4):
-            cplus = np.abs((-gcon[CENT, 0, mu] +
-                            np.sqrt(gcon[CENT, 0, mu]**2 -
-                                    gcon[CENT, mu, mu] * gcon[CENT, 0, 0])) /
-                           gcon[CENT, 0, 0])
+            cplus = np.abs((-gcon[0, mu] +
+                            np.sqrt(gcon[0, mu]**2 -
+                                    gcon[mu, mu] * gcon[0, 0])) /
+                           gcon[0, 0])
 
-            cminus = np.abs((-gcon[CENT, 0, mu] -
-                             np.sqrt(gcon[CENT, 0, mu]**2 -
-                                     gcon[CENT, mu, mu] * gcon[CENT, 0, 0])) /
-                            gcon[CENT, 0, 0])
+            cminus = np.abs((-gcon[0, mu] -
+                             np.sqrt(gcon[0, mu]**2 -
+                                     gcon[mu, mu] * gcon[0, 0])) /
+                            gcon[0, 0])
             light_phase_speed = np.maximum.reduce([cplus, cminus])
 
-            light_phase_speed = np.where(gcon[CENT, 0, mu] ** 2 -
-                                         gcon[CENT, mu, mu] * gcon[CENT, 0, 0] >= 0.,
+            light_phase_speed = np.where(gcon[0, mu] ** 2 -
+                                         gcon[mu, mu] * gcon[0, 0] >= 0.,
                                          light_phase_speed, 1e-20)
 
             dt_light_local += 1. / (self.dx[mu] / np.squeeze(light_phase_speed))
@@ -456,7 +456,9 @@ class Grid:
         return np.squeeze(x), np.squeeze(y)
 
     def get_xz_areas(self, **kwargs):
-        """Get cell areas in the plotting plane using the trapezoid area function from cell corners"""
+        """Get cell areas in the plotting plane using the trapezoid area function
+        from cell corners
+        """
         x, z = self.get_xz_locations(mesh=True, **kwargs)
         x1 = x[:-1,:-1]; z1 = z[:-1,:-1]
         x2 = x[1: ,:-1]; z2 = z[1: ,:-1]
@@ -517,10 +519,12 @@ class Grid:
             return True
         elif key in self.cache:
             return True
+        elif key in self.coords.__dict__:
+            return True
         elif key[:7] == 'pcoord_':
             return key[8:] in self
-        elif key in ('n1', 'n2', 'n3', 'r', 'th', 'phi', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z', 'X1', 'X2', 'X3',
-                     'dXdx', 'dxdX', 'dxdX_cart', 'dXdx_cart', 'dxdX_bl', 'dXdx_bl', 'gcon_ks', 'gcov_ks', 'gcon_bl', 'gcov_bl'):
+        elif key in ('n1', 'n2', 'n3', 'r1d', 'th1d', 'phi1d', 'x', 'y', 'z',
+                     'X', 'X1', 'X2', 'X3', 'coordinates'):
             return True
         else:
             return False
@@ -609,11 +613,21 @@ class Grid:
             return self.NTOT[int(key[-1:])]
         elif key in ['dx1', 'dx2', 'dx3']:
             return self.dx[int(key[-1:])]
-        elif key in ['r', 'th', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart', 'dXdx_bl', 'dxdX_bl', 'gcon_ks', 'gcov_ks', 'gcon_bl', 'gcov_bl']:
-            # These keys are symmetric in phi, so we cache/return 2D versions
+        elif key in ['r', 'th', 'dxdX', 'dXdx', 'dXdx_cart', 'dxdX_cart',
+                     'dXdx_bl', 'dxdX_bl', 'gcon_ks', 'gcov_ks', 'gcon_bl', 'gcov_bl',
+                     'delta', 'sigma', 'aa', 'gcon', 'gcov', 'gdet', 'lapse', 'conn']:
+            # These keys are symmetric in phi, so we cache/return "2D" versions,
+            # of shape N1xN2x1 so they broadcast correctly
+            # TODO better gcon/gdet if gcov is available
             self.cache[key] = getattr(self.coords, key)(self.coord_ij())
             return self.cache[key]
-        
+        # Versions with a location specified, i.e. not at zone centers
+        elif 'gcon' in key or 'gcov' in key or 'gdet' in key or 'lapse' in key:
+            loc_tag = key.split("_")[-1]
+            # TODO better gcon/gdet if gcov is available
+            self.cache[key] = getattr(self.coords, key)(self.coord_ij(loc=_loc_from_tag(loc_tag)))
+            return self.cache[key]
+
         elif key in ['phi']:
             # phi is not symmetric in phi.  Don't cache, it's big and easy
             return getattr(self.coords, key)(self.coord_all())
@@ -634,9 +648,16 @@ class Grid:
             return self.coord_ij()[int(key[-1:])]
         elif key in ['X3']:
             return self.coord_all()[int(key[-1:])]
+        elif key in ['X']:
+            return self.coord_all()
+
+        # These are last to allow overriding with the above
+
+        # Then, return any of our parameters
+        elif key in self.params:
+            return self.params[key]
 
         # Finally, any of our attributes or coords attributes
-        # These are last to allow overriding with the above
         elif key in self.__dict__:
             # Return anything we have a member for
             return self.__dict__[key]

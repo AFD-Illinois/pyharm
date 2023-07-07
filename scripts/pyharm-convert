@@ -16,7 +16,7 @@ def convert_file(name_pair, double=False, to_restart=False, resume=False):
     fname, outfname = name_pair
     #print("Converting {} -> {}".format(fname, outfname), file=sys.stderr)
     if not (resume and os.path.exists(outfname)):
-        dump = pyharm.load_dump(fname, grid_cache=False)
+        dump = pyharm.load_dump(fname, use_grid_cache=False)
         if to_restart:
             # TODO complain a lot if dump is not in double!!
             pyharm.io.iharm3d_restart.write_restart(dump, outfname)

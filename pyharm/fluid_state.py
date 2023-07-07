@@ -170,13 +170,19 @@ class FluidState:
             # TODO somehow proper copy constructor
             slc = tuple(new_slc)
             #print("FluidState slice copy: ", self.cache, key)
-            out = FluidState(self.fname, add_grid=False, params=self.params, units=self.units)
-            #out = copy.deepcopy(self) # In case this proves faster
+            # Pass the cache only if we're an in-memory state, or the file backing
+            if self.fname == "memory_array":
+                out = FluidState({}, add_grid=False, params=self.params, units=self.units)
+            else:
+                out = FluidState(self.fname, add_grid=False, params=self.params, units=self.units)
+
+            # Forcibly add the cache
             for c in self.cache:
                 out.cache[c] = self.cache[c][(Ellipsis,) + slc]
             if self.grid is not None:
                 out.grid = self.grid[slc]
             out.slice = slc
+
             return out
 
         # Return things from the cache if we can
@@ -195,12 +201,8 @@ class FluidState:
 
         # Return coordinates and things from the grid
         # Default to centers when returning multi-location vars, to avoid location madness
-        # TODO allow _mesh versions?
         elif self.grid is not None and key in self.grid:
-            if key in ('gcon', 'gcov', 'gdet', 'lapse'):
-                return self.grid[key][Loci.CENT.value]
-            else:
-                return self.grid[key]
+            return self.grid[key]
 
         # Prefixes for a few common 1:1 math operations.
         # Most math should be done by reductions.py
@@ -272,7 +274,7 @@ class FluidState:
             return np.zeros_like(self['rho'])
         elif key in ('one', '1'):
             return np.ones_like(self['rho'])
-        else:
+        elif self.fname != "memory_array":
             # Read things that we haven't cached and absolutely can't calculate
             # The reader keeps its own cache, so we don't add its items to ours
             if "flag" in key:
@@ -285,6 +287,6 @@ class FluidState:
             else:
                 return out
 
-        raise RuntimeError("Reached the end of FluidState.__getitem__, should have returned a value!")
+        raise ValueError("FluidState cannot find or compute {}".format(key))
 
 

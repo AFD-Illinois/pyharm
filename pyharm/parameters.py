@@ -33,6 +33,7 @@ __license__ = """
 """
 
 import numpy as np
+import configparser
 
 __doc__ = \
 """Parse and handle parameters.
@@ -75,9 +76,6 @@ def parse_parthenon_dat(string):
     All lines not in this format are ignored, though conventionally comments begin with '# '.
     This implementation does not distinguish packages (<>), nor line continuations (&) correctly.
     """
-    # TODO:
-    # parse & include headers, so we can guarantee picking out the correct nx1/2/3
-    # parse lists and line continuations (&) correctly
 
     params = {}
 
@@ -86,30 +84,25 @@ def parse_parthenon_dat(string):
     params['gridfile'] = "NONE"
     params['n_prims_passive'] = 0
 
-    current_block = ""
-    for line in string.split("\n"):
-        # Trim out trailing newline, anything after '#', stray parentheses, headers
-        ls = [token.strip().strip('()') for token in line.split("#")[0].split("=") if token != '']
-        # And blank lines
-        if len(ls) == 0:
-            continue
-        if ls[0][0] == '<':
-            current_block = ls[0][1:-1]
-            continue
-        
-        # Prepend parameters with block
-        dest = current_block+"/"+ls[0]
+    # This parser expects [section], and uses indents for line continuation
+    # Otherwise it should match the Parthenon input deck spec exactly & flexibly
+    config = configparser.ConfigParser()
+    config.read_string(string.replace("<","[").replace(">","]").replace("&",""))
 
-        # Parse, assuming float->int->str
-        try:
-            if "." in ls[-1]:
-                if ls[0] not in params or float(params[ls[0]]) < float(ls[-1]):
-                    params[ls[0]] = float(ls[-1])
-            else:
-                if ls[0] not in params or int(params[ls[0]]) < int(ls[-1]):
-                    params[ls[0]] = int(ls[-1])
-        except ValueError:
-            params[ls[0]] = ls[-1]
+    # Pick out some keys we usually put in the base parameters
+    for block in ['parthenon/mesh', 'coordinates', 'parthenon/time', 'GRMHD', 'torus']:
+        if block in config:
+            for key in config[block]:
+                try:
+                    if "." in config[block][key] or "e" in config[block][key]:
+                        params[key] = float(config[block][key])
+                    else:
+                        params[key] = int(config[block][key])
+                except ValueError:
+                    params[key] = config[block][key]
+
+    # And keep the rest
+    params['config'] = config
 
     # Translate coordinate naming scheme
     # TODO will there be exp/superexp w/BL? Likely not, but...
@@ -203,10 +196,14 @@ def fix(params):
         else:
             params['r_in'] = np.exp(params['x1min'])
 
-    # if 'x1min' not in params:
-    #     params['x1min'] = np.log(params['r_in'])
-    # if 'x1max' not in params:
-    #     params['x1max'] = np.log(params['r_out'])
+
+    # These replacements are for early KHARMA anyway, before SuperExp coords
+    # We record these now
+    if params['coordinates'] != "superexp":
+        if 'x1min' not in params:
+            params['x1min'] = np.log(params['r_in'])
+        if 'x1max' not in params:
+            params['x1max'] = np.log(params['r_out'])
 
     if 'x2min' not in params:
         params['x2min'] = 0.

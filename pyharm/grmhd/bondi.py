@@ -98,8 +98,7 @@ def get_bondi_fluid_state(mdot, rc, gam, grid):
     # Convert ucon(KS) to ucon(MKS/FMKS)
     ucon_mks = np.einsum("i...,ij...->j...", ucon_ks, grid['dXdx'])
     # Convert to primitive vars (TODO do I even need this?)
-    gcon = grid['gcon'][Loci.CENT.value]
-    utilde = fourvel_to_prim(gcon, ucon_mks)
+    utilde = fourvel_to_prim(grid['gcon'], ucon_mks)
 
     # Construct a fluid state object
     state_data = {}

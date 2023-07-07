@@ -100,7 +100,7 @@ def frame(fname, diag, kwargs):
 
     # This just attaches the file and creates a grid.  We do need to specify
     # if any movie will need ghosts, for the index math
-    dump = FluidState(fname, ghost_zones=ghost_zones, grid_cache=(not kwargs['no_grid_cache']))
+    dump = FluidState(fname, ghost_zones=ghost_zones, use_grid_cache=(not kwargs['no_grid_cache']))
 
     for movie_type in movie_types:
         # Set plotting options we'll pass on to figure-specific code

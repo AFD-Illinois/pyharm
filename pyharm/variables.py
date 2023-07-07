@@ -137,26 +137,24 @@ fns_dict = {# 4-vectors
 
 ## Physics functions ##
 
-def lorentz_calc(dump, loc=Loci.CENT):
+def lorentz_calc(dump):
     """Find relativistic gamma-factor w.r.t. normal observer"""
     if 'ucon' in dump.cache:
         return dump['ucon'][0] * dump['lapse']
     else:
-        G = dump.grid
-        return np.sqrt(1 + (G.gcov[loc.value, 1, 1] * dump['U1'] ** 2 +
-                            G.gcov[loc.value, 2, 2] * dump['U2'] ** 2 +
-                            G.gcov[loc.value, 3, 3] * dump['U3'] ** 2) + \
-                            2. * (G.gcov[loc.value, 1, 2] * dump['U1'] * dump['U2'] +
-                                  G.gcov[loc.value, 1, 3] * dump['U1'] * dump['U3'] +
-                                  G.gcov[loc.value, 2, 3] * dump['U2'] * dump['U3']))
+        return np.sqrt(1 + (dump['gcov'][1, 1] * dump['U1'] ** 2 +
+                            dump['gcov'][2, 2] * dump['U2'] ** 2 +
+                            dump['gcov'][3, 3] * dump['U3'] ** 2) + \
+                            2. * (dump['gcov'][1, 2] * dump['U1'] * dump['U2'] +
+                                  dump['gcov'][1, 3] * dump['U1'] * dump['U3'] +
+                                  dump['gcov'][2, 3] * dump['U2'] * dump['U3']))
 
-def ucon_calc(dump, loc=Loci.CENT):
+def ucon_calc(dump):
     """Find contravariant fluid four-velocity"""
-    G = dump.grid
     ucon = np.zeros((4, *dump['U1'].shape))
     ucon[0] = dump['Gamma'] / dump['lapse']
     for mu in range(1, 4):
-        ucon[mu] = dump['uvec'][mu-1] - dump['Gamma'] * dump['lapse'] * G.gcon[loc.value, 0, mu]
+        ucon[mu] = dump['uvec'][mu-1] - dump['Gamma'] * dump['lapse'] * dump['gcon'][0, mu]
 
     return ucon
 
@@ -368,7 +366,6 @@ def braginskii_dP(state, delta=1.e-5):
 ## Internal functions ##
 
 # Completely antisymmetric 4D symbol
-# TODO cache? Is this validation necessary?
 def _antisym(a, b, c, d):
     # Check for valid permutation
     if (a < 0 or a > 3): return 100

@@ -43,7 +43,7 @@ __doc__ = \
 # TODO flux_ct in numpy, to take a step for jcon
 
 def divB(G, B):
-    gdet = G.gdet[Loci.CENT.value]
+    gdet = G['gdet']
 
     # If we don't have ghost zones, make our own slices
     s = Slices(ng=1)

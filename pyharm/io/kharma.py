@@ -238,7 +238,7 @@ class KHARMAFile(DumpFile):
             if var in ["B","prims.B"] and "cons.B" in fil.Variables:
                 grid = Grid(self.params)
                 return self.read_var('cons.B', astype=astype, slc=slc) / \
-                        grid['gdet'][Loci.CENT.value][grid.slices.geom_slc(slc)]
+                        grid['gdet'][grid.slices.geom_slc(slc)]
             else:
                 # If we can't find it at all:
                 raise KeyError("Variable "+var+" is not in file "+self.fname+"! Should it have been calculated?")

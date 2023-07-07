@@ -56,8 +56,9 @@ class Loci(Enum):
         -------------------------> R
     
     And FACE3 as the plane in phi.
-    Several items in ``Grid`` are indexed by location. To retrieve the
-    one you want, use e.g. ``Loci.CENT.value`` as the first index.
+    This enum corresponds to the various request-able grid locations:
+    center is the default, with the others generally called
+    "corner", "face1", "face2", "face3"
     """
     FACE1 = 0
     FACE2 = 1
