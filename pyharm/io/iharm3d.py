@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -117,7 +117,7 @@ class Iharm3DFile(DumpFile):
             return self.cache[var]
         with h5py.File(self.fname, "r") as fil:
             # Translate the slice to a portion of the file
-            # A bit overkill to stay adaptable: keeps all dimensions until squeeze in _prep_array
+            # A bit overkill to stay adaptable
             # TODO ghost zones
             fil_slc = [slice(None), slice(None), slice(None)]
             if isinstance(slc, tuple) or isinstance(slc, list):
@@ -141,7 +141,6 @@ class Iharm3DFile(DumpFile):
                 # Read desired slice
                 if var in fil:
                     self.cache[var] = self._prep_array(fil[var][fil_slc], **kwargs)
-                    print(var, self.cache[var].shape)
                     return self.cache[var]
                 elif var in fil['/extras']:
                     self.cache[var] = self._prep_array(fil['/extras/'+var][fil_slc], **kwargs)

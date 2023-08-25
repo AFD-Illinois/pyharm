@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -197,19 +197,22 @@ def frame(fname, diag, kwargs):
             # Various options 
             if "_poloidal" in movie_type or "_2d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
-                var = movie_type.replace("_poloidal","")
+                movie_type = movie_type.replace("_poloidal","")
+                var = movie_type
                 if "divB" in var:
                     var = dump[var]
                 plot_xz(ax, dump, var, **plotrc)
             elif "_toroidal" in movie_type:
                 ax = plt.subplot(1, 1, 1)
-                var = movie_type.replace("_toroidal","")
+                movie_type = movie_type.replace("_toroidal","")
+                var = movie_type
                 if "divB" in var:
                     var = dump[var]
                 plot_xy(ax, dump, var, **plotrc)
             elif "_av1d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
-                var = movie_type.replace("_av1d","")
+                movie_type = movie_type.replace("_av1d","")
+                var = movie_type
                 vardata = np.mean(dump[var], axis=(1,2))
                 ax.plot(dump['r1d'], vardata) # TODO some kind of radial_plot back in plot_dumps?
 
@@ -224,7 +227,8 @@ def frame(fname, diag, kwargs):
                 ax.set_title(pretty(var))
             elif "_1d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
-                var = movie_type.replace("_1d","")
+                movie_type = movie_type.replace("_av1d","")
+                var = movie_type
                 sec = dump[:, 0, 0]
                 ax.plot(sec['r1d'], np.squeeze(sec[var])) # TODO some kind of radial_plot back in plot_dumps?
 
@@ -261,7 +265,9 @@ def frame(fname, diag, kwargs):
             overlay_field(ax, dump, nlines=nlines)
         if 'overlay_grid' in kwargs and kwargs['overlay_grid']:
             overlay_grid(ax, dump.grid)
-        # TODO contours
+        if 'overlay_blocks' in kwargs and kwargs['overlay_blocks']:
+            overlay_blocks(ax, dump)
+        # TODO options here, contours, etc.
 
         # TITLE
         # Always quash title when set. figures can set this too
@@ -271,6 +277,7 @@ def frame(fname, diag, kwargs):
             # If the figure didn't set a title and we should...
             if "divB" in movie_type:
                 # Special title for diagnostic divB
+                # movie_type might be a version calculated in post e.g. divB_prims
                 divb = dump[movie_type]
                 divb_max = np.max(divb)
                 divb_argmax = np.argmax(divb)

@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -115,6 +115,23 @@ def get_dump_time(fname):
     For cutting on time without loading everything
     """
     return _get_filter_class(fname).get_dump_time(fname)
+
+def get_dump_type(fname):
+    """Attempt to get an unknown dump's type even if we can't load it"""
+    filter = _get_filter_class(fname)
+    if filter == KHARMAFile:
+        name = "KHARMA"
+    elif filter == Iharm3DFile:
+        name = "iharm3D"
+    elif filter == KORALFile:
+        name = "KORAL"
+    elif filter == Iharm3DRestart:
+        name = "iharm3D (restart)"
+    elif filter == HAMRFile:
+        name = "H-AMR"
+    elif filter == HARM2DFile:
+        name = "iharm2d"
+    return name
 
 def read_hdr(fname):
     """Get just the header/params embedded in a simulation file.
