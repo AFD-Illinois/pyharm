@@ -55,7 +55,6 @@ from pyharm.plots.frame import frame
 from pyharm.parallel import calc_nthreads
 
 # Use mpi4py if available, or multiprocessing
-# TODO if MPI world size 1, fallback
 try:
     import mpi4py
     from mpi4py import MPI
@@ -128,6 +127,7 @@ class ExtensibleCmd(click.Command):
 @click.option('--overlay_field', is_flag=True, help="Overlay field lines.")
 @click.option('--nlines', default=20, help="Number of total field lines to overlay.")
 @click.option('--overlay_grid', is_flag=True, help="Overlay simulation zone borders.")
+@click.option('--overlay_blocks', is_flag=True, help="Overlay simulation block borders.")
 @click.option('--native', is_flag=True, help="Plot in native coordinates X1,X2,X3 rather than converting to Cartesian.")
 @click.option('--bh/--no-bh', default=True, help="Whether to show the BH shadow.")
 @click.option('--no_grid_cache', is_flag=True, help="Don't cache geometry.  For plotting large Cartesian simulations.")

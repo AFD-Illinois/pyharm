@@ -34,6 +34,37 @@ __license__ = """
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import click
+import psutil
+from functools import partial
+
+import pyharm
+from pyharm.util import i_of
+from pyharm.parallel import map_parallel
+
+@click.command()
+@click.argument('dumpnames', nargs=-1)
+@click.option('-rout', '--rout_vis', default=100., help="Default outer radius when visualizing")
+@click.option('-nt', '--nthreads', default=None, help="Number of parallel conversions -- defaults to nprocs")
+@click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
+@click.version_option(package_name='pyharm')
+def gen_xdmf(dumpnames, rout_vis, nthreads, debug):
+    if debug:
+        for dumpname in dumpnames:
+            write_xml_file(pyharm.load_dump(dumpname), rout_vis)
+    else:
+        map_fn = partial(write_xml_file, rout_vis=rout_vis)
+
+        if nthreads is None:
+            nthreads = min(psutil.cpu_count(), len(dumpnames))
+
+        print("Writing {} XDMF description files with {} threads".format(len(dumpnames), nthreads))
+        map_parallel(map_fn, dumpnames)
+        print("Generated all files.")
+
+# Code below originally via Jonah Miller
+
+# Original note:
 
 # Adapted very closely from ebhlight xdmf_output.c
 # Original comments below
@@ -51,14 +82,7 @@ __license__ = """
 # so I treat everything as a scalar using hyperslabs
 # ~JMM
 
-import click
-import psutil
-from functools import partial
-
-import pyharm
-from pyharm.util import i_of
-from pyharm.parallel import map_parallel
-
+# TODO(BSP) incorporate into pyharm proper?
 def write_xml_file(dumpname, rout_vis):
     dump = pyharm.load_dump(dumpname)
 
@@ -238,27 +262,6 @@ def tensor_component(fp, name, sourcename, precision, mu, nu):
     fp.write("          </DataItem>\n")
     fp.write("        </DataItem>\n")
     fp.write("      </Attribute>\n")
-
-@click.command()
-@click.argument('dumpnames', nargs=-1)
-@click.option('-rout', '--rout_vis', default=100., help="Default outer radius when visualizing")
-@click.option('-nt', '--nthreads', default=None, help="Number of parallel conversions -- defaults to nprocs")
-@click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
-@click.version_option(package_name='pyharm')
-def gen_xdmf(dumpnames, rout_vis, nthreads, debug):
-    if debug:
-        for dumpname in dumpnames:
-            write_xml_file(pyharm.load_dump(dumpname), rout_vis)
-    else:
-        map_fn = partial(write_xml_file, rout_vis=rout_vis)
-
-        if nthreads is None:
-            nthreads = min(psutil.cpu_count(), len(dumpnames))
-
-        print("Writing {} XDMF description files with {} threads".format(len(dumpnames), nthreads))
-        map_parallel(map_fn, dumpnames)
-        print("Generated all files.")
-
 
 if __name__ == "__main__":
     gen_xdmf()
