@@ -34,6 +34,7 @@ __license__ = """
 
 import numpy as np
 import configparser
+import re
 
 __doc__ = \
 """Parse and handle parameters.
@@ -90,16 +91,33 @@ def parse_parthenon_dat(string):
     config.read_string(string.replace("<","[").replace(">","]"))
 
     # Pick out some keys we usually put in the base parameters
-    for block in ['parthenon/mesh', 'coordinates', 'parthenon/time', 'GRMHD', 'torus']:
+    flatten_blocks = ['parthenon/mesh', 'coordinates', 'parthenon/time', 'GRMHD', 'emhd',
+                      'torus', 'emhdmodes', 'bondi_viscous', 'bondi']
+    def parse_key_type(entry_string):
+        try:
+            if "." in entry_string or "e" in entry_string:
+                return float(entry_string)
+            else:
+                return int(entry_string)
+        except ValueError:
+            return entry_string
+
+    # Flatten entries from some blocks the way we've always done it, for compatibility
+    for block in flatten_blocks:
         if block in config:
             for key in config[block]:
-                try:
-                    if "." in config[block][key] or "e" in config[block][key]:
-                        params[key] = float(config[block][key])
-                    else:
-                        params[key] = int(config[block][key])
-                except ValueError:
-                    params[key] = config[block][key]
+                params[key] = parse_key_type(config[block][key])
+
+    # Keep everything by block too.  Gradually transition to these entries for KHARMA code
+    # TODO emulate these parsing iharm3d files?
+    for block in config:
+        params[block] = {}
+        for key in config[block]:
+            try:
+                params[block][key] = parse_key_type(config[block][key])
+            except configparser.InterpolationSyntaxError:
+                params[block][key] = "NotParsed"
+
 
     # And keep the rest
     params['config'] = config

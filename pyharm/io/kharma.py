@@ -167,6 +167,7 @@ class KHARMAFile(DumpFile):
         # Set incidental parameters from what we've read
         params['t'] = fil.Time
         params['n_step'] = fil.NCycle
+        params['num_blocks'] = fil.NumBlocks
         # Add dump number if we've conformed to usual naming scheme
         fname_parts = self.fname.split("/")[-1].split(".")
         if len(fname_parts) > 2:
@@ -281,6 +282,10 @@ class KHARMAFile(DumpFile):
         # Arrange and read each block
         for ib in range(fil.NumBlocks):
             bb = fil.BlockBounds[ib]
+            # How much smaller is this block's dx vs the file norm?
+            block_dx = np.abs(bb[1] - bb[0])/fil.MeshBlockSize[0]
+            level = round(dx[0] / block_dx)
+            #print("Reading block level", level)
             # Internal location of the block i.e. starting/stopping physical indices in the final, big mesh
             # First, take the start/stop locations and map them to integers
             # We only need to add ghost zones here if the file has them *and* we want them:
@@ -296,9 +301,9 @@ class KHARMAFile(DumpFile):
             # If the ghost zones are included (ng_f > 0) but we don't want them (all) (ng_i = 0),
             # then take a portion of the file.  Otherwise take it all.
             # Also include the block number out front
-            fil_slc = (slice(loc_slc[2].start - b[2].start + ng_fz - ng[2], loc_slc[2].stop - b[2].start + ng_fz + ng[2]),
-                       slice(loc_slc[1].start - b[1].start + ng_fy - ng[1], loc_slc[1].stop - b[1].start + ng_fy + ng[1]),
-                       slice(loc_slc[0].start - b[0].start + ng_fx - ng[0], loc_slc[0].stop - b[0].start + ng_fx + ng[0]))
+            fil_slc = (slice((loc_slc[2].start - b[2].start)*level + ng_fz - ng[2], (loc_slc[2].stop - b[2].start)*level + ng_fz + ng[2], level),
+                       slice((loc_slc[1].start - b[1].start)*level + ng_fy - ng[1], (loc_slc[1].stop - b[1].start)*level + ng_fy + ng[1], level),
+                       slice((loc_slc[0].start - b[0].start)*level + ng_fx - ng[0], (loc_slc[0].stop - b[0].start)*level + ng_fx + ng[0], level))
             if (fil_slc[-3].start > fil_slc[-3].stop) or (fil_slc[-2].start > fil_slc[-2].stop) or (fil_slc[-1].start > fil_slc[-1].stop):
                 # Don't read blocks outside our domain
                 #print("Skipping block: ", b, " would be to location ", out_slc, " from portion ", fil_slc)
