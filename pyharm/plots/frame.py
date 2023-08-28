@@ -266,7 +266,7 @@ def frame(fname, diag, kwargs):
         if 'overlay_grid' in kwargs and kwargs['overlay_grid']:
             overlay_grid(ax, dump.grid)
         if 'overlay_blocks' in kwargs and kwargs['overlay_blocks']:
-            overlay_blocks(ax, dump)
+            overlay_blocks(ax, dump, plotrc['native'])
         # TODO options here, contours, etc.
 
         # TITLE

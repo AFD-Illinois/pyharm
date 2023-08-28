@@ -111,18 +111,24 @@ def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=Fa
     else:
         return ax.contour(x, z, var, levels=levels, colors=color, **kwargs)
 
-def overlay_blocks(ax, dump, color='k', linewidth=0.2):
+def overlay_blocks(ax, dump, native=False, color='k', linewidth=0.2):
     c = dump.grid.coords
     for block in range(dump['num_blocks']):
         bb = dump['phdf_aux']['BlockBounds'][block]
         line1 = np.array([[0,l,bb[2],0] for l in np.linspace(bb[0], bb[1])]).T
-        ax.plot(c.cart_x(line1), c.cart_z(line1), color=color, linewidth=linewidth)
         line2 = np.array([[0,l,bb[3],0] for l in np.linspace(bb[0], bb[1])]).T
-        ax.plot(c.cart_x(line2), c.cart_z(line2), color=color, linewidth=linewidth)
         line3 = np.array([[0,bb[0],l,0] for l in np.linspace(bb[2], bb[3])]).T
-        ax.plot(c.cart_x(line3), c.cart_z(line3), color=color, linewidth=linewidth)
         line4 = np.array([[0,bb[1],l,0] for l in np.linspace(bb[2], bb[3])]).T
-        ax.plot(c.cart_x(line4), c.cart_z(line4), color=color, linewidth=linewidth)
+        if native:
+            ax.plot(line1[1], line1[2], color=color, linewidth=linewidth)
+            ax.plot(line2[1], line2[2], color=color, linewidth=linewidth)
+            ax.plot(line3[1], line3[2], color=color, linewidth=linewidth)
+            ax.plot(line4[1], line4[2], color=color, linewidth=linewidth)
+        else:
+            ax.plot(c.cart_x(line1), c.cart_z(line1), color=color, linewidth=linewidth)
+            ax.plot(c.cart_x(line2), c.cart_z(line2), color=color, linewidth=linewidth)
+            ax.plot(c.cart_x(line3), c.cart_z(line3), color=color, linewidth=linewidth)
+            ax.plot(c.cart_x(line4), c.cart_z(line4), color=color, linewidth=linewidth)
 
 def overlay_field(ax, dump, **kwargs):
         overlay_flowlines(ax, dump, 'B1', 'B2', **kwargs)
