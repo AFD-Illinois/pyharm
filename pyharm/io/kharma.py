@@ -252,9 +252,9 @@ class KHARMAFile(DumpFile):
         ng_iz = params['ng'] if params['n3'] > 1 else 0
         ntot = [params['n1']+2*ng_ix, params['n2']+2*ng_iy, params['n3']+2*ng_iz]
         # Even if we don't want ghosts, we'll potentially need to cut them from the file
-        ng_fx = params['ng_file']
-        ng_fy = params['ng_file'] if params['n2'] > 1 else 0
-        ng_fz = params['ng_file'] if params['n3'] > 1 else 0
+        ngf = [params['ng_file'],
+               params['ng_file'] if params['n2'] > 1 else 0,
+               params['ng_file'] if params['n3'] > 1 else 0]
         # Finally, we need to decipher where to put each meshblock vs the whole grid,
         # which we do inelegantly using zone locations
         dx = (params['dx1'], params['dx2'], params['dx3'])
@@ -296,27 +296,25 @@ class KHARMAFile(DumpFile):
             # on the (never instantiated) global grid
             loc_slc = tuple([slice(max(b[i].start, file_start[i]), min(b[i].stop, file_stop[i])) for i in range(3)])
             # Subtract off the start of the slice: this is where we're outputting to in our real array
-            out_slc = tuple([slice(loc_slc[i].start - file_start[i] - ng[i], loc_slc[i].stop - file_start[i] + ng[i]) for i in range(3)])
+            out_slc = tuple([slice(loc_slc[i].start - file_start[i] - ng[i]//level, loc_slc[i].stop - file_start[i] + ng[i]//level) for i in range(3)])
             # Subtract off the block's global starting point: this is what we're taking from in the block
             # If the ghost zones are included (ng_f > 0) but we don't want them (all) (ng_i = 0),
             # then take a portion of the file.  Otherwise take it all.
-            # Also include the block number out front
-            fil_slc = (slice((loc_slc[2].start - b[2].start)*level + ng_fz - ng[2], (loc_slc[2].stop - b[2].start)*level + ng_fz + ng[2], level),
-                       slice((loc_slc[1].start - b[1].start)*level + ng_fy - ng[1], (loc_slc[1].stop - b[1].start)*level + ng_fy + ng[1], level),
-                       slice((loc_slc[0].start - b[0].start)*level + ng_fx - ng[0], (loc_slc[0].stop - b[0].start)*level + ng_fx + ng[0], level))
+            fil_slc = (slice((loc_slc[2].start - b[2].start)*level + ngf[2] - ng[2], (loc_slc[2].stop - b[2].start)*level + ngf[2] + ng[2], level),
+                       slice((loc_slc[1].start - b[1].start)*level + ngf[1] - ng[1], (loc_slc[1].stop - b[1].start)*level + ngf[1] + ng[1], level),
+                       slice((loc_slc[0].start - b[0].start)*level + ngf[0] - ng[0], (loc_slc[0].stop - b[0].start)*level + ngf[0] + ng[0], level))
             if (fil_slc[-3].start > fil_slc[-3].stop) or (fil_slc[-2].start > fil_slc[-2].stop) or (fil_slc[-1].start > fil_slc[-1].stop):
                 # Don't read blocks outside our domain
                 #print("Skipping block: ", b, " would be to location ", out_slc, " from portion ", fil_slc)
                 continue
             #print("Reading var ", var, " from block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
-            #print(fil.fid[var].shape)
 
             if 'prims.rho' in fil.Variables:
                 if var not in fil.fid:
                     raise IOError("Cannot read variable "+var+" from file "+self.fname+"!")
                 # New file format. Read whatever
                 if len(out.shape) == 4: # Always read the whole vector, even if we're returning an index
-                    #print("Reading vector size ", fil.fid[var][fil_slc + (slice(None),)].T.shape, " to loc size ", out[(slice(None),) + out_slc].shape)
+                    #print("Reading vector size ", fil.fid[var][(ib, slice(None)) + fil_slc].transpose(0,3,2,1).shape, " to loc size ", out[(slice(None),) + out_slc].shape)
                     try:
                         # Newer format: block, var, k, j, i on disk
                         out[(slice(None),) + out_slc] = fil.fid[var][(ib, slice(None)) + fil_slc].transpose(0,3,2,1)
