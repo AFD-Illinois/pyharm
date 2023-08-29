@@ -56,12 +56,13 @@ def overlay_observer_arrow(ax, angle=163, r_start=4, r_end=5.5):
 
 #### SPACETIME ####
 
-def overlay_eh_border(ax, grid, at_i=5, color='#FFFFFF', linewidth=1.5):
+def overlay_eh_border(ax, grid, color='#FFFFFF', linewidth=1.5):
     """Plot a circle corresponding to the `i`th zone of the simulation.
     Usually used for the EH at i=5th zone.
     """
-    X, Y = grid.get_xz_locations(mesh=True, half_cut=True)
-    ax.plot(X[at_i,:], Y[at_i,:], color, linewidth=linewidth) #white
+    x1, y1 = np.linspace(0,3,1000), np.linspace(-3,3,1000)
+    X, Y = np.meshgrid(x1, y1)
+    ax.contour(X, Y, X**2 + Y**2, [1 + np.sqrt(1 - grid['a']**2),], colors=[color,], linewidths=[linewidth,])
 
 def overlay_photon_orbits(ax, a):
     """Overlay a region representing allowable photon orbits given the black hole spin"""
@@ -88,9 +89,10 @@ def mark_isco(ax, grid, color='#00FF00'):
 def overlay_grid(ax, grid, color='k', linewidth=0.2):
     c = grid.coords
     m = grid.coord_all(mesh=True)
-    for i in range(grid['n1']):
+    # Extra line on the outside/end in mesh coords
+    for i in range(grid['n1']+1):
         ax.plot(c.cart_x(m[:,:,i,0]), c.cart_z(m[:,:,i,0]), color=color, linewidth=linewidth)
-    for i in range(grid['n2']):
+    for i in range(grid['n2']+1):
         ax.plot(c.cart_x(m[:,i,:,0]), c.cart_z(m[:,i,:,0]), color=color, linewidth=linewidth)
 
 #### VARIABLES ####
