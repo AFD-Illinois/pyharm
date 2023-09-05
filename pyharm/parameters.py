@@ -92,7 +92,7 @@ def parse_parthenon_dat(string):
 
     # Pick out some keys we usually put in the base parameters
     flatten_blocks = ['parthenon/mesh', 'coordinates', 'parthenon/time', 'GRMHD', 'emhd',
-                      'torus', 'emhdmodes', 'bondi_viscous', 'bondi']
+                      'torus', 'emhdmodes', 'bondi_viscous', 'bondi', 'resize_restart']
     def parse_key_type(entry_string):
         try:
             if "." in entry_string or "e" in entry_string:
@@ -106,7 +106,8 @@ def parse_parthenon_dat(string):
     for block in flatten_blocks:
         if block in config:
             for key in config[block]:
-                params[key] = parse_key_type(config[block][key])
+                if [block, key] not in [['resize_restart', 'base'],]:
+                    params[key] = parse_key_type(config[block][key])
 
     # Keep everything by block too.  Gradually transition to these entries for KHARMA code
     # TODO emulate these parsing iharm3d files?

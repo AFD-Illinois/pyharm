@@ -284,7 +284,7 @@ class KHARMAFile(DumpFile):
             bb = fil.BlockBounds[ib]
             # How much smaller is this block's dx vs the file norm?
             block_dx = np.abs(bb[1] - bb[0])/fil.MeshBlockSize[0]
-            level = round(dx[0] / block_dx)
+            level = int(round(dx[0] / block_dx))
             #print("Reading block level", level)
             # Internal location of the block i.e. starting/stopping physical indices in the final, big mesh
             # First, take the start/stop locations and map them to integers
