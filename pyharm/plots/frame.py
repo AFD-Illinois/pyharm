@@ -35,6 +35,7 @@ __license__ = """
 import os
 import sys
 
+import glob
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -54,126 +55,24 @@ included in pyharm so as to be imported there easily.
 The code in `figures` would be a better place to start in writing your own additional movies/plots.
 """
 
-def frame(fname, diag, kwargs):
-    # If we're outside the timeframe we don't need to make *anything*
-    tstart, tend = kwargs['tstart'], kwargs['tend']
-    tdump = io.get_dump_time(fname)
-    if tdump is None:
-        # TODO yell about not knowing dump times
-        return
+def data_dir(n):
+    """Data directory naming scheme"""
+    return "{:05d}".format(n)
 
-    if (tstart is not None and tdump < float(tstart)) or \
-        (tend is not None and tdump > float(tend)):
-        return
+def get_mz_nums(iteration, nzones):
+    n = iteration
+    m = nzones - 1 # we don't repeat sims at the inner/outer edge
+    d = n % m
+    # This ordering ensures we overplot with the right data
+    # From the edge run before last, up to the run replaced by ours
+    old_part = list(range((n//m - 1)*m, n - 2*d))
+    # From the last edge run up to this run, not including us
+    # (The particular dump being plotted will represent this run)
+    new_part = list(range((n//m)*m, n))
+    # Return only the runs >0 i.e. that exist
+    return [p for p in old_part + new_part if p > 0]
 
-    # Check through movies for which we've run/need to run,
-    # and which will include ghosts
-    movie_types = []
-    ghost_zones = False
-    for movie_type in kwargs['movie_types'].split(","):
-        frame_folder = os.path.join(os.getcwd().replace(kwargs['base_path'], kwargs['out_path']), "frames_"+movie_type)
-        if 'numeric_fnames' in kwargs and kwargs['numeric_fnames']:
-            frame_name = os.path.join(frame_folder, "frame_"+fname.split('.')[-2]+".png")
-        elif 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
-            time_formatted = ("%.2f"%tdump).rjust(kwargs['time_digits'],'0')
-            frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
-        else:
-            time_formatted = ("%d"%int(tdump)).rjust(kwargs['time_digits'],'0')
-            frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
-
-        if 'resume' in kwargs and kwargs['resume'] and os.path.exists(frame_name):
-            continue
-
-        # Load ghosts?  Set a flag and strip the option from the name
-        if "_ghost" in movie_type or kwargs['ghost_zones']:
-            ghost_zones = True
-            movie_type = movie_type.replace("_ghost","")
-
-        # Then add the stripped name to the list
-        movie_types.append(movie_type)
-
-    # If we don't have any frames to make, return
-    if len(movie_types) == 0:
-        return
-
-    print("Imaging t={}".format(int(tdump)), file=sys.stderr)
-
-    # This just attaches the file and creates a grid.  We do need to specify
-    # if any movie will need ghosts, for the index math
-    dump = FluidState(fname, ghost_zones=ghost_zones, use_grid_cache=(not kwargs['no_grid_cache']))
-
-    for movie_type in movie_types:
-        # Set plotting options we'll pass on to figure-specific code
-        plotrc = {}
-        # Plotting options are copied from kwargs and share the same names
-        for key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax',
-                    'left', 'right', 'top', 'bottom', 'wspace', 'hspace'):
-            # Should be floats or none
-            try:
-                plotrc[key] = float(kwargs[key])
-            except TypeError:
-                # Make everything else None
-                plotrc[key] = None
-        for key in ('at', 'nlines'):
-            # Should be ints
-            plotrc[key] = int(kwargs[key])
-        for key in ('native', 'bh', 'no_title', 'average', 'sum', 'log', 'log_r'):
-            # Should be bools
-            plotrc[key] = bool(kwargs[key])
-        for key in ('shading', 'cmap'):
-            plotrc[key] = kwargs[key] #lower()?
-
-        # Choose a domain size 
-        if kwargs['size'] is not None:
-            sz = float(kwargs['size'])
-        else:
-            if 'r_out' not in dump.params:
-                # Exotic. Try plotting the whole domain
-                sz = None
-            else:
-                # Mediocre heuristic for "enough" of domain.
-                # Users should specify
-                if dump['r_out'] >= 60:
-                    sz = 60
-                else:
-                    sz = dump['r_out']
-
-        # Choose a centered window
-        # TODO 'half' and similar args for non-centered windows
-        user_window = False
-        if kwargs['xmin'] is not None:
-            plotrc['window'] = (plotrc['xmin'], plotrc['xmax'], plotrc['ymin'], plotrc['ymax'])
-            user_window = True
-        elif sz is not None:
-            if "1d" in movie_type:
-                plotrc['window'] = (1.0, sz)
-            else:
-                plotrc['window'] = (-sz, sz, -sz, sz)
-        else:
-            plotrc['window'] = None
-
-        #  _array plots override a bunch of things
-        # Handle and strip
-        if "_array" in movie_type:
-            plotrc['native'] = True
-            if not user_window:
-                plotrc['window'] = None # Let plotter choose based on grid
-            plotrc['shading'] = 'flat'
-            plotrc['half_cut'] = True
-            movie_type = movie_type.replace("_array","")
-
-        # Options to place
-        if "_cross" in movie_type:
-            movie_type = movie_type.replace("_cross","")
-            plotrc['at'] = dump['n3']//2
-        if "_quarter" in movie_type:
-            movie_type = movie_type.replace("_quarter","")
-            plotrc['at'] = dump['n3']//4
-        if "_poloidal" in movie_type:
-            pass
-
-        fig = plt.figure(figsize=(kwargs['fig_x'], kwargs['fig_y']))
-
+def do_plot(fig, dump, diag, movie_type, plotrc):
         # PLOT
         if movie_type in figures.__dict__:
             # Named movie frame figures in figures.py
@@ -259,7 +158,145 @@ def frame(fname, diag, kwargs):
                         adjustrc[key] = plotrc[key]
                 fig.subplots_adjust(**adjustrc)
 
+def frame(fname, diag, kwargs):
+    # If we're outside the timeframe we don't need to make *anything*
+    tstart, tend = kwargs['tstart'], kwargs['tend']
+    tdump = io.get_dump_time(fname)
+    if tdump is None:
+        # TODO yell about not knowing dump times
+        return
+    if (tstart is not None and tdump < float(tstart)) or \
+        (tend is not None and tdump > float(tend)):
+        return
+
+    # Check through movies for which we've run/need to run,
+    # and which will include ghosts
+    movie_types = []
+    ghost_zones = False
+    for movie_type in kwargs['movie_types'].split(","):
+        frame_folder = os.path.join(os.getcwd().replace(kwargs['base_path'], kwargs['out_path']), "frames_"+movie_type)
+        if 'numeric_fnames' in kwargs and kwargs['numeric_fnames']:
+            frame_name = os.path.join(frame_folder, "frame_"+fname.split('.')[-2]+".png")
+        elif 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
+            time_formatted = ("%.2f"%tdump).rjust(kwargs['time_digits'],'0')
+            frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
+        else:
+            time_formatted = ("%d"%int(tdump)).rjust(kwargs['time_digits'],'0')
+            frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
+
+        if 'resume' in kwargs and kwargs['resume'] and os.path.exists(frame_name):
+            continue
+
+        # Load ghosts?  Set a flag and strip the option from the name
+        if "_ghost" in movie_type or kwargs['ghost_zones']:
+            ghost_zones = True
+            movie_type = movie_type.replace("_ghost","")
+
+        # Then add the stripped name to the list
+        movie_types.append(movie_type)
+
+    # If we don't have any frames to make, return
+    if len(movie_types) == 0:
+        return
+
+    print("Imaging t={}".format(int(tdump)), file=sys.stderr)
+
+    # This just attaches the file and creates a grid.  We do need to specify
+    # if any movie will need ghosts, for the index math
+    dump = FluidState(fname, ghost_zones=ghost_zones, use_grid_cache=(not kwargs['no_grid_cache']))
+
+    for movie_type in movie_types:
+        # Set plotting options we'll pass on to figure-specific code
+        plotrc = {}
+        # Plotting options are copied from kwargs and share the same names
+        for key in ('vmin', 'vmax', 'xmin', 'xmax', 'ymin', 'ymax',
+                    'left', 'right', 'top', 'bottom', 'wspace', 'hspace'):
+            # Should be floats or none
+            try:
+                plotrc[key] = float(kwargs[key])
+            except TypeError:
+                # Make everything else None
+                plotrc[key] = None
+        for key in ('at', 'nlines'):
+            # Should be ints
+            plotrc[key] = int(kwargs[key])
+        for key in ('native', 'bh', 'no_title', 'average', 'sum', 'log', 'log_r'):
+            # Should be bools
+            plotrc[key] = bool(kwargs[key])
+        for key in ('shading', 'cmap'):
+            plotrc[key] = kwargs[key] #lower()?
+
+        # Choose a domain size 
+        if kwargs['size'] is not None:
+            sz = float(kwargs['size'])
+        else:
+            if 'r_out' not in dump.params:
+                # Exotic. Try plotting the whole domain
+                sz = None
+            else:
+                # Mediocre heuristic for "enough" of domain.
+                # Users should specify
+                # TODO at least r_in to e.g. 10*r_in or something
+                if dump['r_out'] >= 60:
+                    sz = 60
+                else:
+                    sz = dump['r_out']
+
+        # Choose a centered window
+        # TODO 'half' and similar args for non-centered windows
+        user_window = False
+        if kwargs['xmin'] is not None:
+            plotrc['window'] = (plotrc['xmin'], plotrc['xmax'], plotrc['ymin'], plotrc['ymax'])
+            user_window = True
+        elif sz is not None:
+            if "1d" in movie_type:
+                plotrc['window'] = (1.0, sz)
+            else:
+                plotrc['window'] = (-sz, sz, -sz, sz)
+        else:
+            plotrc['window'] = None
+
+        # If our plot would be entirely outside the active window
+        if user_window:
+            if dump['r_in'] > plotrc['xmax'] and dump['r_in'] > plotrc['ymax'] and \
+                -dump['r_in'] < plotrc['xmin'] and -dump['r_in'] < plotrc['ymin']:
+                return
+
+        #  _array plots override a bunch of things
+        # Handle and strip
+        if "_array" in movie_type:
+            plotrc['native'] = True
+            if not user_window:
+                plotrc['window'] = None # Let plotter choose based on grid
+            plotrc['shading'] = 'flat'
+            plotrc['half_cut'] = True
+            movie_type = movie_type.replace("_array","")
+
+        # Options to place
+        if "_cross" in movie_type:
+            movie_type = movie_type.replace("_cross","")
+            plotrc['at'] = dump['n3']//2
+        if "_quarter" in movie_type:
+            movie_type = movie_type.replace("_quarter","")
+            plotrc['at'] = dump['n3']//4
+        if "_poloidal" in movie_type:
+            pass
+
+        fig = plt.figure(figsize=(kwargs['fig_x'], kwargs['fig_y']))
+
+        if kwargs['multizone']:
+            # Plot background dumps in order to get the full state
+            for num in get_mz_nums(dump['iteration'], dump['nzone']):
+                bkg_fname = glob.glob('../'+data_dir(num)+'/*.out0.final.phdf')[0]
+                bkg_dump = FluidState(bkg_fname, ghost_zones=ghost_zones, use_grid_cache=(not kwargs['no_grid_cache']))
+                do_plot(fig, bkg_dump, diag, movie_type, plotrc)
+                del bkg_dump, bkg_fname
+        
+        # Plot the dump we were assigned
+        do_plot(fig, dump, diag, movie_type, plotrc)
+
         # OVERLAYS
+        ax = fig.axes[0]
         if 'overlay_field' in kwargs and kwargs['overlay_field'] and not ('native' in plotrc and plotrc['native']):
             nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
             overlay_field(ax, dump, nlines=nlines)

@@ -97,6 +97,7 @@ class ExtensibleCmd(click.Command):
 @click.option('-e', '--tend', default=None, help="End time.")
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
 @click.option('-o', '--output_dir', default=".", help="Base directory for outputs. Any folder structure of models will be preserved.")
+@click.option('--multizone', is_flag=True, help="Image a multizone run.  Call on each run folder separately!")
 # Figure options
 @click.option('--fig_x', default=16.0, help="Figure width in inches.")
 @click.option('--fig_y', default=9.0, help="Figure height in inches.")
