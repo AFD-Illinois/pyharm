@@ -129,6 +129,8 @@ class KHARMAMZFile(DumpFile):
         self.params = self.kfiles[-1].params
         self.params['r_in_active'] = kfile_tmp.params['r_in']
         self.params['r_out_active'] = kfile_tmp.params['r_out']
+        self.params['startx1_active'] = kfile_tmp.params['startx1']
+        self.params['stopx1_active'] = kfile_tmp.params['startx1'] + kfile_tmp.params['n1']*kfile_tmp.params['dx1']
 
         del kfile_tmp
 

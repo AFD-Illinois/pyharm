@@ -88,14 +88,20 @@ def mark_isco(ax, grid, color='#00FF00'):
 
 #### GRID ####
 
-def overlay_grid(ax, grid, color='k', linewidth=0.2, log_r=False):
+def overlay_grid(ax, grid, color='k', linewidth=0.2, native=False, log_r=False):
     c = grid.coords
     m = grid.coord_all(mesh=True)
-    # Extra line on the outside/end in mesh coords
-    for i in range(grid['n1']+1):
-        ax.plot(c.cart_x(m[:,:,i,0], log_r), c.cart_z(m[:,:,i,0], log_r), color=color, linewidth=linewidth)
-    for i in range(grid['n2']+1):
-        ax.plot(c.cart_x(m[:,i,:,0], log_r), c.cart_z(m[:,i,:,0], log_r), color=color, linewidth=linewidth)
+    if native:
+        # Extra line on the outside/end in mesh coords
+        for i in range(grid['n1']+1):
+            ax.plot(m[:,:,i,0], m[:,:,i,0], color=color, linewidth=linewidth)
+        for i in range(grid['n2']+1):
+            ax.plot(m[:,i,:,0], m[:,i,:,0], color=color, linewidth=linewidth)
+    else:
+        for i in range(grid['n1']+1):
+            ax.plot(c.cart_x(m[:,:,i,0], log_r), c.cart_z(m[:,:,i,0], log_r), color=color, linewidth=linewidth)
+        for i in range(grid['n2']+1):
+            ax.plot(c.cart_x(m[:,i,:,0], log_r), c.cart_z(m[:,i,:,0], log_r), color=color, linewidth=linewidth)
 
 #### VARIABLES ####
 
@@ -171,7 +177,6 @@ def overlay_flowlines(ax, dump, varx1, varx2, levels=None, nlines=20, color='k',
     Amax = AJ_phi.max()
     if levels is None:
         if log_r:
-            print("Amax",Amax,"Amean",AJ_phi.mean())
             levels = np.sort(AJ_phi[::16,N2//2], axis=None)
         else:
             levels = np.linspace(0, Amax, nlines * 2)
@@ -179,9 +184,18 @@ def overlay_flowlines(ax, dump, varx1, varx2, levels=None, nlines=20, color='k',
     if half_cut:
         AJ_phi = AJ_phi[:,:N2]
     else:
-        x = wrap(x)
-        z = wrap(z)
-        AJ_phi = wrap(AJ_phi)
+        # Make the continuity choices at poles consistent
+        if not log_r:
+            # Wrap for same continuity over poles
+            x = wrap(x)
+            z = wrap(z)
+            AJ_phi = wrap(AJ_phi)
+        else:
+            # Explicitly *separate* the lower pole to avoid spurious connections,
+            # by repeating the last zone before the pole
+            x = np.concatenate([x[:,:N2], x[:,N2-1:N2], x[:,N2:]], axis=1)
+            z = np.concatenate([z[:,:N2], z[:,N2-1:N2], z[:,N2:]], axis=1)
+            AJ_phi = np.concatenate([AJ_phi[:,:N2], np.nan*np.zeros((N1,1)), AJ_phi[:,N2:]], axis=1)
 
     ax.contour(x, z, AJ_phi, levels=levels, colors=color, **kwargs)
 

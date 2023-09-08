@@ -251,6 +251,7 @@ def frame(fname, diag, kwargs):
 
         #  _array plots override a bunch of things
         # Handle and strip
+        plotrc['native'] = False
         if "_array" in movie_type:
             plotrc['native'] = True
             if not user_window:
@@ -270,7 +271,7 @@ def frame(fname, diag, kwargs):
             pass
 
         plotrc['overlay_field'] = \
-            'overlay_field' in kwargs and kwargs['overlay_field'] and not ('native' in plotrc and plotrc['native'])
+            'overlay_field' in kwargs and kwargs['overlay_field'] and not plotrc['native']
 
         fig = plt.figure(figsize=(kwargs['fig_x'], kwargs['fig_y']))
         
@@ -281,22 +282,24 @@ def frame(fname, diag, kwargs):
             # plot outlines of the current run *above* the current run
             # use circles to avoid contour computation/ugliness
             for ax in fig.axes:
-                log_r = plotrc['log_r']
-                circle_in = plt.Circle((0, 0), np.log(dump['r_in_active']) if log_r else dump['r_in_active'], facecolor=(0,0,0,0), edgecolor='r')
-                circle_out = plt.Circle((0, 0), np.log(dump['r_out_active']) if log_r else dump['r_out_active'], facecolor=(0,0,0,0), edgecolor='r')
-                ax.add_artist(circle_in)
-                ax.add_artist(circle_out)
+                if plotrc['native']:
+                    ax.axvline(dump['startx1_active'], color='r')
+                    ax.axvline(dump['stopx1_active'], color='r')
+                else:
+                    rin = np.log(dump['r_in_active']) if plotrc['log_r'] else dump['r_in_active']
+                    rout = np.log(dump['r_out_active']) if plotrc['log_r'] else dump['r_out_active']
+                    ax.add_artist(plt.Circle((0, 0), rin, facecolor=(0,0,0,0), edgecolor='r'))
+                    ax.add_artist(plt.Circle((0, 0), rout, facecolor=(0,0,0,0), edgecolor='r'))
 
         # OVERLAYS
         ax = fig.axes[0]
         if plotrc['overlay_field']:
             nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
-            overlay_field(ax, dump, nlines=nlines, log_r=plotrc['log_r'])
-            
+            overlay_field(ax, dump, nlines=nlines, native=plotrc['native'], log_r=plotrc['log_r'])
         if 'overlay_grid' in kwargs and kwargs['overlay_grid']:
-            overlay_grid(ax, dump.grid, log_r=plotrc['log_r'])
+            overlay_grid(ax, dump.grid, native=plotrc['native'], log_r=plotrc['log_r'])
         if 'overlay_blocks' in kwargs and kwargs['overlay_blocks']:
-            overlay_blocks(ax, dump, plotrc['native'])
+            overlay_blocks(ax, dump, native=plotrc['native'], log_r=plotrc['log_r'])
         # TODO options here, contours, etc.
 
         # TITLE

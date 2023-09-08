@@ -177,8 +177,8 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             ax.set_ylim(window[2:])
         # TODO alt option of size -r_out to r_out?
 
-    # TODO do we ever not want this?
-    ax.set_aspect('equal')
+    if not native:
+        ax.set_aspect('equal')
 
     # Set up arguments for decorating plot
     if not 'bh' in kwargs:
@@ -282,8 +282,8 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             # TODO guess this?
             pass
 
-    # TODO do we ever not want this?
-    ax.set_aspect('equal')
+    if not native:
+        ax.set_aspect('equal')
 
     # Set up arguments for decorating plot
     if not 'bh' in kwargs:
