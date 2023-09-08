@@ -33,11 +33,13 @@ __license__ = """
 """
 
 from scipy.integrate import trapz
+import numpy.linalg as la
 
 from matplotlib.patches import Circle
 
 from ..ana.reductions import flatten_xy, flatten_xz, wrap
 from .plot_utils import *
+from ..coordinates import EKS
 
 #### GEOMETRY ####
 
@@ -86,24 +88,24 @@ def mark_isco(ax, grid, color='#00FF00'):
 
 #### GRID ####
 
-def overlay_grid(ax, grid, color='k', linewidth=0.2):
+def overlay_grid(ax, grid, color='k', linewidth=0.2, log_r=False):
     c = grid.coords
     m = grid.coord_all(mesh=True)
     # Extra line on the outside/end in mesh coords
     for i in range(grid['n1']+1):
-        ax.plot(c.cart_x(m[:,:,i,0]), c.cart_z(m[:,:,i,0]), color=color, linewidth=linewidth)
+        ax.plot(c.cart_x(m[:,:,i,0], log_r), c.cart_z(m[:,:,i,0], log_r), color=color, linewidth=linewidth)
     for i in range(grid['n2']+1):
-        ax.plot(c.cart_x(m[:,i,:,0]), c.cart_z(m[:,i,:,0]), color=color, linewidth=linewidth)
+        ax.plot(c.cart_x(m[:,i,:,0], log_r), c.cart_z(m[:,i,:,0], log_r), color=color, linewidth=linewidth)
 
 #### VARIABLES ####
 
-def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=False, at=0, average=False, use_contourf=False, **kwargs):
+def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=False, at=0, average=False, use_contourf=False, log_r=False, **kwargs):
     """Overlay countour lines on an XZ plot, of 'var' at each of the list 'levels' in color 'color'.
     Takes a bunch of the same other options as the plot it's overlaid upon.
     """
     # TODO optional line cutoff by setting NaN according to a second condition
     # TODO these few functions could just optionally use np.mean
-    x, z = dump.grid.get_xz_locations(native=native, half_cut=(half_cut or native))
+    x, z = dump.grid.get_xz_locations(native=native, half_cut=(half_cut or native), log_r=log_r)
     if average:
         var = np.squeeze(flatten_xz(dump, var, at, True) / dump['n3']) # Arg to flatten_xz is "sum", so we divide
     else:
@@ -113,7 +115,7 @@ def overlay_contours(ax, dump, var, levels, color='k', native=False, half_cut=Fa
     else:
         return ax.contour(x, z, var, levels=levels, colors=color, **kwargs)
 
-def overlay_blocks(ax, dump, native=False, color='k', linewidth=0.2):
+def overlay_blocks(ax, dump, native=False, color='k', linewidth=0.2, log_r=False):
     c = dump.grid.coords
     for block in range(dump['num_blocks']):
         bb = dump['phdf_aux']['BlockBounds'][block]
@@ -127,15 +129,15 @@ def overlay_blocks(ax, dump, native=False, color='k', linewidth=0.2):
             ax.plot(line3[1], line3[2], color=color, linewidth=linewidth)
             ax.plot(line4[1], line4[2], color=color, linewidth=linewidth)
         else:
-            ax.plot(c.cart_x(line1), c.cart_z(line1), color=color, linewidth=linewidth)
-            ax.plot(c.cart_x(line2), c.cart_z(line2), color=color, linewidth=linewidth)
-            ax.plot(c.cart_x(line3), c.cart_z(line3), color=color, linewidth=linewidth)
-            ax.plot(c.cart_x(line4), c.cart_z(line4), color=color, linewidth=linewidth)
+            ax.plot(c.cart_x(line1, log_r), c.cart_z(line1, log_r), color=color, linewidth=linewidth)
+            ax.plot(c.cart_x(line2, log_r), c.cart_z(line2, log_r), color=color, linewidth=linewidth)
+            ax.plot(c.cart_x(line3, log_r), c.cart_z(line3, log_r), color=color, linewidth=linewidth)
+            ax.plot(c.cart_x(line4, log_r), c.cart_z(line4, log_r), color=color, linewidth=linewidth)
 
 def overlay_field(ax, dump, **kwargs):
         overlay_flowlines(ax, dump, 'B1', 'B2', **kwargs)
 
-def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False, half_cut=False, reverse=False, **kwargs):
+def overlay_flowlines(ax, dump, varx1, varx2, levels=None, nlines=20, color='k', native=False, half_cut=False, reverse=False, log_r=False, **kwargs):
     """Overlay the "flow lines" of a pair of variables in X1 and X2 directions.  Sums assuming no divergence to obtain a
     potential, then plots contours of the potential so as to total 'nlines' total contours.
     """
@@ -143,7 +145,7 @@ def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False
     if native:
         half_cut = True
 
-    x, z = dump.grid.get_xz_locations(native=native, half_cut=half_cut)
+    x, z = dump.grid.get_xz_locations(native=native, half_cut=half_cut, log_r=log_r)
     varx1 = flatten_xz(dump, varx1, sum=True, half_cut=True) / dump['n3'] * np.squeeze(dump['gdet'])
     varx2 = flatten_xz(dump, varx2, sum=True, half_cut=True) / dump['n3'] * np.squeeze(dump['gdet'])
 
@@ -165,13 +167,53 @@ def overlay_flowlines(ax, dump, varx1, varx2, nlines=20, color='k', native=False
                     (trapz(varx2[:i, j], dx=dump['dx1']) +
                      trapz(varx1[i, j:], dx=dump['dx2']))
     AJ_phi -= AJ_phi.min()
-    levels = np.linspace(0, AJ_phi.max(), nlines * 2)
+
+    if levels is None:
+        levels = np.linspace(0, AJ_phi.max(), nlines * 2)
 
     if half_cut:
         AJ_phi = AJ_phi[:,:N2]
 
-    ax.contour(x, z, AJ_phi, levels=levels, colors=color)
+    ax.contour(x, z, AJ_phi, levels=levels, colors=color, **kwargs)
 
+    return levels
+
+def get_field_levels(dump, **kwargs):
+        get_flowline_levels(dump, 'B1', 'B2', **kwargs)
+
+def get_flowline_levels(dump, varx1, varx2, nlines=20, native=False, reverse=False, log_r=False):
+    # We need to transform for a proper gdet if we're in log_r
+    if 0:
+        tf = EKS({'a': dump['a']}).dXdx(dump.grid.coord_all()[:,:,0])
+        tf_i = EKS({'a': dump['a']}).dxdX(dump.grid.coord_all()[:,:,0])
+        gcov = np.einsum('ij...,jk...->ik...', dump['gcov'][:,:,:,:,0], tf_i)
+        gdet = np.sqrt(-la.det(np.einsum("ij...->...ij", gcov)))
+    else:
+        gdet =  np.squeeze(dump['gdet'])
+
+    varx1 = flatten_xz(dump, varx1, sum=True, half_cut=True) / dump['n3'] * gdet
+    varx2 = flatten_xz(dump, varx2, sum=True, half_cut=True) / dump['n3'] * gdet
+    #print(varx1.shape, varx2.shape, gdet.shape)
+
+    if native:
+        varx1 = varx1.T
+        varx2 = -varx2.T
+
+    N1, N2 = varx1.shape[:2]
+    AJ_phi = np.zeros([N1, 2*N2])
+    for j in range(N2):
+        for i in range(N1):
+            if not reverse:
+                AJ_phi[i, N2 - 1 - j] = AJ_phi[i, N2 + j] = \
+                    (trapz(varx2[:i, j], dx=dump['dx1']) -
+                     trapz(varx1[i, :j], dx=dump['dx2']))
+            else:
+                AJ_phi[i, N2 - 1 - j] = AJ_phi[i, N2 + j] = \
+                    (trapz(varx2[:i, j], dx=dump['dx1']) +
+                     trapz(varx1[i, j:], dx=dump['dx2']))
+    AJ_phi -= AJ_phi.min()
+
+    return np.linspace(0, AJ_phi.max(), nlines * 2)
 
 def overlay_quiver(ax, dump, varx1, varx2, cadence=64, norm=1):
     """Overlay a quiver plot of 2 vector components onto a plot in *native coordinates only*."""

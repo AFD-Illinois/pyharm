@@ -58,7 +58,7 @@ class FluidState:
     various derived properties directly.
     """
 
-    def __init__(self, data_source, tag="", ghost_zones=False, add_grid=True, use_grid_cache=True, cache_conn=False, grid=None, units=None, params=None):
+    def __init__(self, data_source, tag="", ghost_zones=False, add_grid=True, use_grid_cache=True, cache_conn=False, grid=None, units=None, params=None, multizone=False):
         """Attach the fluid dump file 'data_source' and make its contents accessible like a dictionary.  For a list of some
         variables and properties accessible this way, see the README.
 
@@ -74,7 +74,7 @@ class FluidState:
         Generally this will just behave how you want, but it can be confusing if you're really digging around.  If you have the memory,
         you can use ``copy.copy`` or ``copy.deepcopy`` to be certain.
 
-        :param data_source: file name or path to dump, OR dictionary with 
+        :param data_source: file name or path to dump, OR dictionary with all arrays of all primitive variables (i.e., starting cache)
         :param tag: any string, usually long name of dump/model for plotting
         :param ghost_zones: Load ghost zones when reading from a dump file
         :param add_grid: Whether to construct a Grid object at all.  Only used for copy construction.
@@ -84,12 +84,18 @@ class FluidState:
         :param grid: used to pass in a ``Grid`` object directly (rarely needed).  Used instead of constructing a grid with previous parameters.
         :param units: a 'Units' object representing a physical scale for the dump (density M_unit and BH mass MBH)
         :param params: dictionary of parameters. Only used for copy construction.
+        :param multizone: whether to force a KHARMAMZFile backing, rather than single KHARMAFile
         """
 
         # This chooses an importer based on what we know of filenames/structures
         if isinstance(data_source, str):
             self.fname = data_source
-            self.reader = io.file_reader(data_source, params=params, ghost_zones=ghost_zones)
+            if multizone:
+                self.reader = io.KHARMAMZFile(data_source)
+                self.multizone = True
+            else:
+                self.reader = io.file_reader(data_source, params=params, ghost_zones=ghost_zones)
+                self.multizone = False
         else:
             self.fname = "memory_array"
 
@@ -152,6 +158,7 @@ class FluidState:
         Due to overloading, it is thus impossible to allow requesting lists of variables at once.
         I have no idea why you'd want that.  Just, don't.
         """
+        #print("FluidState getting",key)
         if type(key) in (list, tuple):
             slc = key
             relevant = [False, False, False]
@@ -173,7 +180,7 @@ class FluidState:
             if self.fname == "memory_array":
                 out = FluidState({}, add_grid=False, params=self.params, units=self.units)
             else:
-                out = FluidState(self.fname, add_grid=False, params=self.params, units=self.units)
+                out = FluidState(self.fname, add_grid=False, params=self.params, units=self.units, multizone=self.multizone)
 
             # Forcibly add the cache
             for c in self.cache:

@@ -49,7 +49,7 @@ from .phdf import phdf
 from .phdf_old import phdf as phdf_old
 
 __doc__ = \
-"""Read KHARMA output files and logs.  Pretty much supports any Parthenon code and nearly supports AMR.
+"""Read KHARMA output files and logs.  Pretty much supports any Parthenon code including (interpolated) AMR.
 Contains much index math.
 """
 
@@ -189,7 +189,10 @@ class KHARMAFile(DumpFile):
         del fil
         return params
 
-    def read_var(self, var, astype=None, slc=(), fail_if_not_found=True):
+    def read_var(self, var, astype=None, slc=(), out=None, skip_cache=False, fail_if_not_found=True):
+        """Read a variable from the backing file.  Opens, reads, closes.
+        Pass the 'out' parameter at your own risk, it must be the right size to match 'slc'
+        """
         var, ind = self.kharma_standardize(var)
         if var in self.cache:
             if ind is not None:
@@ -271,13 +274,14 @@ class KHARMAFile(DumpFile):
 
         #print("Reading slice", slc, " of file, indices ", file_start, " to ", file_stop, " to shape ", out_shape)
 
-        # Allocate the full mesh size
-        if "jcon" in var:
-            out = np.zeros((4, *out_shape), dtype=astype)
-        elif var.split(".")[-1][:1] == "B" or var.split(".")[-1] == "uvec": # We cache the whole thing even for an index
-            out = np.zeros((3, *out_shape), dtype=astype)
-        else:
-            out = np.zeros(out_shape, dtype=astype)
+        if out is None:
+            # Allocate the full output mesh size
+            if "jcon" in var:
+                out = np.zeros((4, *out_shape), dtype=astype)
+            elif var.split(".")[-1][:1] == "B" or var.split(".")[-1] == "uvec": # We cache the whole thing even for an index
+                out = np.zeros((3, *out_shape), dtype=astype)
+            else:
+                out = np.zeros(out_shape, dtype=astype)
 
         # Arrange and read each block
         for ib in range(fil.NumBlocks):
@@ -358,11 +362,14 @@ class KHARMAFile(DumpFile):
         del fil
 
         # ALWAYS keep 3 indices.  Better to keep than to squeeze and accidentally broadcast
-        self.cache[var] = out
-        if ind is not None:
-            return self.cache[var][ind]
+        if skip_cache:
+            return out
         else:
-            return self.cache[var]
+            self.cache[var] = out
+            if ind is not None:
+                return self.cache[var][ind]
+            else:
+                return self.cache[var]
 
 ## Module functions
 

@@ -47,6 +47,7 @@ from .kharma import KHARMAFile
 from .harm2d import HARM2DFile
 from .hamr import HAMRFile
 from .koral import KORALFile
+from .kharma_multizone import KHARMAMZFile
 
 # i/o for other filetypes not tied to one code
 from . import gridfile

@@ -51,7 +51,7 @@ For full figures with default annotations, variable choices, etc, see ``figures.
 
 def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None, frame=True,
                   cbar=True, cbar_ticks=None, cbar_label=None,
-                  label=None, **kwargs):
+                  label=None, log_r=False, **kwargs):
     """Add any extras to plots which are not dependent on data or slicing.
     Accepts arbitrary extra arguments for compatibility -- they are passed nowhere.
     
@@ -67,10 +67,9 @@ def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None, frame=True,
     
     :param label: If not None, set plot title
     """
-
     if bh and ("minkowski" not in dump['coordinates']) and ("cartesian" not in dump['coordinates']):
-        # BH silhouette
-        circle1 = plt.Circle((0, 0), dump['r_eh'], color='k')
+        # BH silhouette. Package coord-independent somehow later?
+        circle1 = plt.Circle((0, 0), np.log(dump['r_eh']) if log_r else dump['r_eh'], color='k')
         ax.add_artist(circle1)
 
     if cbar:
@@ -190,7 +189,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         var = vname
         if log:
             var = "log_"+var
-    _decorate_plot(ax, dump, var, cbar=cbar, **kwargs)
+    _decorate_plot(ax, dump, var, cbar=cbar, log_r=log_r, **kwargs)
 
     # In case user wants to tweak this
     return mesh
@@ -295,7 +294,7 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
         var = vname
         if log:
             var = "log_"+var
-    _decorate_plot(ax, dump, var, cbar=cbar, **kwargs)
+    _decorate_plot(ax, dump, var, cbar=cbar, log_r=log_r, **kwargs)
 
     # In case user wants to tweak this
     return mesh

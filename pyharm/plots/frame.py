@@ -55,23 +55,6 @@ included in pyharm so as to be imported there easily.
 The code in `figures` would be a better place to start in writing your own additional movies/plots.
 """
 
-def data_dir(n):
-    """Data directory naming scheme"""
-    return "{:05d}".format(n)
-
-def get_mz_nums(iteration, nzones):
-    n = iteration
-    m = nzones - 1 # we don't repeat sims at the inner/outer edge
-    d = n % m
-    # This ordering ensures we overplot with the right data
-    # From the edge run before last, up to the run replaced by ours
-    old_part = list(range((n//m - 1)*m, n - 2*d))
-    # From the last edge run up to this run, not including us
-    # (The particular dump being plotted will represent this run)
-    new_part = list(range((n//m)*m, n))
-    # Return only the runs >0 i.e. that exist
-    return [p for p in old_part + new_part if p > 0]
-
 def do_plot(fig, dump, diag, movie_type, plotrc):
         # PLOT
         if movie_type in figures.__dict__:
@@ -203,7 +186,7 @@ def frame(fname, diag, kwargs):
 
     # This just attaches the file and creates a grid.  We do need to specify
     # if any movie will need ghosts, for the index math
-    dump = FluidState(fname, ghost_zones=ghost_zones, use_grid_cache=(not kwargs['no_grid_cache']))
+    dump = FluidState(fname, ghost_zones=ghost_zones, use_grid_cache=(not kwargs['no_grid_cache']), multizone=kwargs['multizone'])
 
     for movie_type in movie_types:
         # Set plotting options we'll pass on to figure-specific code
@@ -261,6 +244,10 @@ def frame(fname, diag, kwargs):
             if dump['r_in'] > plotrc['xmax'] and dump['r_in'] > plotrc['ymax'] and \
                 -dump['r_in'] < plotrc['xmin'] and -dump['r_in'] < plotrc['ymin']:
                 return
+            if 'r_in_active' in dump.params:
+                if dump['r_in_active'] > plotrc['xmax'] and dump['r_in_active'] > plotrc['ymax'] and \
+                    -dump['r_in_active'] < plotrc['xmin'] and -dump['r_in_active'] < plotrc['ymin']:
+                    return
 
         #  _array plots override a bunch of things
         # Handle and strip
@@ -282,26 +269,32 @@ def frame(fname, diag, kwargs):
         if "_poloidal" in movie_type:
             pass
 
-        fig = plt.figure(figsize=(kwargs['fig_x'], kwargs['fig_y']))
+        plotrc['overlay_field'] = \
+            'overlay_field' in kwargs and kwargs['overlay_field'] and not ('native' in plotrc and plotrc['native'])
 
-        if kwargs['multizone']:
-            # Plot background dumps in order to get the full state
-            for num in get_mz_nums(dump['iteration'], dump['nzone']):
-                bkg_fname = glob.glob('../'+data_dir(num)+'/*.out0.final.phdf')[0]
-                bkg_dump = FluidState(bkg_fname, ghost_zones=ghost_zones, use_grid_cache=(not kwargs['no_grid_cache']))
-                do_plot(fig, bkg_dump, diag, movie_type, plotrc)
-                del bkg_dump, bkg_fname
+        fig = plt.figure(figsize=(kwargs['fig_x'], kwargs['fig_y']))
         
         # Plot the dump we were assigned
         do_plot(fig, dump, diag, movie_type, plotrc)
 
+        if kwargs['multizone']:
+            # plot outlines of the current run *above* the current run
+            # use circles to avoid contour computation/ugliness
+            for ax in fig.axes:
+                log_r = plotrc['log_r']
+                circle_in = plt.Circle((0, 0), np.log(dump['r_in_active']) if log_r else dump['r_in_active'], facecolor=(0,0,0,0), edgecolor='r')
+                circle_out = plt.Circle((0, 0), np.log(dump['r_out_active']) if log_r else dump['r_out_active'], facecolor=(0,0,0,0), edgecolor='r')
+                ax.add_artist(circle_in)
+                ax.add_artist(circle_out)
+
         # OVERLAYS
         ax = fig.axes[0]
-        if 'overlay_field' in kwargs and kwargs['overlay_field'] and not ('native' in plotrc and plotrc['native']):
+        if plotrc['overlay_field']:
             nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
-            overlay_field(ax, dump, nlines=nlines)
+            overlay_field(ax, dump, nlines=nlines, log_r=plotrc['log_r'])
+            
         if 'overlay_grid' in kwargs and kwargs['overlay_grid']:
-            overlay_grid(ax, dump.grid)
+            overlay_grid(ax, dump.grid, log_r=plotrc['log_r'])
         if 'overlay_blocks' in kwargs and kwargs['overlay_blocks']:
             overlay_blocks(ax, dump, plotrc['native'])
         # TODO options here, contours, etc.
