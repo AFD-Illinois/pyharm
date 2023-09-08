@@ -168,52 +168,24 @@ def overlay_flowlines(ax, dump, varx1, varx2, levels=None, nlines=20, color='k',
                      trapz(varx1[i, j:], dx=dump['dx2']))
     AJ_phi -= AJ_phi.min()
 
+    Amax = AJ_phi.max()
     if levels is None:
-        levels = np.linspace(0, AJ_phi.max(), nlines * 2)
+        if log_r:
+            print("Amax",Amax,"Amean",AJ_phi.mean())
+            levels = np.sort(AJ_phi[::16,N2//2], axis=None)
+        else:
+            levels = np.linspace(0, Amax, nlines * 2)
 
     if half_cut:
         AJ_phi = AJ_phi[:,:N2]
+    else:
+        x = wrap(x)
+        z = wrap(z)
+        AJ_phi = wrap(AJ_phi)
 
     ax.contour(x, z, AJ_phi, levels=levels, colors=color, **kwargs)
 
     return levels
-
-def get_field_levels(dump, **kwargs):
-        get_flowline_levels(dump, 'B1', 'B2', **kwargs)
-
-def get_flowline_levels(dump, varx1, varx2, nlines=20, native=False, reverse=False, log_r=False):
-    # We need to transform for a proper gdet if we're in log_r
-    if 0:
-        tf = EKS({'a': dump['a']}).dXdx(dump.grid.coord_all()[:,:,0])
-        tf_i = EKS({'a': dump['a']}).dxdX(dump.grid.coord_all()[:,:,0])
-        gcov = np.einsum('ij...,jk...->ik...', dump['gcov'][:,:,:,:,0], tf_i)
-        gdet = np.sqrt(-la.det(np.einsum("ij...->...ij", gcov)))
-    else:
-        gdet =  np.squeeze(dump['gdet'])
-
-    varx1 = flatten_xz(dump, varx1, sum=True, half_cut=True) / dump['n3'] * gdet
-    varx2 = flatten_xz(dump, varx2, sum=True, half_cut=True) / dump['n3'] * gdet
-    #print(varx1.shape, varx2.shape, gdet.shape)
-
-    if native:
-        varx1 = varx1.T
-        varx2 = -varx2.T
-
-    N1, N2 = varx1.shape[:2]
-    AJ_phi = np.zeros([N1, 2*N2])
-    for j in range(N2):
-        for i in range(N1):
-            if not reverse:
-                AJ_phi[i, N2 - 1 - j] = AJ_phi[i, N2 + j] = \
-                    (trapz(varx2[:i, j], dx=dump['dx1']) -
-                     trapz(varx1[i, :j], dx=dump['dx2']))
-            else:
-                AJ_phi[i, N2 - 1 - j] = AJ_phi[i, N2 + j] = \
-                    (trapz(varx2[:i, j], dx=dump['dx1']) +
-                     trapz(varx1[i, j:], dx=dump['dx2']))
-    AJ_phi -= AJ_phi.min()
-
-    return np.linspace(0, AJ_phi.max(), nlines * 2)
 
 def overlay_quiver(ax, dump, varx1, varx2, cadence=64, norm=1):
     """Overlay a quiver plot of 2 vector components onto a plot in *native coordinates only*."""

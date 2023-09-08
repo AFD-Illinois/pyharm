@@ -64,16 +64,8 @@ def get_mz_nums(run_num, nzones):
     # From the last edge run up to this run, not including us
     # (The particular dump being plotted will represent this run)
     new_part = list(range((n//m)*m, n))
-    # Return only the runs >0 i.e. that exist, replacing the others
-    # with reflections about 0
-    final_list = []
-    for p in old_part + new_part:
-        if p < 0:
-            final_list.append(-p)
-        else:
-            final_list.append(p)
 
-    return final_list
+    return old_part + new_part
 
 
 class KHARMAMZFile(DumpFile):
@@ -110,7 +102,13 @@ class KHARMAMZFile(DumpFile):
 
         mz_nums = get_mz_nums(self.run_num, self.nzones)
         my_dir = '/'.join(self.fname.split('/')[:-1])
-        mz_names = [glob.glob(my_dir+'/../'+mz_data_dir(num)+'/*.out0.final.phdf')[0] for num in mz_nums]
+        # When imaging the first run, use beginning states of subsequent runs
+        mz_names = []
+        for num in mz_nums:
+            if num < 0:
+                mz_names.append(glob.glob(my_dir+'/../'+mz_data_dir(-num)+'/*.out0.00000.phdf')[0])
+            else:
+                mz_names.append(glob.glob(my_dir+'/../'+mz_data_dir(num)+'/*.out0.final.phdf')[0])
         mz_names.append(self.fname)
         # Add all the correct files, in order & with matching parameters
         self.kfiles = []
