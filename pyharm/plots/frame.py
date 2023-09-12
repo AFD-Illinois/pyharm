@@ -240,14 +240,15 @@ def frame(fname, diag, kwargs):
             plotrc['window'] = None
 
         # If our plot would be entirely outside the active window
-        if user_window:
-            if dump['r_in'] > plotrc['xmax'] and dump['r_in'] > plotrc['ymax'] and \
-                -dump['r_in'] < plotrc['xmin'] and -dump['r_in'] < plotrc['ymin']:
-                return
-            if 'r_in_active' in dump.params:
-                if dump['r_in_active'] > plotrc['xmax'] and dump['r_in_active'] > plotrc['ymax'] and \
-                    -dump['r_in_active'] < plotrc['xmin'] and -dump['r_in_active'] < plotrc['ymin']:
-                    return
+        # TODO account for log_r
+        # if user_window:
+        #     if dump['r_in'] > plotrc['xmax'] and dump['r_in'] > plotrc['ymax'] and \
+        #         -dump['r_in'] < plotrc['xmin'] and -dump['r_in'] < plotrc['ymin']:
+        #         return
+        #     if 'r_in_active' in dump.params:
+        #         if dump['r_in_active'] > plotrc['xmax'] and dump['r_in_active'] > plotrc['ymax'] and \
+        #             -dump['r_in_active'] < plotrc['xmin'] and -dump['r_in_active'] < plotrc['ymin']:
+        #             return
 
         #  _array plots override a bunch of things
         # Handle and strip
@@ -297,7 +298,7 @@ def frame(fname, diag, kwargs):
             nlines = plotrc['nlines'] if 'nlines' in plotrc else 20
             overlay_field(ax, dump, nlines=nlines, native=plotrc['native'], log_r=plotrc['log_r'])
         if 'overlay_grid' in kwargs and kwargs['overlay_grid']:
-            overlay_grid(ax, dump.grid, native=plotrc['native'], log_r=plotrc['log_r'])
+            overlay_grid(ax, dump.grid, kwargs['overlay_grid_spacing'], native=plotrc['native'], log_r=plotrc['log_r'])
         if 'overlay_blocks' in kwargs and kwargs['overlay_blocks']:
             overlay_blocks(ax, dump, native=plotrc['native'], log_r=plotrc['log_r'])
         # TODO options here, contours, etc.

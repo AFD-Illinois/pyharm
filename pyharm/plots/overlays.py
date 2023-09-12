@@ -88,20 +88,21 @@ def mark_isco(ax, grid, color='#00FF00'):
 
 #### GRID ####
 
-def overlay_grid(ax, grid, color='k', linewidth=0.2, native=False, log_r=False):
+def overlay_grid(ax, grid, spacing=1, color='k', linewidth=0.2, native=False, log_r=False):
     c = grid.coords
     m = grid.coord_all(mesh=True)
+    s = spacing
     if native:
         # Extra line on the outside/end in mesh coords
-        for i in range(grid['n1']+1):
-            ax.plot(m[:,:,i,0], m[:,:,i,0], color=color, linewidth=linewidth)
-        for i in range(grid['n2']+1):
-            ax.plot(m[:,i,:,0], m[:,i,:,0], color=color, linewidth=linewidth)
+        for i in range(0, grid['n2']+1, s):
+            ax.plot(m[:,::s,i,0], m[:,::s,i,0], color=color, linewidth=linewidth)
+        for i in range(0, grid['n1']+1, s):
+            ax.plot(m[:,i,::s,0], m[:,i,::s,0], color=color, linewidth=linewidth)
     else:
-        for i in range(grid['n1']+1):
-            ax.plot(c.cart_x(m[:,:,i,0], log_r), c.cart_z(m[:,:,i,0], log_r), color=color, linewidth=linewidth)
-        for i in range(grid['n2']+1):
-            ax.plot(c.cart_x(m[:,i,:,0], log_r), c.cart_z(m[:,i,:,0], log_r), color=color, linewidth=linewidth)
+        for i in range(0, grid['n2']+1, s):
+            ax.plot(c.cart_x(m[:,::s,i,0], log_r), c.cart_z(m[:,::s,i,0], log_r), color=color, linewidth=linewidth)
+        for i in range(0, grid['n1']+1, s):
+            ax.plot(c.cart_x(m[:,i,::s,0], log_r), c.cart_z(m[:,i,::s,0], log_r), color=color, linewidth=linewidth)
 
 #### VARIABLES ####
 
