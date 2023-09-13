@@ -91,6 +91,7 @@ fns_dict = {# 4-vectors
             'Gamma': lambda dump: lorentz_calc(dump),
             'cs': lambda dump: np.sqrt(dump['gam'] * dump['Pg'] / (dump['RHO'] + dump['gam'] * dump['UU'])),
             'vA': lambda dump: alfven_speed(dump),
+            'Omega': lambda dump: dump["u^phi"] / dump["u^t"] ,
             # TODO magnetosonic, EMHD speed, effective timestep
             # Fluxes in radial direction: Mass, Energy, Angular Momentum
             'FM': lambda dump: dump['RHO'] * dump['ucon'][1],
@@ -107,6 +108,7 @@ fns_dict = {# 4-vectors
             'JE0': lambda dump: -T_mixed(dump, 0, 0),
             'JE1': lambda dump: -T_mixed(dump, 1, 0),
             'JE2': lambda dump: -T_mixed(dump, 2, 0),
+            'JE3Fl': lambda dump: -TFl_mixed(dump, 3, 0),
             # Bernoulli parameter
             'Be_b': lambda dump: bernoulli(dump, with_B=True),
             'Be_nob': lambda dump: bernoulli(dump, with_B=False),
@@ -126,6 +128,7 @@ fns_dict = {# 4-vectors
             'lam_MRI_transform': lambda dump: lam_MRI_transform(dump),
             'divB_prims': lambda dump: divB(dump.grid, dump['B']),
             'divB_cons': lambda dump: divB_cons(dump.grid, dump['cons.B']),
+            'divB_cons_rel': lambda dump: divB_cons(dump.grid, dump['cons.B']) / dump['b'] / dump["gdet"] * dump["dx1"],
             # Electrons: largely need units
             'Thetap': lambda dump: (dump['gam_p'] - 1) * dump['UU'] / dump['RHO'],
             'Thetae': lambda dump: (dump['gam_e'] - 1) * dump['UU'] / dump['RHO'],
@@ -162,12 +165,17 @@ def ucon_calc(dump):
 
 def bcon_calc(dump):
     """Calculate magnetic field four-vector"""
+    # Return zeros if B is not present
+    try:
+        B = dump["B"]
+    except (IOError, OSError):
+        B = np.zeros(np.shape(dump["ucov"][1:]))
     bcon = np.zeros_like(dump['ucon'])
-    bcon[0] = dump['B'][0] * dump['ucov'][1] + \
-              dump['B'][1] * dump['ucov'][2] + \
-              dump['B'][2] * dump['ucov'][3]
+    bcon[0] = B[0] * dump['ucov'][1] + \
+              B[1] * dump['ucov'][2] + \
+              B[2] * dump['ucov'][3]
     for mu in range(1, 4):
-        bcon[mu] = (dump['B'][mu-1] + bcon[0] * dump['ucon'][mu]) \
+        bcon[mu] = (B[mu-1] + bcon[0] * dump['ucon'][mu]) \
                         / dump['ucon'][0]
 
     return bcon
@@ -262,7 +270,7 @@ def lam_MRI_old(dump):
     return (2*np.pi)/(dump['u^3']/dump['u^0']) * dump['b^th']/np.sqrt(dump['rho'] + dump['u'] + dump['p'] + dump['bsq'])
 
 def alfven_speed(dump):
-    return dump['b']/np.sqrt(dump['rho'])
+    return dump['b']/np.sqrt(dump["bsq"] + dump['rho'] + dump["gam"] * dump["UU"])
 
 def lam_MRI(dump):
     return dump['vA'] / (dump['u^3']/dump['u^0'])
@@ -274,6 +282,9 @@ def lam_MRI_transform(dump):
 
 def enthalpy(dump):
     return 1 + dump['Pg'] + dump['u']
+
+def entropy(dump): # added by Hyerin (02/14/23)
+    return dump['p']/np.power(dump['rho'],dump['gam'])
 
 def jet_psi(dump):
     sig = dump['sigma']
