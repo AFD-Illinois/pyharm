@@ -197,6 +197,7 @@ def write_dump(dump, fname, astype=np.float32, ghost_zones=False):
     """Write the data in FluidState 'dump' to file 'fname' in iharm3d/Illinois HDF format.
     """
     with h5py.File(fname, "w") as outf:
+
         write_hdr(dump.params, outf)
 
         # Per-dump single variables

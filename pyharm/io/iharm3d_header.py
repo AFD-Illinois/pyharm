@@ -33,7 +33,7 @@ __license__ = """
 """
 
 import numpy as np
-import h5py
+import h5py, sys
 
 from ..grid import Grid
 from .. import parameters
