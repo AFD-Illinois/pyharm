@@ -132,11 +132,11 @@ def _point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-10
                   print_time=False, print_only_time=False, model_shared_portion=0, no_print_flux=False, plotrc={},
                   **kwargs):
     if plot_vs == 'spin':
-        get_xval = lambda tag: float(tag.split(" ")[-1].lstrip("A"))
-        get_modelname = _trunc_at_spin
+        get_xval = lambda model: model['a']
+        get_modelname = lambda model: model.tag
     elif plot_vs == 'res':
-        get_xval = lambda tag: int(tag.split(" ")[-1].split("X")[0].split("x")[0])
-        get_modelname = lambda tag: " ".join(tag.split(" ")[:-1])
+        get_xval = lambda model: model['nx3']
+        get_modelname = lambda model: model.tag
 
     # Dictionaries by "model" of lists by spin
     model_xvals = {}
@@ -145,7 +145,7 @@ def _point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-10
     model_times = {}
     title = ""
     # Run through the files and suck up everything, sorting by "model" not including spin
-    for result in results.values():
+    for result in results:
         # If this thing is even readable...
         avg_slice = _get_t_slice(result, arange)
         if avg_slice is None:
@@ -153,8 +153,8 @@ def _point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-10
             continue
 
 
-        model = get_modelname(result.tag)
-        xval = get_xval(result.tag)
+        model = get_modelname(result)
+        xval = get_xval(result)
 
         model = " ".join(model.split(" ")[model_shared_portion:])
         title = " ".join(model.split(" ")[:model_shared_portion])
