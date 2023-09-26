@@ -16,3 +16,5 @@ dependencies:
  - pympler
  - ipykernel
  - ipympl
+ - pytest
+ - tqdm

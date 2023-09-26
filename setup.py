@@ -50,7 +50,7 @@ write_git_revision("pyharm")
 
 
 setup(name="pyharm",
-      version="2022.8",
+      version="2023.9",
       description="Python tools for HARM analysis",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
