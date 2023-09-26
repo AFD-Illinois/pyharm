@@ -32,15 +32,20 @@ __license__ = """
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import warnings
 
 import numpy as np
 
-def compare(a, b):
-    if not np.all(np.logical_or(np.logical_and(a < 1e-16, b < 1e-16), (b - a)/b < 1e-8)):
-        print("A:", a)
-        print("B:", b)
-        print("Absolute: ", b - a)
-        print("Relative: ", (b - a)/b)
-        return False
-    else:
-        return True
+def compare(a, b, rel=1e-8, near_zero=1e-16):
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', 'invalid value encountered in true_divide',
+                                RuntimeWarning)
+        if not np.all(np.logical_or(np.logical_and(a < near_zero, b < near_zero),
+                                        (b - a)/b < rel)):
+            print("A:", a)
+            print("B:", b)
+            print("Absolute: ", b - a)
+            print("Relative: ", (b - a)/b)
+            return False
+        else:
+            return True
