@@ -171,6 +171,11 @@ def fix(params):
             params['electrons'] = False
             params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
 
+        if params['conduction']:
+            params['prim_names'].append("Q_TILDE")
+        if params['viscosity']:
+            params['prim_names'].append("DP_TILDE")
+
     if 'n_prim' not in params:
         if 'n_prims' in params: # This got messed up *often*
             params['n_prim'] = params['n_prims']

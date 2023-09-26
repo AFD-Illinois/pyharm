@@ -44,8 +44,8 @@ class DumpFile(object):
     Usually this is done via a member function self.read_params, which may be called on its own in future
     """
 
-    prim_names_harm = ("RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3")
-    prim_names_kharma = ("rho", "u", "u1", "u2", "u3")
+    prim_names_harm = ("RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "q", "dP")
+    prim_names_kharma = ("rho", "u", "u1", "u2", "u3", "q", "dP")
 
     @classmethod
     def index_of(cls, vname, eprim_names=None, eprim_indices=None):
