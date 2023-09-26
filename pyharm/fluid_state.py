@@ -115,6 +115,29 @@ class FluidState:
         
         if isinstance(data_source, dict):
             self.cache = data_source
+            # Make sure we have both versions of uvec,B
+            if 'U1' not in self.cache and 'uvec' in self.cache:
+                self.cache['U1'] = self.cache['uvec'][0]
+                self.cache['U2'] = self.cache['uvec'][1]
+                self.cache['U3'] = self.cache['uvec'][2]
+            elif 'uvec' not in self.cache and 'U1' in self.cache:
+                self.cache['uvec'] = np.array((self.cache['U1'], self.cache['U2'], self.cache['U3']))
+            if 'B1' not in self.cache and 'B' in self.cache:
+                self.cache['B1'] = self.cache['B'][0]
+                self.cache['B2'] = self.cache['B'][1]
+                self.cache['B3'] = self.cache['B'][2]
+            elif 'B' not in self.cache and 'B1' in self.cache:
+                self.cache['B'] = np.array((self.cache['B1'], self.cache['B2'], self.cache['B3']))
+            # Make sure we have both versions of u,rho
+            if 'RHO' not in self.cache and 'rho' in self.cache:
+                self.cache['RHO'] = self.cache['rho']
+            elif 'rho' not in self.cache and 'RHO' in self.cache:
+                self.cache['rho'] = self.cache['RHO']
+            if 'UU' not in self.cache and 'u' in self.cache:
+                self.cache['UU'] = self.cache['u']
+            elif 'u' not in self.cache and 'UU' in self.cache:
+                self.cache['u'] = self.cache['UU']
+
         else:
             self.cache = {}
 
@@ -192,42 +215,48 @@ class FluidState:
             return out
 
         # Return things from the cache if we can
-        elif key in self.cache:
+        if key in self.cache:
             return self.cache[key]
-        elif key in self.params:
+        if key in self.params:
             return self.params[key]
+        if "/" in key:
+            try:
+                keys = key.split("/")
+                return self.params['config']["/".join(keys[:-1])][keys[-1]]
+            except:
+                pass
         elif self.units is not None and key in self.units:
             return self.units[key]
 
         # Otherwise run functions and cache the result
         # Putting this before reading lets us translate & standardize reads/caches
-        elif key in variables.fns_dict:
+        if key in variables.fns_dict:
             self.cache[key] = variables.fns_dict[key](self)
             return self.cache[key]
 
         # Return coordinates and things from the grid
         # Default to centers when returning multi-location vars, to avoid location madness
-        elif self.grid is not None and key in self.grid:
+        if self.grid is not None and key in self.grid:
             return self.grid[key]
 
         # Prefixes for a few common 1:1 math operations.
         # Most math should be done by reductions.py
         # Don't bother to cache these, they aren't intensive to calculate
-        elif key[:5] == "sqrt_":
+        if key[:5] == "sqrt_":
             return np.sqrt(self[key[5:]])
-        elif key[:4] == "abs_":
+        if key[:4] == "abs_":
             return np.abs(self[key[4:]])
-        elif key[:4] == "log_":
+        if key[:4] == "log_":
             return np.log10(self[key[4:]])
-        elif key[:3] == "ln_":
+        if key[:3] == "ln_":
             return np.log(self[key[3:]])
-        elif key[:4] == "inv_":
+        if key[:4] == "inv_":
             return 1/self[key[4:]]
-        elif key[:4] == "neg_":
+        if key[:4] == "neg_":
             return -self[key[4:]]
 
         # Return MHD tensor components: don't cache
-        elif ((key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3")
+        if ((key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3")
               and (key[-4:-2] == "_0" or key[-4:-2] == "_1" or key[-4:-2] == "_2" or key[-4:-2] == "_3")):
             i, j = int(key[-3]), int(key[-1])
             if key[-5:-4] == "T":
@@ -235,7 +264,7 @@ class FluidState:
             elif key[-5:-4] == "F":
                 return variables.F_cov(self, i, j)
 
-        elif ((key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3")
+        if ((key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3")
               and (key[-4:-2] == "^0" or key[-4:-2] == "^1" or key[-4:-2] == "^2" or key[-4:-2] == "^3")):
             i, j = int(key[-3]), int(key[-1])
             if key[-5:-4] == "T":
@@ -249,7 +278,7 @@ class FluidState:
             elif key[-7:-4] == "TFl":
                 return variables.TFl_mixed(self, i, j)
 
-        elif ((key[-2:] == "^0" or key[-2:] == "^1" or key[-2:] == "^2" or key[-2:] == "^3")
+        if ((key[-2:] == "^0" or key[-2:] == "^1" or key[-2:] == "^2" or key[-2:] == "^3")
               and (key[-4:-2] == "^0" or key[-4:-2] == "^1" or key[-4:-2] == "^2" or key[-4:-2] == "^3")):
             i, j = int(key[-3]), int(key[-1])
             if key[-5:-4] == "T":
@@ -258,29 +287,29 @@ class FluidState:
                 return variables.F_con(self, i, j)
 
         # Return vector components: do cache
-        elif key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3":
+        if key[-2:] == "_0" or key[-2:] == "_1" or key[-2:] == "_2" or key[-2:] == "_3":
             return self[key[:-2]+"cov"][int(key[-1])]
-        elif key[-2:] == "^0" or key[-2:] == "^1" or key[-2:] == "^2" or key[-2:] == "^3":
+        if key[-2:] == "^0" or key[-2:] == "^1" or key[-2:] == "^2" or key[-2:] == "^3":
             return self[key[:-2]+"con"][int(key[-1])]
 
         # Return transformed vector components
-        elif key[-2:] == "_t" or key[-2:] == "_r" or key[-3:] == "_th" or key[-4:] == "_phi":
+        if key[-2:] == "_t" or key[-2:] == "_r" or key[-3:] == "_th" or key[-4:] == "_phi":
             return self[key[0]+"cov_base"][["t", "r", "th", "phi"].index(key.split("_")[-1])]
-        elif key[-2:] == "^t" or key[-2:] == "^r" or key[-3:] == "^th" or key[-4:] == "^phi":
+        if key[-2:] == "^t" or key[-2:] == "^r" or key[-3:] == "^th" or key[-4:] == "^phi":
             return self[key[0]+"con_base"][["t", "r", "th", "phi"].index(key.split("^")[-1])]
-        elif key[-2:] == "_x" or key[-2:] == "_y" or key[-2:] == "_z":
+        if key[-2:] == "_x" or key[-2:] == "_y" or key[-2:] == "_z":
             return self[key[0]+"cov_cart"][["t", "x", "y", "z"].index(key.split("_")[-1])]
-        elif key[-2:] == "^x" or key[-2:] == "^y" or key[-2:] == "^z":
+        if key[-2:] == "^x" or key[-2:] == "^y" or key[-2:] == "^z":
             return self[key[0]+"con_cart"][["t", "x", "y", "z"].index(key.split("^")[-1])]
 
         # Return an array of the correct size filled with just zero or one
         # Don't cache these
         # TODO avoid file read?
-        elif key in ('zero', '0'):
+        if key in ('zero', '0'):
             return np.zeros_like(self['rho'])
-        elif key in ('one', '1'):
+        if key in ('one', '1'):
             return np.ones_like(self['rho'])
-        elif self.fname != "memory_array":
+        if self.fname != "memory_array":
             # Read things that we haven't cached and absolutely can't calculate
             # The reader keeps its own cache, so we don't add its items to ours
             if "flag" in key:
@@ -288,9 +317,7 @@ class FluidState:
             else:
                 # TODO Option for double
                 out = self.reader.read_var(key, astype=np.float64, slc=self.slice)
-            if out is None:
-                raise ValueError("FluidState cannot find or compute {}".format(key))
-            else:
+            if out is not None:
                 return out
 
         raise ValueError("FluidState cannot find or compute {}".format(key))

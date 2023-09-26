@@ -331,11 +331,11 @@ def braginskii_dP(state, delta=1.e-5):
     x3p    = state['X3']
     x1hp   = x1p + delta
     x1lp   = x1p - delta
-    if state['n3'] > 1:
+    if x1p.shape[2] > 1:
         og_points = (x11,x21,x31)
         h_points = (x1hp,x2p,x3p)
         l_points = (x1lp,x2p,x3p)
-    elif state['n2'] > 1:
+    elif x1p.shape[1] > 1:
         og_points = (x11, x21)
         h_points = (x1hp,x2p)
         l_points = (x1lp,x2p)
@@ -344,13 +344,12 @@ def braginskii_dP(state, delta=1.e-5):
         h_points = (x1hp,)
         l_points = (x1lp,)
 
-    # TODO this may not do 2/3D gracefully
     ucovt_interp = rgi(og_points, state['ucov'][0], bounds_error=False, fill_value=None)
-    ucovt_h = ucovt_interp(h_points)[:,:,:,0]
-    ucovt_l = ucovt_interp(l_points)[:,:,:,0]
+    ucovt_h = ucovt_interp(h_points)[Ellipsis,0]
+    ucovt_l = ucovt_interp(l_points)[Ellipsis,0]
     ucovr_interp = rgi(og_points, state['ucov'][1], bounds_error=False, fill_value=None)
-    ucovr_h = ucovr_interp(h_points)[:,:,:,0]
-    ucovr_l = ucovr_interp(l_points)[:,:,:,0]
+    ucovr_h = ucovr_interp(h_points)[Ellipsis,0]
+    ucovr_l = ucovr_interp(l_points)[Ellipsis,0]
 
     ducovDx1 = np.zeros_like(state['ucov']) # Represents d_x1(u_\mu)
     ducovDx1[0] = (ucovt_h - ucovt_l) / (2*delta)

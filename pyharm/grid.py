@@ -41,7 +41,8 @@ from pyharm.coordinates import *
 
 
 def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
-                    r_in=None, r_out=1000, caches=True, cache_conn=False):
+                   poly_xt=0.82, poly_alpha=14.0, mks_smooth=0.5,
+                   r_in=None, r_out=1000, caches=True, cache_conn=False):
     """Convenience function for generating grids with particular known parameters.
 
     :param system: coordinate system, denoted 'eks', 'mks', 'fmks', 'minkowski', or
@@ -77,9 +78,9 @@ def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
         if 'mks' in system:
             params['hslope'] = hslope
         if system == 'fmks' or system == 'mmks':
-            params['poly_xt'] = 0.82
-            params['poly_alpha'] = 14.0
-            params['mks_smooth'] = 0.5
+            params['poly_xt'] = poly_xt
+            params['poly_alpha'] = poly_alpha
+            params['mks_smooth'] = mks_smooth
 
     return Grid(params, caches=caches, cache_conn=cache_conn)
 
@@ -232,6 +233,13 @@ class Grid:
         for cache in ('gcon', 'gcov', 'gdet', 'lapse', 'conn', 'slices', 'shapes', 'coords', 'params', 'cache'):
             if cache in self.__dict__:
                 del self.__dict__[cache]
+
+    def __str__(self):
+        if self.N == self.NTOT:
+            return """{} grid, {}x{}x{}""".format()
+        else:
+            return """{} grid block, {}x{}x{} of {}x{}x{},
+                    ([{:.2}-{:.2}],[{:.2}-{:.2}],[{:.2}-{:.2}]) of ([{:.2}-{:.2}],[{:.2}-{:.2}],[{:.2}-{:.2}])""".format()
 
     ### COORDINATES
     def coord(self, i, j, k, loc=Loci.CENT, squeeze=False):
@@ -534,8 +542,8 @@ class Grid:
     def __getitem__(self, key):
         """This function works something like its companion in FluidState:
         It parses a dictionary member "request" and returns various members based on it.
-        This function also allows slicing -- slices must be 3D like for fluid dumps, though
-        only the X1 and X2 slices are applied.
+        This function also allows slicing -- slices must be specified in 3D like for fluid dumps,
+        but only the X1 and X2 slices are applied.
         """
         if type(key) in (list, tuple):
             slc = key
@@ -574,11 +582,12 @@ class Grid:
             # Reset GN
             out.GN = out.N + (out.N > 1) * 2*out.NG
 
-            # Finally, slice the caches with the revised slice
-            # Except make sure they get their own memory, grids don't like to be re-used otherwise
-            for key in self.cache:
+            # Finally, slice the (3D) caches with the revised slice
+            # 1D versions will just be re-calculated
+            for key in [k for k in self.cache if '1d' not in k]:
                 # Last 3 indexes are always the slice
                 out.cache[key] = self.cache[key][(Ellipsis,) + slc]
+            
 
             # Record the slice, in case?
             #out.slice = slc
