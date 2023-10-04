@@ -67,6 +67,15 @@ def parse_iharm3d_dat(params, fname):
             params[ls[1]] = str(ls[-1])
     return fix(params)
 
+def to_number(entry_string):
+    try:
+        if "." in entry_string or "e" in entry_string:
+            return float(entry_string)
+        else:
+            return int(entry_string)
+    except ValueError:
+        return entry_string
+
 def parse_parthenon_dat(string):
     """Parse the Parthenon/KHARMA params.dat format to produce a Python dict.
     The run.par format is:
@@ -93,21 +102,12 @@ def parse_parthenon_dat(string):
     # Pick out some keys we usually put in the base parameters
     flatten_blocks = ['parthenon/mesh', 'coordinates', 'parthenon/time', 'GRMHD', 'emhd',
                       'torus', 'emhdmodes', 'bondi_viscous', 'bondi', 'resize_restart']
-    def parse_key_type(entry_string):
-        try:
-            if "." in entry_string or "e" in entry_string:
-                return float(entry_string)
-            else:
-                return int(entry_string)
-        except ValueError:
-            return entry_string
-
     # Flatten entries from some blocks the way we've always done it, for compatibility
     for block in flatten_blocks:
         if block in config:
             for key in config[block]:
                 if [block, key] not in [['resize_restart', 'base'],]:
-                    params[key] = parse_key_type(config[block][key])
+                    params[key] = to_number(config[block][key])
 
     # Keep everything by block too.  Gradually transition to these entries for KHARMA code
     # TODO emulate these parsing iharm3d files?
@@ -115,7 +115,7 @@ def parse_parthenon_dat(string):
         params[block] = {}
         for key in config[block]:
             try:
-                params[block][key] = parse_key_type(config[block][key])
+                params[block][key] = to_number(config[block][key])
             except configparser.InterpolationSyntaxError:
                 params[block][key] = "NotParsed"
 
@@ -164,7 +164,7 @@ def fix(params):
         params['r_out'] = params['Rout']
 
     params['electrons'] = int(params['config']['electrons']['on'])
-    params['emhd'] = params['config']['emhd']['on']
+    params['emhd'] = int(params['config']['emhd']['on'])
 
     if not ('prim_names' in params):
         if 'electrons' in params and params['electrons']:
@@ -174,10 +174,11 @@ def fix(params):
             params['electrons'] = False
             params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
 
-        if params['conduction']:
-            params['prim_names'].append("Q_TILDE")
-        if params['viscosity']:
-            params['prim_names'].append("DP_TILDE")
+        if params['emhd']:
+            if int(params['config']['emhd']['conduction']):
+                params['prim_names'].append("Q_TILDE")
+            if int(params['config']['emhd']['viscosity']):
+                params['prim_names'].append("DP_TILDE")
 
     if 'n_prim' not in params:
         if 'n_prims' in params: # This got messed up *often*

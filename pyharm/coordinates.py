@@ -305,11 +305,11 @@ class Minkowski(CoordinateSystem):
 
     @classmethod
     def th(cls, x):
-        return np.arctan(x[2] / x[1])
+        return np.atan2(np.sqrt(x[1] ** 2 + x[2] ** 2), x[3])
 
     @classmethod
     def phi(cls, x):
-        return np.arctan(np.sqrt(x[1] ** 2 + x[2] ** 2) / x[3])
+        return np.atan2(x[2], x[1])
 
     @classmethod
     def cart_x(cls, x, log_r=False):

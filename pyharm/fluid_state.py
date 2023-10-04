@@ -40,6 +40,7 @@ from .grid import Grid
 
 from . import io
 from . import variables
+from . import parameters
 from .grmhd.b_field import divB
 from .units import get_units
 
@@ -112,7 +113,7 @@ class FluidState:
         else: # TODO extend?
             self.params = params
         self.units = units
-        
+
         if isinstance(data_source, dict):
             self.cache = data_source
             # Make sure we have both versions of uvec,B
@@ -148,7 +149,7 @@ class FluidState:
                 self.grid = None
         else:
             self.grid = grid
-        
+
         self.slice = ()
 
     def __del__(self):
@@ -222,7 +223,7 @@ class FluidState:
         if "/" in key:
             try:
                 keys = key.split("/")
-                return self.params['config']["/".join(keys[:-1])][keys[-1]]
+                return parameters.to_number(self.params['config']["/".join(keys[:-1])][keys[-1]])
             except:
                 pass
         elif self.units is not None and key in self.units:
