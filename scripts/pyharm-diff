@@ -61,7 +61,7 @@ import matplotlib.pyplot as plt
 @click.option('--array', is_flag=True, help="Use array coordinates")
 @click.option('--vmax', default=None, help="Max comparison plot value")
 # TODO default none and autodetect
-@click.option('--vars', default="RHO,UU,U1,U2,U3", help="Comma-separated list of variables to compare")
+@click.option('--vars', default=None, help="Comma-separated list of variables to compare")
 @click.option('-a', '--absolute', is_flag=True, help="Plot absolute differences, rather than relative.")
 @click.option('--rel_tol', default=5e-10, help="Relative tolerance to consider a variable different.")
 @click.option('--abs_tol', default=1e20, help="Absolute tolerance to consider a variable different.")
@@ -96,11 +96,15 @@ def diff(dump1file, dump2file, **kwargs):
     return_code = 0
 
     # TODO if vars is none get list...
+    if kwargs['vars'] is None:
+        vars = dump1.params['prim_names']
+    else:
+        vars = kwargs['vars'].split(",")
 
     # Always do XZ
     fig, _ = plt.subplots(3, 3, figsize=(kwargs['fig_x'], kwargs['fig_y']))
     axes = fig.get_axes()
-    for var, ax in zip(kwargs['vars'], axes):
+    for var, ax in zip(vars, axes):
         pplt.plot_diff_xz(ax, dump1, dump2, var, **kwargs)
         ax.set_xlabel('')
         ax.set_ylabel('')
@@ -118,7 +122,7 @@ def diff(dump1file, dump2file, **kwargs):
     if dump1['n3'] > 1:
         fig, _ = plt.subplots(3, 3, figsize=(kwargs['fig_x'], kwargs['fig_y']))
         axes = fig.get_axes()
-        for var,ax in zip(kwargs['vars'], axes):
+        for var,ax in zip(vars, axes):
             pplt.plot_diff_xy(ax, dump1, dump2, var, **kwargs)
             ax.set_xlabel('')
             ax.set_ylabel('')

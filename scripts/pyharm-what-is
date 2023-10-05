@@ -89,8 +89,8 @@ def print_dump_info(fname):
     print("Code version: {}".format(dump['version']))
     print("Dump time: {:.3}".format(dump['t']))
     print("Recorded resolution: {}x{}x{}".format(dump['n1'], dump['n2'], dump['n3']))
-    print("Geometry: ")
-    print("Coordinates: ")
+    print("Domain:", dump['r_in'], "to", dump['r_out'])
+    print("Coordinates: ", dump['coordinates'])
 
     if code == "KHARMA":
         # Parthenon version, now KHARMA version/git, etc etc
