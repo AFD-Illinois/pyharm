@@ -167,8 +167,8 @@ def fix(params):
     if (not 'r_out' in params) and 'Rout' in params:
         params['r_out'] = params['Rout']
 
-    params['electrons'] = int(params['config']['electrons']['on'])
-    params['emhd'] = int(params['config']['emhd']['on'])
+    params['electrons'] = to_number(params['config']['electrons']['on'])
+    params['emhd'] = to_number(params['config']['emhd']['on'])
 
     if not ('prim_names' in params):
         if 'electrons' in params and params['electrons']:
@@ -179,9 +179,9 @@ def fix(params):
             params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
 
         if params['emhd']:
-            if int(params['config']['emhd']['conduction']):
+            if to_number(params['config']['emhd']['conduction']):
                 params['prim_names'].append("Q_TILDE")
-            if int(params['config']['emhd']['viscosity']):
+            if to_number(params['config']['emhd']['viscosity']):
                 params['prim_names'].append("DP_TILDE")
 
     if 'n_prim' not in params:
