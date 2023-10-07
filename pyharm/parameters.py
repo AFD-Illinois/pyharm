@@ -69,7 +69,11 @@ def parse_iharm3d_dat(params, fname):
 
 def to_number(entry_string):
     try:
-        if "." in entry_string or "e" in entry_string:
+        if "true" in entry_string:
+            return True
+        elif "false" in entry_string:
+            return False
+        elif "." in entry_string or "e" in entry_string:
             return float(entry_string)
         else:
             return int(entry_string)
