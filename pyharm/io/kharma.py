@@ -193,6 +193,7 @@ class KHARMAFile(DumpFile):
         """Read a variable from the backing file.  Opens, reads, closes.
         Pass the 'out' parameter at your own risk, it must be the right size to match 'slc'
         """
+        #print("Reading",var)
         var, ind = self.kharma_standardize(var)
         if var in self.cache:
             if ind is not None:
@@ -231,21 +232,18 @@ class KHARMAFile(DumpFile):
         if "c.c.bulk."+var in fil.Variables:
             var = "c.c.bulk."+var
 
-        #print(var, self.index_of(var))
         if var not in fil.Variables and self.index_of(var) is None:
-            # Try getting it by an index
+            # Try indexing/fetching by name without the prefix
             if self.index_of(var.replace("prims.", "")) is not None:
                 var = var.replace("prims.", "")
-            # Try to get prims.B from cons.B (for e.g. KHARMA restarts)
-            # Note B1,2,3->B already
-            # Don't try this with other variables
-            if var in ["B","prims.B"] and "cons.B" in fil.Variables:
-                grid = Grid(self.params)
-                return self.read_var('cons.B', astype=astype, slc=slc) / \
-                        grid['gdet'][grid.slices.geom_slc(slc)]
-            else:
-                # If we can't find it at all:
-                raise KeyError("Variable "+var+" is not in file "+self.fname+"! Should it have been calculated?")
+        # Try to get prims.B from cons.B (for e.g. KHARMA restarts)
+        # Note B1,2,3->B,ind already so we have to reform cons.B1,2,3 (should take as arg)
+        # We don't try this with other variables, one could maybe?
+        elif var in ["B", "prims.B"] and "prims.B" not in fil.Variables and "cons.B" in fil.Variables:
+            grid = Grid(self.params)
+            var_con = 'cons.B'+str(ind+1) if ind is not None else 'cons.B'
+            return self.read_var(var_con, astype=astype, slc=slc) / \
+                    grid['gdet'][grid.slices.geom_slc(slc)]
 
         params = self.params
         # Recall ng=0 if ghost_zones is False.  Thus this says:
