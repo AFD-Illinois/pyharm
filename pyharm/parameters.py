@@ -105,7 +105,8 @@ def parse_parthenon_dat(string):
 
     # Pick out some keys we usually put in the base parameters
     flatten_blocks = ['parthenon/mesh', 'coordinates', 'parthenon/time', 'GRMHD', 'emhd',
-                      'torus', 'emhdmodes', 'bondi_viscous', 'bondi', 'resize_restart']
+                      'electrons', 'torus', 'emhdmodes', 'bondi_viscous', 'bondi',
+                      'resize_restart']
     # Flatten entries from some blocks the way we've always done it, for compatibility
     for block in flatten_blocks:
         if block in config:
@@ -160,7 +161,8 @@ def fix(params):
     for pair in (('nx1','n1'), ('nx2','n2'), ('nx3','n3'),
                  ('n1','n1tot'), ('n2','n2tot'), ('n3','n3tot'),
                  ('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3'),
-                 ('gamma', 'gam'), ('dt', 'dump_cadence'), ('tlim', 'tf'), ('cfl', 'cour')):
+                 ('gamma', 'gam'), ('gamma_e', 'gam_e'), ('gamma_p', 'gam_p'),
+                 ('dt', 'dump_cadence'), ('tlim', 'tf'), ('cfl', 'cour')):
         if (pair[0] in params):
             params[pair[1]] = params[pair[0]]
 

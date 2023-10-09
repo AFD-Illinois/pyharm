@@ -54,7 +54,7 @@ def check_dump_properties(name, check_all=True, check_divb=False, allowed_divb=1
                          ('divB_cons', 'from conserved vars')]:
             try:
                 max_divb = np.max(dump[var])
-                print("Maximum divB {} is {}".format(desc, max_divb))
+                print("Maximum divB {} is {:g}".format(desc, max_divb))
                 if max_divb > allowed_divb or np.isnan(max_divb):
                     print("Value too high! Returning error.")
                     retcode = 1
@@ -87,13 +87,12 @@ def convert(files, debug, nthreads, **kwargs):
     """Check basic properties which should be true of a GRMHD file, and return a code
     if it fails.
 
-    Currently limited to magnetic field divergence, lack of NaN, 
-
-    Future possibilities: 
+    Currently limited to magnetic field divergence, lack of NaN. Plenty of things which might
+    be reasonable to include in future.
     """
 
     if debug:
-        check_results = [] 
+        check_results = []
         for file in files:
             check_results.append(check_dump_properties(file, **kwargs))
     else:
