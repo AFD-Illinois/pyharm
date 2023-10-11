@@ -94,7 +94,7 @@ def get_bondi_fluid_state(mdot, rc, gam, grid):
     ucon_bl[1] = soln['ur'][:,None,None]
     set_fourvel_t(grid['gcov_bl'], ucon_bl)
     # Convert ucon(Bl) to ucon(KS)
-    ucon_ks = np.einsum("ij...,j...->i...", grid['dXdx_bl'], ucon_bl)
+    ucon_ks = np.einsum("ij...,j...->i...", grid['dxdX_bl'], ucon_bl)
     # Convert ucon(KS) to ucon(MKS/FMKS)
     ucon_mks = np.einsum("i...,ij...->j...", ucon_ks, grid['dXdx'])
     # Convert to primitive vars (TODO do I even need this?)
@@ -112,7 +112,6 @@ def get_bondi_fluid_state(mdot, rc, gam, grid):
     state_data['B2'] = np.zeros_like(state_data['B1'])
     state_data['B3'] = np.zeros_like(state_data['B1'])
     state_data['B'] = np.array([state_data['B1'], state_data['B2'], state_data['B3']])
-    state_data['ucon'] = ucon_mks
     # For good measure
     state_data['ur'] = soln['ur']
 
