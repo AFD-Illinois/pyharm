@@ -154,7 +154,7 @@ def compute_rhs_second_term(state):
 
     return coeff
 
-def compute_dP(mdot, rc, gam, input_grid, eta=0.01, tau=30, npoints=1000):
+def compute_dP(mdot, rc, gam, input_grid, eta=0.01, tau=30, start=0., npoints=1000):
     # Make sure we have enough points for an accurate solution
     # grid_params = {}
     # grid_params['n1'] = npoints
@@ -173,11 +173,12 @@ def compute_dP(mdot, rc, gam, input_grid, eta=0.01, tau=30, npoints=1000):
     coeff = compute_rhs_second_term(state)
 
     x1 = grid['X1'][:,0,0]
+    dx1 = grid['dx1']
     ur_splrep    = splrep(x1, state['ucon'][1][:,0,0])
     dP0_splrep   = splrep(x1, np.mean(state['dP0'], axis=(1,2))) # TODO call to pass eta?
     coeff_splrep = splrep(x1, coeff)
 
-    ode_soln = solve_ivp(_ddP_dX1, (x1[-1], x1[0]), [0.],
+    ode_soln = solve_ivp(_ddP_dX1, (x1[-1], x1[0]), [start],
                         args=(tau, ur_splrep, dP0_splrep, coeff_splrep),
                         dense_output=True)
     return ode_soln.sol(input_grid['X1'][:,0,0])[0,:]
