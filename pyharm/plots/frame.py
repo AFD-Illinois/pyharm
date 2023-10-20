@@ -312,9 +312,9 @@ def frame(fname, diag, kwargs):
             if "divB" in movie_type:
                 # Special title for diagnostic divB
                 # movie_type might be a version calculated in post e.g. divB_prims
-                divb = dump[movie_type]
-                divb_max = np.max(divb)
-                divb_argmax = np.argmax(divb)
+                divb = dump[movie_type.replace("_poloidal","")]
+                divb_max = np.nanmax(divb)
+                divb_argmax = np.nanargmax(divb)
                 fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(divb_max))
                 print("divB max", divb_max, "at", np.unravel_index(divb_argmax, divb.shape))
             else:
