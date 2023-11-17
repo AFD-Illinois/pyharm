@@ -116,8 +116,9 @@ def get_bondi_fluid_state(mdot, rc, gam, grid):
     # For good measure
     state_data['ur'] = soln['ur']
 
-    # Add the parameters
-    params = {}
+    # Add the parameters.
+    # We need a superset of grid parameters to make most things work
+    params = {**grid.params}
     params['mdot'] = mdot
     params['rc'] = params['rs'] = rc
     params['gam'] = gam
