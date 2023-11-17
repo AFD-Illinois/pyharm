@@ -2,7 +2,7 @@
 
 Figures and Finished Plots
 ==========================
-``pyharm`` includes a long list of different movie and plot types with which one can visualize a particular dump file.  The names of the following functions can all be passed to ``pyharm-movie`` to generate frames of that type, ranging from imaging just one dump to many entire runs.  In addition, if passed a key corresponding to a ``FluidDump`` variable instead of a particular movie name (e.g. the examples in :ref:`keys`), it will just attempt to plot that variable.
+``pyharm`` includes a long list of different movie and plot types with which one can visualize a particular dump file.  The names of the following functions can all be passed to ``pyharm-movie`` to generate frames of that type, ranging from imaging just one dump to many entire runs.  In addition, if passed a key corresponding to a ``FluidState`` variable instead of a particular movie name (e.g. the examples in :ref:`keys`), it will just attempt to plot that variable.
 
 Keys when plotting
 ------------------

@@ -6,9 +6,9 @@ Keys
 
 In several places, for flexibility, ``pyharm`` adopts a dictionary-like syntax to refer to what might otherwise be member variables or functions. This allows parsing the dictionary "key" to return a much wider range of items than one might bother to code or cache explicity as traditional member variables/functions.  It also allows flexibility in "passing through" keys: if one object is asked for a key it cannot calculate, it can fall through and ask another object (or several more, in order of preference) -- if any of the objects can furnish the item, it is then returned.
 
-The main place that keys are parsed is when requesting variables or properties calculated from a GRMHD dump file, represented by a :class:`pyharm.fluid_dump.FluidDump` object.  In addition to performing its own calculations, implemented in :mod:`pyharm.variables`, the ``FluidDump`` class can obtain any named items from its component :class:`pyharm.grid.Grid` object or the original dump file (:class:`pyharm.io.interface.DumpFile` subclass).
+The main place that keys are parsed is when requesting variables or properties calculated from a GRMHD dump file, represented by a :class:`pyharm.fluid_state.FluidState` object.  In addition to performing its own calculations, implemented in :mod:`pyharm.variables`, the ``FluidState`` class can obtain any named items from its component :class:`pyharm.grid.Grid` object or the original dump file (:class:`pyharm.io.interface.DumpFile` subclass).
 
-Even beyond ``FluidDump`` objects, both the ``pyharm-movie`` and ``pyharm-analysis`` scripts have additional lists of keys and modifiers that they accept, representing what plots to render or sets of reductions to perform.
+Even beyond ``FluidState`` objects, both the ``pyharm-movie`` and ``pyharm-analysis`` scripts have additional lists of keys and modifiers that they accept, representing what plots to render or sets of reductions to perform.
 
 Fluid Dump Keys
 ---------------
@@ -39,7 +39,7 @@ Grid Keys
 ~~~~~~~~~
 Several members of the :class:`pyharm.grid.Grid` object are also accessible through keys, e.g. ``grid['gcon']`` for the full contravariant metric or ``grid['gdet']`` for the sqare root of the negative metric determinant.  The full list is avaialble by calling :func:`pyharm.grid.Grid.has()`.  Most ``Grid`` quantities have an extra index in front corresponding to the location of the value within a zone -- i.e. .  See :ref:`ref_defs`
 
-Most of the same elements (or specifically, the portions at zone centers, which is usually what's desired) can be accessed from  :class:`pyharm.fluid_dump.FluidDump` objects as well, e.g. ``dump['gdet']`` to return N3xN2x1 array of metric determinants at zone centers.
+Most of the same elements (or specifically, the portions at zone centers, which is usually what's desired) can be accessed from  :class:`pyharm.fluid_state.FluidState` objects as well, e.g. ``dump['gdet']`` to return N3xN2x1 array of metric determinants at zone centers.
 
 Note that 
 

@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ class HARM2DFile(DumpFile):
     """Read iharm2d_v3 dumps (ASCII-format files usually named dumpXYZ).
     Caches all values on creation, which is bad for larger file types.
     Usually used through file-agnostic interface:
-    see file_reader and the FluidDump class for details.
+    see file_reader and the FluidState class for details.
     """
 
     @classmethod

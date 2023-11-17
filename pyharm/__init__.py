@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@ import pyharm.io
 import pyharm.plots
 
 # Directly load a selection of useful functions and aliases to serve as a high-level interface
-from .fluid_dump import load_dump
+from .fluid_state import load_dump
 from .ana_results import load_result, load_results, load_results_glob
 from .ana.reductions import *
 from .plots.pretty import pretty

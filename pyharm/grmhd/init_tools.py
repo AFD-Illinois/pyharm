@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -54,9 +54,11 @@ def set_fourvel_t(gcov, ucon):
     discr = BB * BB - 4. * AA * CC
     ucon[0] = (-BB - np.sqrt(discr)) / (2. * AA)
 
-def fourvel_to_prim(gcon, ucon, u_prim):
+def fourvel_to_prim(gcon, ucon):
     alpha2 = -1.0 / gcon[0][0]
     # Note gamma/alpha is ucon[0]
-    u_prim[1] = ucon[1] + ucon[0] * alpha2 * gcon[0][1]
-    u_prim[2] = ucon[2] + ucon[0] * alpha2 * gcon[0][2]
-    u_prim[3] = ucon[3] + ucon[0] * alpha2 * gcon[0][3]
+    u_prim = np.zeros([3, *ucon.shape[1:]])
+    u_prim[0] = ucon[1] + ucon[0] * alpha2 * gcon[0][1]
+    u_prim[1] = ucon[2] + ucon[0] * alpha2 * gcon[0][2]
+    u_prim[2] = ucon[3] + ucon[0] * alpha2 * gcon[0][3]
+    return u_prim

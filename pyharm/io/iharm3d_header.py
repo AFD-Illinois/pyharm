@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@ __license__ = """
 """
 
 import numpy as np
-import h5py
+import h5py, sys
 
 from ..grid import Grid
 from .. import parameters
@@ -61,6 +61,9 @@ geom_keys = ['dx1', 'dx2', 'dx3', 'startx1', 'startx2', 'startx3', 'n_dim']
 mks_keys = ['r_eh', 'r_in', 'r_out', 'a', 'hslope']
 mmks_keys = ['poly_alpha', 'poly_xt']
 fmks_keys = ['mks_smooth', 'poly_alpha', 'poly_xt']
+
+# Defaults for some things we only write so ipole does not get mad
+defaults = {'n_prims_passive': 0, 'version': "pyharm-writer-0", 'gridfile': 'none', 'tf': 30000, 'cour': 0.9, 'reconstruction': 'weno5'}
 
 # Translations of things the rest of pyharm tolerates/understands as elements of 'params', but which are not
 # conformant for headers and should be written with an alternate name.
@@ -289,5 +292,7 @@ def _write_param_grp(params, key_list, name, parent):
             _write_value(outgrp, params[translations[key]], key)
         elif key in params:
             _write_value(outgrp, params[key], key)
+        elif key in defaults:
+            _write_value(outgrp, defaults[key], key)
         else:
             print("WARNING: Format specifies writing key {} to {}, but not present!".format(key, outgrp.name))

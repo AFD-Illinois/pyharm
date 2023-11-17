@@ -1,5 +1,5 @@
 __license__ = """
- File: test_fmks_transform.py
+ File: test_geometry.py
  
  BSD 3-Clause License
  
@@ -39,19 +39,16 @@ https://github.com/AFD-Illinois/docs/wiki/fmks-and-you
 import numpy as np
 
 from pyharm.grid import Grid
-from pyharm.defs import Loci
 
 from common import compare
 
-# Values in FMKS from a MAD simulation
-# zone 11,12,13 of dump 1200 of MAD a+0.9375 384x192x192 iharm3D eht_v1 run
-P = np.array([0, 0, 0.4553683,  0.0147898,  0.7197036, 3.6612415,  0.2197483, -5.5480947])
-
-# Metric parameters from that simulation
+# Parameters for FMKS from a particular simulation,
+# MAD a+0.9375 384x192x192 iharm3D eht_v1 run
 params = {'coordinates': 'fmks', 'a': 0.9375,
           'r_in': 1.2175642950007606, 'r_out': 1000.0,
           'hslope': 0.3, 'mks_smooth': 0.5, 'poly_xt': 0.82, 'poly_alpha': 14.0,
-          'n1': 384, 'n2': 192, 'n3': 192}
+          'n1': 384, 'n2': 192, 'n3': 192,
+          'gam': 13./9}
 
 # Make a grid
 G = Grid(params)
@@ -89,10 +86,7 @@ def test_fmks_functions():
     assert compare(gcon_computed, gcon_example)
 
     # TODO gcon_ks before vs after
+    # TODO to/from BL coordinates
+    # TODO multiple paths
 
-# TODO test:
-# Making a dump from P and evaluating should give:
-# dump['ucon'] = [  2.02058894, -0.26000907, -0.01550771,  0.71970361 ]
-# dump['ucov'] = [ -0.56218003,  1.12413841, -0.29943404,  0.58854419 ]
-# dump['bcon'] = [  0.78464317,  1.71099976,  0.10273258, -2.46630283 ]
-# dump['bcov'] = [  4.16762915,  12.7343388,  2.01595804, -7.05673667 ]
+# TODO compute_all like for fluid state, test no errors thrown

@@ -1,69 +1,120 @@
 #!/usr/bin/env python3
 
+__license__ = """
+ File: pyharm-write-grid
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 import click
+
+import matplotlib.pyplot as plt
+
 from pyharm import grid
 from pyharm.io import read_hdr
 import pyharm.io.gridfile as gridfile
+import pyharm.plots.plot_dumps as pplt
 
 @click.command()
-@click.argument('file_or_system', nargs=1)
-@click.argument('spin', default=0.9375, nargs=1)
-@click.argument('r_out', default=1000., nargs=1)
-@click.argument('n1', default=192, nargs=1)
-@click.argument('n2', default=128, nargs=1)
-@click.argument('n3', default=128, nargs=1)
+@click.argument('file', nargs=1, type=click.Path(exists=True), default=None, required=False)
+@click.option('-c', '--coords', 'coordinates', default='fmks', help="Coordinate system")
+@click.option('-a', '--spin', 'a', default=0.9375, help="BH spin")
+@click.option('--r_out', default=1000., help="Outer radius in r_g")
+@click.option('--r_in', type=float, default=None, help="Inner radius in r_g")
+@click.option('-n1', '--n1', default=192, help="Radial/X1 grid zones")
+@click.option('-n2', '--n2', default=128, help="Theta/X2 grid zones")
+@click.option('-n3', '--n3', default=128, help="Phi/X3 grid zones")
+@click.option('--hslope', default=0.3, help="MKS parameter hslope")
+@click.option('--poly_xt', default=0.82, help="FMKS parameter poly_xt")
+@click.option('--poly_alpha', default=14.0, help="FMKS parameter poly_alpha")
+@click.option('--mks_smooth', default=0.5, help="FMKS parameter mks_smooth")
 # Common options
 @click.option('-o', '--outfile', default="grid.h5", help="Output file.")
 @click.option('-vis', '--vis', is_flag=True, help="Whether to write to ebhlight/visualization format.")
-def write_some_grid(file_or_system, spin, r_out, n1, n2, n3, outfile, vis):
-    """Script to write files listing geometry information at each cell of a simulation.
+@click.option('--plot', is_flag=True, help="Plot the grid instead of writing a file.")
+@click.version_option(package_name='pyharm')
+def write_some_grid(file, outfile, vis, plot, **kwargs):
+    """Script to write files listing geometry information at each cell of a simulation grid.
     Used to avoid recalculating boring things like the metric, metric determinant, etc.
     Won't match iharm3d's grids bit-for-bit in gcon due to inversions, but should in all other variables.
+    Probably unnecessary if you're using pyharm directly, but useful to support other scripts and for
+    compatibility.
 
     \b
-    Usage: write_grid.py FILE.{phdf,h5} 
-    Writes a grid file using parameters for the simulation, given a dump of the simulation output
+    Given a filename, this script writes a grid file using parameters for the simulation
 
     \b
-    Usage: write_grid.py SYSTEM SPIN R_OUT [N1 N2 N3]
-    Writes a grid of given parameters and size:
-    1. Coordinate SYSTEM in {fmks, mks, eks, ks, mks3, etc.}.
-    2. SPIN of BH. Default 0.9375.
-    3. R_OUT representing domain outer edge in r_g, default 1000.  Inner radius r_in will be determined
-       in the same way as (modern! See relevant bug in ebhlight) HARM-like codes, putting 5 zones inside EH
-    4. Grid size. Default 192x128x128
-    5. Filename
+    Given a series of options, this script writes a grid with the specified parameters, choosing arbitrary
+    defaults for any unspecified parameters.  You likely want to specify:
+    1. Coordinate system (-c) in {fmks, mks, eks, ks, mks3, etc.} (see online documentation).
+    2. Spin (-a).
+    3. Outer radius (--r_out).  The inner radius (--r_in) will be determined by placing 5 zones
+       inside the EH if not specified, as in (modern) HARM-like codes.
+    4. Grid size (-n1,-n2,-n3).
+    5. Any MKS or FMKS parameters which should not be "default" as used in Illinois library runs
     """
 
-    # Read the header data of a given file to a dictionary
-    make_system = True
-    if ".phdf" in file_or_system or ".h5" in file_or_system:
-        try:
-            header = read_hdr(file_or_system)
-            # Generate a grid from the header
-            G = grid.Grid(header, cache_conn=True)
-            make_system = False
-
-        except IOError:
-            print("Could not read first argument as file, assuming grid parameters as arguments.")
-            make_system = True
-
-    if make_system:
+    if file is not None:
+        header = read_hdr(file)
+        # Generate a grid from the header of the file
+        G = grid.Grid(header, cache_conn=True)
+    else:
         # Not a valid file -> user specified grid parameters instead
-        print("Building grid: {}, a = {}, {}x{}x{} to r_out of {}".format(
-              file_or_system, spin, n1, n2, n3, r_out))
+        print("Building grid: {}, a = {}, {}x{}x{} with radii {}-{}".format(
+              kwargs['coordinates'], kwargs['a'], kwargs['n1'], kwargs['n2'], kwargs['n3'],
+              kwargs['r_in'], kwargs['r_out']))
+        if kwargs['r_in'] is None:
+            del kwargs['r_in']
         # Only need connection coeffs for vis grids
-        G = grid.make_some_grid(file_or_system, n1, n2, n3, a=spin, r_out=r_out, cache_conn=vis)
+        G = grid.Grid(kwargs, cache_conn=vis)
 
     print("Grid startx: ", G.startx)
     print("Grid stopx: ", G.stopx)
     print("Grid metric/coordinates {}, a={}, hslope={}".format(type(G.coords), G.coords.a, G.coords.hslope))
-    print("Writing to file ", outfile)
 
-    if vis:
-        gridfile.write_vis_grid(G, outfile)
+    if not plot:
+        print("Writing to file ", outfile)
+        if vis:
+            gridfile.write_vis_grid(G, outfile)
+        else:
+            gridfile.write_grid(G, fname=outfile)
     else:
-        gridfile.write_grid(G, fname=outfile)
+        fig, ax = plt.subplots(1,1, figsize=(8,16))
+        pplt.overlay_grid(ax, G)
+        pplt.overlay_eh_border(ax, G, color='k')
+        ax.set_xlim(0, G['r_out'])
+        ax.set_ylim(-G['r_out'], G['r_out'])
+        # TODO manual window override
+        ax.set_aspect('equal')
+        fig.savefig(outfile, dpi=300)
 
 if __name__ == "__main__":
     write_some_grid()

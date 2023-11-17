@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ __doc__ = \
 # TODO flux_ct in numpy, to take a step for jcon
 
 def divB(G, B):
-    gdet = G.gdet[Loci.CENT.value]
+    gdet = G['gdet']
 
     # If we don't have ghost zones, make our own slices
     s = Slices(ng=1)

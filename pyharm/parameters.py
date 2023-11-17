@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,8 @@ __license__ = """
 """
 
 import numpy as np
+import configparser
+import re
 
 __doc__ = \
 """Parse and handle parameters.
@@ -65,6 +67,19 @@ def parse_iharm3d_dat(params, fname):
             params[ls[1]] = str(ls[-1])
     return fix(params)
 
+def to_number(entry_string):
+    try:
+        if "true" in entry_string:
+            return True
+        elif "false" in entry_string:
+            return False
+        elif "." in entry_string or "e" in entry_string:
+            return float(entry_string)
+        else:
+            return int(entry_string)
+    except ValueError:
+        return entry_string
+
 def parse_parthenon_dat(string):
     """Parse the Parthenon/KHARMA params.dat format to produce a Python dict.
     The run.par format is:
@@ -75,9 +90,6 @@ def parse_parthenon_dat(string):
     All lines not in this format are ignored, though conventionally comments begin with '# '.
     This implementation does not distinguish packages (<>), nor line continuations (&) correctly.
     """
-    # TODO:
-    # parse & include headers, so we can guarantee picking out the correct nx1/2/3
-    # parse lists and line continuations (&) correctly
 
     params = {}
 
@@ -86,25 +98,39 @@ def parse_parthenon_dat(string):
     params['gridfile'] = "NONE"
     params['n_prims_passive'] = 0
 
-    for line in string.split("\n"):
-        # Trim out trailing newline, anything after '#', stray parentheses, headers
-        ls = [token.strip().strip('()') for token in line.split("#")[0].split("<")[0].split("=") if token != '']
-        # And blank lines
-        if len(ls) == 0:
-            continue
-        # Parse, assuming float->int->str and taking the largest surviving numbers (to avoid block-specific nxN)
-        try:
-            if "." in ls[-1]:
-                if ls[0] not in params or float(params[ls[0]]) < float(ls[-1]):
-                    params[ls[0]] = float(ls[-1])
-            else:
-                if ls[0] not in params or int(params[ls[0]]) < int(ls[-1]):
-                    params[ls[0]] = int(ls[-1])
-        except ValueError:
-            params[ls[0]] = ls[-1]
+    # This parser expects [section], and uses indents for line continuation
+    # Otherwise it should match the Parthenon input deck spec exactly & flexibly
+    config = configparser.ConfigParser(inline_comment_prefixes=(';','#','&'))
+    config.read_string(string.replace("<","[").replace(">","]"))
+
+    # Pick out some keys we usually put in the base parameters
+    flatten_blocks = ['parthenon/mesh', 'coordinates', 'parthenon/time', 'GRMHD', 'emhd',
+                      'electrons', 'torus', 'emhdmodes', 'bondi_viscous', 'bondi',
+                      'resize_restart']
+    # Flatten entries from some blocks the way we've always done it, for compatibility
+    for block in flatten_blocks:
+        if block in config:
+            for key in config[block]:
+                if [block, key] not in [['resize_restart', 'base'],]:
+                    params[key] = to_number(config[block][key])
+
+    # Keep everything by block too.  Gradually transition to these entries for KHARMA code
+    # TODO emulate these parsing iharm3d files?
+    for block in config:
+        params[block] = {}
+        for key in config[block]:
+            try:
+                params[block][key] = to_number(config[block][key])
+            except configparser.InterpolationSyntaxError:
+                params[block][key] = "NotParsed"
+
+
+    # And keep the rest
+    params['config'] = config
 
     # Translate coordinate naming scheme
-    # TODO will there be exp/superexp w/BL? Likely not, but...
+    # TODO deprecate params['coordinates'] entirely!
+    # Parse base/transform from old iharm3d output instead
     if "cartesian" in params['base']:
         params['coordinates'] = "cartesian"
     elif "fmks" in params['transform'] or "funky" in params['transform']:
@@ -135,12 +161,16 @@ def fix(params):
     for pair in (('nx1','n1'), ('nx2','n2'), ('nx3','n3'),
                  ('n1','n1tot'), ('n2','n2tot'), ('n3','n3tot'),
                  ('x1min', 'startx1'), ('x2min', 'startx2'), ('x3min', 'startx3'),
-                 ('gamma', 'gam'), ('dt', 'dump_cadence'), ('tlim', 'tf'), ('cfl', 'cour')):
+                 ('gamma', 'gam'), ('gamma_e', 'gam_e'), ('gamma_p', 'gam_p'),
+                 ('dt', 'dump_cadence'), ('tlim', 'tf'), ('cfl', 'cour')):
         if (pair[0] in params):
             params[pair[1]] = params[pair[0]]
 
     if (not 'r_out' in params) and 'Rout' in params:
         params['r_out'] = params['Rout']
+
+    params['electrons'] = to_number(params['config']['electrons']['on'])
+    params['emhd'] = to_number(params['config']['emhd']['on'])
 
     if not ('prim_names' in params):
         if 'electrons' in params and params['electrons']:
@@ -149,6 +179,12 @@ def fix(params):
         else:
             params['electrons'] = False
             params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
+
+        if params['emhd']:
+            if to_number(params['config']['emhd']['conduction']):
+                params['prim_names'].append("Q_TILDE")
+            if to_number(params['config']['emhd']['viscosity']):
+                params['prim_names'].append("DP_TILDE")
 
     if 'n_prim' not in params:
         if 'n_prims' in params: # This got messed up *often*
@@ -195,10 +231,14 @@ def fix(params):
         else:
             params['r_in'] = np.exp(params['x1min'])
 
-    if 'x1min' not in params:
-        params['x1min'] = np.log(params['r_in'])
-    if 'x1max' not in params:
-        params['x1max'] = np.log(params['r_out'])
+
+    # These replacements are for early KHARMA anyway, before SuperExp coords
+    # We record these now
+    if params['coordinates'] != "superexp":
+        if 'x1min' not in params:
+            params['x1min'] = np.log(params['r_in'])
+        if 'x1max' not in params:
+            params['x1max'] = np.log(params['r_out'])
 
     if 'x2min' not in params:
         params['x2min'] = 0.

@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,19 @@ def r_flux_profiles(dump, out, vars=('FM', 'FE', 'FL'), **kwargs):
             out['r/' + var + '_all'] = out['rt/' + var + '_all']
             out['r/' + var + '_disk'] = out['rt/' + var + '_disk']
 
-# TODO more rth profiles, gather those
+def slices(dump, out, **kwargs):
+    """Capture midplane, poloidal, and accretion-region slices of the original primitive variables.
+    """
+
+    out['thphit/i5.prims'] = np.squeeze(dump[5, :, :]['prims'])
+    i5m = i_of(dump['r1d'], 5)
+    out['thphit/5M.prims'] = np.squeeze(dump[i5m, :, :]['prims'])
+
+    out['rtht/i0.prims'] = np.squeeze(dump[:, :, 0]['prims'])
+    out['rtht/iN_2.prims'] = np.squeeze(dump[:, :, dump['n3']//2-1]['prims'])
+
+    out['rphit/iN_2.prims'] = np.squeeze(dump[:, dump['n2']//2-1, :]['prims'])
+
 
 def th_profiles(dump, out, vars=('inv_beta', 'sigma'), **kwargs):
     """Calculate any full-theta profiles: 5-zone radial averages starting from 'rTh' (also averaged in phi).
@@ -356,7 +368,7 @@ def omega_bz_advanced(dump, out, **kwargs):
         out['rhth/F23'] = np.zeros((dump['n1'],dump['n2']//2))
         out['rhth/F02'] = np.zeros((dump['n1'],dump['n2']//2))
         coord_hth = dump.grid.coord_all()[:,:,:dump['n2']//2,0]
-        alpha_over_omega =  dump.grid.lapse[Loci.CENT.value, :, :dump['n2']//2] / (dump['r_eh'] * np.sin(dump.grid.coords.th(coord_hth)))
+        alpha_over_omega =  dump['lapse'][:, :dump['n2']//2] / (dump['r_eh'] * np.sin(dump.grid.coords.th(coord_hth)))
         for i in range(dump['n1']):
             out['rhth/F01'][i] = theta_profile(dump, Fcov01, i, 1)
             out['rhth/F13'][i] = theta_profile(dump, Fcov13, i, 1)

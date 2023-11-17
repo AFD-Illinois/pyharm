@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ from .phdf import phdf
 from .phdf_old import phdf as phdf_old
 
 __doc__ = \
-"""Read KHARMA output files and logs.  Pretty much supports any Parthenon code and nearly supports AMR.
+"""Read KHARMA output files and logs.  Pretty much supports any Parthenon code including (interpolated) AMR.
 Contains much index math.
 """
 
@@ -167,6 +167,7 @@ class KHARMAFile(DumpFile):
         # Set incidental parameters from what we've read
         params['t'] = fil.Time
         params['n_step'] = fil.NCycle
+        params['num_blocks'] = fil.NumBlocks
         # Add dump number if we've conformed to usual naming scheme
         fname_parts = self.fname.split("/")[-1].split(".")
         if len(fname_parts) > 2:
@@ -188,7 +189,11 @@ class KHARMAFile(DumpFile):
         del fil
         return params
 
-    def read_var(self, var, astype=None, slc=(), fail_if_not_found=True):
+    def read_var(self, var, astype=None, slc=(), out=None, skip_cache=False, fail_if_not_found=True):
+        """Read a variable from the backing file.  Opens, reads, closes.
+        Pass the 'out' parameter at your own risk, it must be the right size to match 'slc'
+        """
+        #print("Reading",var)
         var, ind = self.kharma_standardize(var)
         if var in self.cache:
             if ind is not None:
@@ -206,10 +211,12 @@ class KHARMAFile(DumpFile):
         # for converting file formats.
         if var == "prims" or var == "cons":
             # Reshape rho to 4D by adding a rank in front for prim index
-            all_vars = self.read_var(var+'.rho')[np.newaxis, Ellipsis]
+            # TODO THIS DOES NOT WORK FOR KHARMA HARM-DRIVER RESTARTS
+            kwargs = {'astype': astype, 'slc': slc, 'fail_if_not_found': fail_if_not_found}
+            all_vars = self.read_var(var+'.rho', **kwargs)[np.newaxis, Ellipsis]
             for v2 in self.var_names_ordered[1:]:
                 try:
-                    new_var = self.read_var(v2)
+                    new_var = self.read_var(v2, **kwargs)
                     if len(new_var.shape) < len(all_vars.shape):
                         # Reshape to 4D if needed to append
                         new_var = new_var[np.newaxis, Ellipsis]
@@ -225,21 +232,18 @@ class KHARMAFile(DumpFile):
         if "c.c.bulk."+var in fil.Variables:
             var = "c.c.bulk."+var
 
-        #print(var, self.index_of(var))
         if var not in fil.Variables and self.index_of(var) is None:
-            # Try getting it by an index
+            # Try indexing/fetching by name without the prefix
             if self.index_of(var.replace("prims.", "")) is not None:
                 var = var.replace("prims.", "")
-            # Try to get prims.B from cons.B (for e.g. KHARMA restarts)
-            # Note B1,2,3->B already
-            # Don't try this with other variables
-            if var in ["B","prims.B"] and "cons.B" in fil.Variables:
-                grid = Grid(self.params)
-                return self.read_var('cons.B', astype=astype, slc=slc) / \
-                        grid['gdet'][Loci.CENT.value][grid.slices.geom_slc(slc)]
-            else:
-                # If we can't find it at all:
-                raise KeyError("Variable "+var+" is not in file "+self.fname+"! Should it have been calculated?")
+        # Try to get prims.B from cons.B (for e.g. KHARMA restarts)
+        # Note B1,2,3->B,ind already so we have to reform cons.B1,2,3 (should take as arg)
+        # We don't try this with other variables, one could maybe?
+        elif var in ["B", "prims.B"] and "prims.B" not in fil.Variables and "cons.B" in fil.Variables:
+            grid = Grid(self.params)
+            var_con = 'cons.B'+str(ind+1) if ind is not None else 'cons.B'
+            return self.read_var(var_con, astype=astype, slc=slc) / \
+                    grid['gdet'][grid.slices.geom_slc(slc)]
 
         params = self.params
         # Recall ng=0 if ghost_zones is False.  Thus this says:
@@ -249,9 +253,9 @@ class KHARMAFile(DumpFile):
         ng_iz = params['ng'] if params['n3'] > 1 else 0
         ntot = [params['n1']+2*ng_ix, params['n2']+2*ng_iy, params['n3']+2*ng_iz]
         # Even if we don't want ghosts, we'll potentially need to cut them from the file
-        ng_fx = params['ng_file']
-        ng_fy = params['ng_file'] if params['n2'] > 1 else 0
-        ng_fz = params['ng_file'] if params['n3'] > 1 else 0
+        ngf = [params['ng_file'],
+               params['ng_file'] if params['n2'] > 1 else 0,
+               params['ng_file'] if params['n3'] > 1 else 0]
         # Finally, we need to decipher where to put each meshblock vs the whole grid,
         # which we do inelegantly using zone locations
         dx = (params['dx1'], params['dx2'], params['dx3'])
@@ -268,17 +272,22 @@ class KHARMAFile(DumpFile):
 
         #print("Reading slice", slc, " of file, indices ", file_start, " to ", file_stop, " to shape ", out_shape)
 
-        # Allocate the full mesh size
-        if "jcon" in var:
-            out = np.zeros((4, *out_shape), dtype=astype)
-        elif var.split(".")[-1][:1] == "B" or var.split(".")[-1] == "uvec": # We cache the whole thing even for an index
-            out = np.zeros((3, *out_shape), dtype=astype)
-        else:
-            out = np.zeros(out_shape, dtype=astype)
+        if out is None:
+            # Allocate the full output mesh size
+            if "jcon" in var:
+                out = np.zeros((4, *out_shape), dtype=astype)
+            elif var.split(".")[-1][:1] == "B" or var.split(".")[-1] == "uvec": # We cache the whole thing even for an index
+                out = np.zeros((3, *out_shape), dtype=astype)
+            else:
+                out = np.zeros(out_shape, dtype=astype)
 
         # Arrange and read each block
         for ib in range(fil.NumBlocks):
             bb = fil.BlockBounds[ib]
+            # How much smaller is this block's dx vs the file norm?
+            block_dx = np.abs(bb[1] - bb[0])/fil.MeshBlockSize[0]
+            level = int(round(dx[0] / block_dx))
+            #print("Reading block level", level)
             # Internal location of the block i.e. starting/stopping physical indices in the final, big mesh
             # First, take the start/stop locations and map them to integers
             # We only need to add ghost zones here if the file has them *and* we want them:
@@ -289,27 +298,25 @@ class KHARMAFile(DumpFile):
             # on the (never instantiated) global grid
             loc_slc = tuple([slice(max(b[i].start, file_start[i]), min(b[i].stop, file_stop[i])) for i in range(3)])
             # Subtract off the start of the slice: this is where we're outputting to in our real array
-            out_slc = tuple([slice(loc_slc[i].start - file_start[i] - ng[i], loc_slc[i].stop - file_start[i] + ng[i]) for i in range(3)])
+            out_slc = tuple([slice(loc_slc[i].start - file_start[i] - ng[i]//level, loc_slc[i].stop - file_start[i] + ng[i]//level) for i in range(3)])
             # Subtract off the block's global starting point: this is what we're taking from in the block
             # If the ghost zones are included (ng_f > 0) but we don't want them (all) (ng_i = 0),
             # then take a portion of the file.  Otherwise take it all.
-            # Also include the block number out front
-            fil_slc = (slice(loc_slc[2].start - b[2].start + ng_fz - ng[2], loc_slc[2].stop - b[2].start + ng_fz + ng[2]),
-                       slice(loc_slc[1].start - b[1].start + ng_fy - ng[1], loc_slc[1].stop - b[1].start + ng_fy + ng[1]),
-                       slice(loc_slc[0].start - b[0].start + ng_fx - ng[0], loc_slc[0].stop - b[0].start + ng_fx + ng[0]))
+            fil_slc = (slice((loc_slc[2].start - b[2].start)*level + ngf[2] - ng[2], (loc_slc[2].stop - b[2].start)*level + ngf[2] + ng[2], level),
+                       slice((loc_slc[1].start - b[1].start)*level + ngf[1] - ng[1], (loc_slc[1].stop - b[1].start)*level + ngf[1] + ng[1], level),
+                       slice((loc_slc[0].start - b[0].start)*level + ngf[0] - ng[0], (loc_slc[0].stop - b[0].start)*level + ngf[0] + ng[0], level))
             if (fil_slc[-3].start > fil_slc[-3].stop) or (fil_slc[-2].start > fil_slc[-2].stop) or (fil_slc[-1].start > fil_slc[-1].stop):
                 # Don't read blocks outside our domain
                 #print("Skipping block: ", b, " would be to location ", out_slc, " from portion ", fil_slc)
                 continue
             #print("Reading var ", var, " from block: ", b, " to location ", out_slc, " by reading block portion ", fil_slc)
-            #print(fil.fid[var].shape)
 
             if 'prims.rho' in fil.Variables:
                 if var not in fil.fid:
                     raise IOError("Cannot read variable "+var+" from file "+self.fname+"!")
                 # New file format. Read whatever
                 if len(out.shape) == 4: # Always read the whole vector, even if we're returning an index
-                    #print("Reading vector size ", fil.fid[var][fil_slc + (slice(None),)].T.shape, " to loc size ", out[(slice(None),) + out_slc].shape)
+                    #print("Reading vector size ", fil.fid[var][(ib, slice(None)) + fil_slc].transpose(0,3,2,1).shape, " to loc size ", out[(slice(None),) + out_slc].shape)
                     try:
                         # Newer format: block, var, k, j, i on disk
                         out[(slice(None),) + out_slc] = fil.fid[var][(ib, slice(None)) + fil_slc].transpose(0,3,2,1)
@@ -353,11 +360,14 @@ class KHARMAFile(DumpFile):
         del fil
 
         # ALWAYS keep 3 indices.  Better to keep than to squeeze and accidentally broadcast
-        self.cache[var] = out
-        if ind is not None:
-            return self.cache[var][ind]
+        if skip_cache:
+            return out
         else:
-            return self.cache[var]
+            self.cache[var] = out
+            if ind is not None:
+                return self.cache[var][ind]
+            else:
+                return self.cache[var]
 
 ## Module functions
 

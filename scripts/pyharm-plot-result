@@ -1,5 +1,39 @@
 #!/usr/bin/env python3
 
+__license__ = """
+ File: pyharm-plot-result
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 from argparse import ArgumentError
 import sys
 import glob
@@ -33,10 +67,10 @@ class ExtensibleCmd(click.Command):
                     formatter.write(textwrap.indent(textwrap.fill(docstring), "    ") + "\n\n")
 
 @click.command(cls=ExtensibleCmd)
-@click.argument('to_plot_str', nargs=1)
-@click.argument('paths', nargs=-1, type=click.Path(exists=True))
-@click.option('-f', '--result_fname', default="eht_out.h5", help="Filename (not full path) of each results file")
+@click.argument('plot_type', nargs=1)
+@click.argument('files', nargs=-1, type=click.Path(exists=True))
 @click.option('-v', '--varlist', default=None, help="Comma-separated list of variables to use")
+@click.option('--model_prefix', default="", help="String to prepend to all model names (e.g. GRMHD run parameters)")
 @click.option('--tag', default="", help="String to add to output plot names")
 # Bounds
 @click.option('--xmax', default=None, help="X-axis maximum")
@@ -48,25 +82,23 @@ class ExtensibleCmd(click.Command):
 @click.option('--avg_max', default=None, help="Time-average maximum")
 @click.option('--by_window', is_flag=True, help="Plot a point or line for each window of a series")
 # Output
-@click.option('-pdf', '--pdf', is_flag=True, help="Output to pdf rather than png")
+@click.option('-pdf', '--pdf', is_flag=True, help="Output to .pdf file rather than .png image")
 @click.option('--fig_x', default=None, help="Figure width in inches")
 @click.option('--fig_y', default=None, help="Figure height in inches")
-def plot_results(to_plot_str, paths, **kwargs):
+@click.version_option(package_name='pyharm')
+def plot_results(plot_type, files, **kwargs):
     """Plot a result or set of results in a standard form, usually the contents of one or more
     analyses done by pyharm-analysis.
 
-    Current plots: eh_fluxes,radial_averages_window,radial_fluxes_window,disk_momentum
-
-    Usage: pyharm-plot-result  list,of,names folder1 [folder2]
+    Usage: pyharm-plot-result plot_type [options] file1.h5 [file2.h5 ...]
     """
-    to_plot = to_plot_str.split(",")
+    
+    # TODO click does lists
     if kwargs['varlist'] is not None:
         kwargs['varlist'] = kwargs['varlist'].split(",")
 
     # Always load results
-    results = pyharm.load_results_glob(paths, kwargs['result_fname'])
-
-    print("Read {} results".format(len(results)))
+    results = [pyharm.load_result(f) for f in files]
 
     # Hack to get the list of functions in current file,
     # so we can call them based on runtime user-spec string
@@ -76,29 +108,32 @@ def plot_results(to_plot_str, paths, **kwargs):
     for fnname, fn in figure_list:
         local_fns[fnname] = fn
 
-    # Iterate over individual plots
-    for plotname in to_plot:
-        # If this is a local single-result function, just plot it for everything
-        if plotname in local_fns.keys():
-            fig = result_figures.__dict__[plotname](results, kwargs=kwargs)
-        else:
-            print("ERROR: Cannot make plot: {}".format(plotname))
-
-    # Any other closing/format stuff. PDF format, etc, etc
-    for ax in fig.get_axes():
-        ax.set_xlim(kwargs['xmin'],  kwargs['xmax'])
-        ax.set_ylim(kwargs['ymin'],  kwargs['ymax'])
-    plt.subplots_adjust(wspace=0.4)
-    # Underscore-separate things
-    if kwargs['tag'] != "":
-        kwargs['tag'] += "_"
-    # User tag, then fn, then extension
-    print(results.keys())
-    if kwargs['pdf']:
-        plt.savefig(kwargs['tag']+results['.'].tag+".pdf", dpi=200)
+    # If this is a local single-result function, just plot it for everything
+    if plot_type in local_fns.keys():
+        figs = result_figures.__dict__[plot_type](results, kwargs=kwargs)
     else:
-        plt.savefig(kwargs['tag']+results['.'].tag+".png", dpi=200)
-    plt.close(fig)
+        print("ERROR: Cannot make plot: {}".format(plot_type))
+        exit(-1)
+
+    # Allow, but do not require, returning multiple figures
+    try:
+        figs[0]
+    except:
+        figs = [figs]
+    for fig in figs:
+        # Any other closing/format stuff
+        for ax in fig.get_axes():
+            ax.set_xlim(kwargs['xmin'],  kwargs['xmax'])
+            ax.set_ylim(kwargs['ymin'],  kwargs['ymax'])
+
+        # User tag, then fn, then extension
+        if len(results) == 1:
+            out_name = kwargs['tag'].rstrip("_")+"_"+plot_type+results[0].tag
+        else:
+            out_name = kwargs['tag'].rstrip("_")+"_"+plot_type
+
+        fig.savefig(out_name+(".pdf" if kwargs['pdf'] else ".png"), dpi=200)
+        plt.close(fig)
 
 if __name__ == "__main__":
     plot_results()

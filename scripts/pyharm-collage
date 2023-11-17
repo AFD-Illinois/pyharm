@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+
+__license__ = """
+ File: pyharm-convert
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
+import os
+from itertools import product
+from functools import partial
+import click
+import pickle
+
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import pandas
+import h5py
+
+# Big white serif font
+matplotlib.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["DejaVu Serif"],
+    "font.monospace": ["DejaVu Sans Mono"],
+    "text.color": 'white',
+    "axes.labelcolor": 'white',
+    "xtick.labeltop": True,
+    "xtick.labelbottom": True
+    #"text.usetex": True
+})
+
+import hallmark as hm
+
+import pyharm
+import pyharm.parallel as para
+import pyharm.plots.plot_dumps as pplt
+
+# TODO
+# 1. add builds and cuts
+# 2. cache maxima for prettier plots
+
+def get_path(pf, seq, flux, tilt, spin):
+        # Select our image. Note multiple args are OR'd together,
+        # so we must use separate calls
+        sel = pf(flux=flux)
+        sel = sel(tilt=tilt)
+        sel = sel(spin=spin)
+        # Get the image path
+        try:
+            return sel.path.iloc[0]
+        except:
+            return None
+
+# Process a frame
+def plot_frame(seq, kwargs={}):
+    fig, _ = plt.subplots(kwargs['nplotsy'], kwargs['nplotsx'], figsize=(kwargs['nplotsx'],kwargs['nplotsy']))
+    ax = fig.get_axes()
+
+    # Select seq here if imaging for individual files
+    pf = kwargs['pf']
+    params = kwargs['params']
+
+    i = 0
+    # For all models, in the order we choose...
+    for flux, tilt, fspin in product(params['flux'], params['tilt'], np.sort(params['spin'].astype(float))):
+        # Bare plots
+        ax[i].set_xticks([])
+        ax[i].set_yticks([])
+        ax[i].axis('off')
+
+        # Spin is recorded as a string but we sorted as float
+        spin = "{:.2f}".format(fspin)
+        if spin in ["0.94", "-0.94", "0.13", "-0.13"]:
+            spin = "{:.4f}".format(fspin)
+        if spin in ["0.00", "0.50", "-0.50"]:
+            spin = "{:.1f}".format(fspin)
+
+        # Leave black boxes for cut or not-introduced plots
+        annotations = {}
+        if True:
+            # Get the image path
+            path = get_path(pf, seq, flux, tilt, spin)
+
+            if path is not None:
+                # Plot image
+                dump = pyharm.load_dump(path)
+                pplt.plot_xz(ax[i], dump, 'rho', log=True, vmin=1e-3, vmax=3, cbar=False, xlabel=False, ylabel=False, label="")
+
+        # Advance regardless, leaving bare boxes where we do not plot
+        i += 1
+    plt.subplots_adjust(top=1.0, left=0.0, right=1.0, bottom=0.0, hspace=0, wspace=0.0)
+    plt.savefig(kwargs['out_dir']+"/frame_{}.png".format(seq), dpi=kwargs['fig_dpi'])
+    plt.close()
+
+@click.command()
+@click.argument('src_fmt', nargs=1, default="{flux}/{tilt:d}/a{spin}/dumps_kharma/{prob}.out0.{seq:d}.phdf")
+# Plot size
+@click.option('--nplotsx', default=13, help="Horizontal plots: spin")
+@click.option('--nplotsy', default=8, help="Vertical plots: disk flux, tilt")
+@click.option('--fig_x', default=16, help="Figure vertical size in inches")
+@click.option('--fig_y', default=9, help="Figure horizontal size in inches")
+@click.option('--fig_dpi', default=200, help="Figure DPI resolution")
+# Plot options
+@click.option('-d', '--out_dir', default="frames_collage", help="Directory for output")
+# Range (TODO time range)
+@click.option('-s', '--startn', default=2000, help="Dump number to start processing")
+@click.option('-e', '--endn', default=2000, help="Dump number to end processing (inclusive)")
+def collage_movie(src_fmt, **kwargs):
+    """Generate frames corresponding to a movie of a whole set of models, optionally introduced or cut over the
+    runtime.  Models can be introduced in some order and cut out according to a table of models passing certain
+    constraints.
+
+    Usage: pyharm-collage [src_fmt] [options]
+    """
+    # Find input models using hallmark `ParaFrame`
+    # This finds all values of replacements in src_fmt which will generate valid filenames
+    pf = hm.ParaFrame(src_fmt)
+
+    #print(pf.keys())
+
+    # Automatically determine parameters, and turn `params` into
+    # a dict mapping parameters to lists of their unique values
+    params = list(pf.keys())
+    #params.remove('path')
+    params = {p:np.unique(pf[p]) for p in params}
+
+    #print(params)
+
+    # Stash things in the 'kwargs' dict for plot_frame calls later
+    kwargs['pf'] = pf
+    kwargs['params'] = params
+
+    if not os.path.exists(kwargs['out_dir']):
+        os.mkdir(kwargs['out_dir'])
+
+    worker = partial(plot_frame, kwargs=kwargs)
+    para.map_parallel(worker, range(kwargs['startn'], kwargs['endn']+1))
+
+if __name__ == "__main__":
+    collage_movie()

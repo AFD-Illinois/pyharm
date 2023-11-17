@@ -1,4 +1,19 @@
 #!/bin/bash
 
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
-exec ${SCRIPT_DIR}/pyharm-${1} ${@:2}
+
+if [[ $1 == "prompt" ]]; then
+  exec python -m pyharm ${@:2}
+elif [[ $1 == "-h" || $1 == "--help" ]]; then
+  echo "Available sub-commands:"
+  echo
+  for fil in $(find $SCRIPT_DIR -name pyharm-* -printf "%f\n"); do
+    echo "${fil:7}"
+  done
+  echo "prompt"
+  echo
+  echo "type pyharm <command> --help for information on each command"
+  echo
+else
+  exec ${SCRIPT_DIR}/pyharm-${1} ${@:2}
+fi

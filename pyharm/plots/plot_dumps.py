@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ For full figures with default annotations, variable choices, etc, see ``figures.
 
 def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None, frame=True,
                   cbar=True, cbar_ticks=None, cbar_label=None,
-                  label=None, **kwargs):
+                  label=None, log_r=False, **kwargs):
     """Add any extras to plots which are not dependent on data or slicing.
     Accepts arbitrary extra arguments for compatibility -- they are passed nowhere.
     
@@ -67,10 +67,9 @@ def _decorate_plot(ax, dump, var, bh=True, xticks=None, yticks=None, frame=True,
     
     :param label: If not None, set plot title
     """
-
     if bh and ("minkowski" not in dump['coordinates']) and ("cartesian" not in dump['coordinates']):
-        # BH silhouette
-        circle1 = plt.Circle((0, 0), dump['r_eh'], color='k')
+        # BH silhouette. Package coord-independent somehow later?
+        circle1 = plt.Circle((0, 0), np.log(dump['r_eh']) if log_r else dump['r_eh'], color='k')
         ax.add_artist(circle1)
 
     if cbar:
@@ -162,8 +161,8 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             ax.set_xlim([np.min(x), np.max(x)])
             ax.set_ylim([np.min(z), np.max(z)])
     elif log_r:
-        if xlabel: ax.set_xlabel(r"$x$ ($r \rightarrow \log_{10}(r)$)")
-        if ylabel: ax.set_ylabel(r"$z$ ($r \rightarrow \log_{10}(r)$)")
+        if xlabel: ax.set_xlabel(r"$x$ ($r \rightarrow \ln(r)$)")
+        if ylabel: ax.set_ylabel(r"$z$ ($r \rightarrow \ln(r)$)")
         if window is not None:
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
@@ -178,8 +177,8 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             ax.set_ylim(window[2:])
         # TODO alt option of size -r_out to r_out?
 
-    # TODO do we ever not want this?
-    ax.set_aspect('equal')
+    if not native:
+        ax.set_aspect('equal')
 
     # Set up arguments for decorating plot
     if not 'bh' in kwargs:
@@ -190,7 +189,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         var = vname
         if log:
             var = "log_"+var
-    _decorate_plot(ax, dump, var, cbar=cbar, **kwargs)
+    _decorate_plot(ax, dump, var, cbar=cbar, log_r=log_r, **kwargs)
 
     # In case user wants to tweak this
     return mesh
@@ -198,7 +197,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
 def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             xlabel=True, ylabel=True, native=False, log=False,
             cmap='jet', shading='gouraud',
-            at=None, average=False, sum=False, cbar=True, log_r=True, **kwargs):
+            at=None, average=False, sum=False, cbar=True, log_r=False, **kwargs):
     """Plot a toroidal or X1/X3 slice of a dump file.
     Note this function also accepts all keyword arguments to _decorate_plot()
 
@@ -265,8 +264,8 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             ax.set_xlim([x[0,0], x[-1,-1]])
             ax.set_ylim([y[0,0], y[-1,-1]])
     elif log_r:
-        if xlabel: ax.set_xlabel(r"$x$ ($r \rightarrow \log_{10}(r)$)")
-        if ylabel: ax.set_ylabel(r"$y$ ($r \rightarrow \log_{10}(r)$)")
+        if xlabel: ax.set_xlabel(r"$x$ ($r \rightarrow \ln(r)$)")
+        if ylabel: ax.set_ylabel(r"$y$ ($r \rightarrow \ln(r)$)")
         if window is not None:
             ax.set_xlim(window[:2])
             ax.set_ylim(window[2:])
@@ -283,8 +282,8 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             # TODO guess this?
             pass
 
-    # TODO do we ever not want this?
-    ax.set_aspect('equal')
+    if not native:
+        ax.set_aspect('equal')
 
     # Set up arguments for decorating plot
     if not 'bh' in kwargs:
@@ -295,7 +294,7 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
         var = vname
         if log:
             var = "log_"+var
-    _decorate_plot(ax, dump, var, cbar=cbar, **kwargs)
+    _decorate_plot(ax, dump, var, cbar=cbar, log_r=log_r, **kwargs)
 
     # In case user wants to tweak this
     return mesh
@@ -378,9 +377,10 @@ def plot_slices(ax1, ax2, dump, var, field_overlay=False, nlines=10, **kwargs):
     """
     kwargs_left = {**kwargs, **{'cbar': False}}
     plot_xz(ax1, dump, var, **kwargs_left)
+
     # If we're not plotting in native coordinates, plot contours.
     # They are very unintuitive in native coords
-    if field_overlay and not ('native' in kwargs.keys() and kwargs['native']):
+    if field_overlay and not (kwargs.get('native', False)):
         overlay_field(ax1, dump, nlines=nlines)
 
     # If we specified 'at', it was *certainly* for the xz slice, not this one.
@@ -388,16 +388,16 @@ def plot_slices(ax1, ax2, dump, var, field_overlay=False, nlines=10, **kwargs):
     kwargs_right = {**kwargs, **{'at': None}}
     plot_xy(ax2, dump, var, **kwargs_right)
 
-def plot_diff_xy(ax, dump1, dump2, var, rel=False, **kwargs):
-    if rel:
+def plot_diff_xy(ax, dump1, dump2, var, absolute=False, **kwargs):
+    if not absolute:
         plot_xy(ax, dump1, np.abs((dump1[var] - dump2[var])/dump1[var]),
             label=pretty(var), **kwargs)
     else:
         plot_xy(ax, dump1, np.abs(dump1[var] - dump2[var]),
             log=True, label=pretty(var), **kwargs)
 
-def plot_diff_xz(ax, dump1, dump2, var, rel=False, **kwargs):
-    if rel:
+def plot_diff_xz(ax, dump1, dump2, var, absolute=False, **kwargs):
+    if not absolute:
         plot_xz(ax, dump1, np.abs((dump1[var] - dump2[var])/dump1[var]),
             label=pretty(var), **kwargs)
     else:

@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -71,10 +71,10 @@ def write_grid(G, fname="grid.h5", astype=np.float32):
             b = slice(G.NG, -G.NG)
         else:
             b = slice(None, None)
-        gcon3 = G.gcon[Loci.CENT.value, :, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
-        gcov3 = G.gcov[Loci.CENT.value, :, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
-        gdet3 = G.gdet[Loci.CENT.value, b, b, :].repeat(G.NTOT[3], axis=-1)
-        lapse3 = G.lapse[Loci.CENT.value, b, b, :].repeat(G.NTOT[3], axis=-1)
+        gcon3 = G['gcon'][:, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
+        gcov3 = G['gcov'][:, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
+        gdet3 = G['gdet'][b, b, :].repeat(G.NTOT[3], axis=-1)
+        lapse3 = G['lapse'][b, b, :].repeat(G.NTOT[3], axis=-1)
 
         outf['gcon'] = gcon3.astype(astype)
         outf['gcov'] = gcov3.astype(astype)
@@ -99,17 +99,17 @@ def write_vis_grid(G, outfname="grid.h5"):
     outf['XFharm'] = xf.transpose(1,2,3,0)
     outf['XFcart'] = np.array([np.zeros([G.N[1]+1,G.N[2]+1,G.N[3]+1]), *G.coords.cart_coord(xf)]).transpose(1,2,3,0)
 
-    # Return only the CENT values, repeated over the N3 axis
+    # Return corner values repeated over N3
+    # TODO does bhlight really use corner values?
     if G.NG > 0:
         b = slice(None, None)
     else:
         b = slice(None, None)
-    locus = Loci.CORN.value
-    gamma = G.conn[:, :, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((3, 4, 5, 0, 1, 2))
-    gcon3 = G.gcon[locus, :, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
-    gcov3 = G.gcov[locus, :, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
-    gdet3 = G.gdet[locus, b, b, :].repeat(G.NTOT[3], axis=-1)
-    lapse3 = G.lapse[locus, b, b, :].repeat(G.NTOT[3], axis=-1)
+    gamma = G['conn'][:, :, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((3, 4, 5, 0, 1, 2))
+    gcon3 = G['gcon_corner'][:, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
+    gcov3 = G['gcov_corner'][:, :, b, b, :].repeat(G.NTOT[3], axis=-1).transpose((2, 3, 4, 0, 1))
+    gdet3 = G['gdet_corner'][b, b, :].repeat(G.NTOT[3], axis=-1)
+    lapse3 = G['lapse_corner'][b, b, :].repeat(G.NTOT[3], axis=-1)
 
     outf['Gamma'] = gamma
     outf['gcon'] = gcon3

@@ -1,8 +1,39 @@
 #!/usr/bin/env python3
 
-"""Scalable script for making movies, i.e. plots of each dump file of a simulation.
-Run 'pyharm-movie --help' for usage and available plots.
+__license__ = """
+ File: pyharm-movie
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+
 
 import os, sys
 import click
@@ -14,7 +45,7 @@ import inspect
 import textwrap
 
 import numpy as np
-
+import pandas
 # Make sure we use Agg
 import matplotlib
 matplotlib.use('Agg')
@@ -24,7 +55,6 @@ from pyharm.plots.frame import frame
 from pyharm.parallel import calc_nthreads
 
 # Use mpi4py if available, or multiprocessing
-# TODO if MPI world size 1, fallback
 try:
     import mpi4py
     from mpi4py import MPI
@@ -67,6 +97,8 @@ class ExtensibleCmd(click.Command):
 @click.option('-e', '--tend', default=None, help="End time.")
 @click.option('-n', '--nthreads', default=None, help="Number of processes to use, if not using MPI")
 @click.option('-o', '--output_dir', default=".", help="Base directory for outputs. Any folder structure of models will be preserved.")
+@click.option('--multizone', is_flag=True, help="Image a multizone run.  Call on each run folder separately!")
+@click.option('--nodiag', is_flag=True, help="Don't load a history/diagnostic text file")
 # Figure options
 @click.option('--fig_x', default=16.0, help="Figure width in inches.")
 @click.option('--fig_y', default=9.0, help="Figure height in inches.")
@@ -95,17 +127,22 @@ class ExtensibleCmd(click.Command):
 @click.option('--ymax', default=None, help="Window Y maximum.")
 @click.option('--log_r', is_flag=True, help="Make the plots logarithmic in radius.")
 @click.option('--overlay_field', is_flag=True, help="Overlay field lines.")
+@click.option('--nlines', default=20, help="Number of total field lines to overlay.")
 @click.option('--overlay_grid', is_flag=True, help="Overlay simulation zone borders.")
+@click.option('--overlay_grid_spacing', default=1, help="Only plot grid every X lines.")
+@click.option('--overlay_blocks', is_flag=True, help="Overlay simulation block borders.")
 @click.option('--native', is_flag=True, help="Plot in native coordinates X1,X2,X3 rather than converting to Cartesian.")
-@click.option('--bh', default=True, help="Whether to show the BH shadow.")
+@click.option('--bh/--no-bh', default=True, help="Whether to show the BH shadow.")
 @click.option('--no_grid_cache', is_flag=True, help="Don't cache geometry.  For plotting large Cartesian simulations.")
 @click.option('--prefer_iharm3d', is_flag=True, help="Prefer iharm3d-format files if available alongside KHARMA output")
 # Extras
 @click.option('--accurate_fnames', is_flag=True, help="Name frames by 1/100M, for short runs.")
+@click.option('--numeric_fnames', is_flag=True, help="Name frames by file number.")
 @click.option('-r', '--resume', is_flag=True, help="Continue a previous run, by skipping existing frames")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
 @click.option('--nompi', is_flag=True, help="Avoid MPI even if available")
 #@click.option('-m', '--memory_limit', default=1, help="Memory limit in GB for each process, enforced by starting total/m processes.")
+@click.version_option(package_name='pyharm')
 def movie(movie_types, paths, **kwargs):
     """Generate movies of type MOVIE_TYPE from dumps at each of PATHS.
 
@@ -125,8 +162,8 @@ def movie(movie_types, paths, **kwargs):
     """
     path_dirs = [p for p in paths if os.path.isdir(p)]
     if len(path_dirs) == 0:
-        # Single file argument, pass this
-        path_dirs = paths
+        # Single file arguments.  Signal to treat as one movie.
+        path_dirs = [None]
     if do_out(): print("Generating ",len(path_dirs)*len(movie_types.split(","))," movie(s)", file=sys.stderr)
 
     start_path = os.path.abspath(os.getcwd())
@@ -141,13 +178,17 @@ def movie(movie_types, paths, **kwargs):
         out_path = os.path.abspath(kwargs['output_dir'])
 
     for path in path_dirs:
+        if path is None:
+            # We passed in a bunch of files as one movie
+            files = paths
         # If a path...
-        if os.path.isdir(path):
+        elif os.path.isdir(path):
             # change dir to path we want to image
             os.chdir(path)
             # Try to load known filenames
             files = pyharm.io.get_fnames(".", prefer_iharm3d=kwargs['prefer_iharm3d'])
         else:
+            # One file amid directories
             files = [path]
 
         # Timestamp formatting: appropriate left padding...
@@ -155,8 +196,8 @@ def movie(movie_types, paths, **kwargs):
             kwargs['time_digits'] = int(np.log10(pyharm.io.get_dump_time(files[-1])+1))+1
         else:
             kwargs['time_digits'] = int(np.log10(float(kwargs['tend'])))+1
-        # ...and automatically make times accurate to hundredths if t_end < 10
-        if kwargs['time_digits'] == 1:
+        # ...and automatically make times accurate to hundredths if t_end < 100
+        if kwargs['time_digits'] < 3:
             kwargs['accurate_fnames'] = True
 
         # Add these so we can pass on just the kwargs object to worker function
@@ -170,34 +211,38 @@ def movie(movie_types, paths, **kwargs):
             frame_dir = os.path.join(os.getcwd().replace(base_path, out_path), "frames_"+movie_type)
             os.makedirs(frame_dir, exist_ok=True)
 
-        try:
-            # Load diagnostics from post-processing file
-            fname = None
-            if len(glob.glob("eht_out.h5")) > 0:
-                fname = glob.glob("eht_out.h5")[0]
-            if fname is not None:
-                if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
-                diag = pyharm.io.read_log(fname)
-            else:
-                diag = None
-        except (IOError, pandas.errors.ParserError):
-                diag = None
-
-        if diag is None:
+        # Option to avoid loading diag file since not everything needs it
+        if kwargs['nodiag']:
+            diag = None
+        else:
             try:
-                # Load diagnostics from HARM itself
+                # Load diagnostics from post-processing file
                 fname = None
-                if len(glob.glob("*.hst")) > 0:
-                    fname = glob.glob("*.hst")[0]
-                elif len(glob.glob("*/*.hst")) > 0:
-                    fname = glob.glob("*/*.hst")[0]
+                if len(glob.glob("eht_out.h5")) > 0:
+                    fname = glob.glob("eht_out.h5")[0]
                 if fname is not None:
                     if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
                     diag = pyharm.io.read_log(fname)
                 else:
                     diag = None
-            except (IndexError, IOError):
-                diag = None
+            except (IOError, pandas.errors.ParserError):
+                    diag = None
+
+            if diag is None:
+                try:
+                    # Load diagnostics from HARM itself
+                    fname = None
+                    if len(glob.glob("*.hst")) > 0:
+                        fname = glob.glob("*.hst")[0]
+                    elif len(glob.glob("*/*.hst")) > 0:
+                        fname = glob.glob("*/*.hst")[0]
+                    if fname is not None:
+                        if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
+                        diag = pyharm.io.read_log(fname)
+                    else:
+                        diag = None
+                except (IndexError, IOError, pandas.errors.ParserError):
+                    diag = None
 
         if do_out(): print("Imaging model {} with movie {}".format(path, movie_type), file=sys.stderr)
         if 'debug' in kwargs and kwargs['debug']:
@@ -233,9 +278,12 @@ def movie(movie_types, paths, **kwargs):
                     nthreads = psutil.cpu_count()
             else:
                 nthreads = int(kwargs['nthreads'])
+
+            # Only use as many processes at files
+            nthreads = min(nthreads, len(files))
+
             # This application is entirely side-effects (frame creation)
             # So we map & ignore result
-            # TODO pass single figure & blit/encode within Python?
             if use_mpi and not kwargs['nompi']:
                 print("Using MPI")
                 # Everything is set by MPI.  We inherit a situation and use it

@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+
+__license__ = """
+ File: pyharm-what-is
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
+import os
+import click
+
+import h5py
+
+import pyharm
+# We're practically an io function
+from pyharm.io import *
+
+# Count files, get times, grid sizes, MAD/SANE, fluid properties
+
+@click.command()
+@click.argument('paths', nargs=-1, type=click.Path(exists=True))
+@click.option('--pars/--no-pars')
+@click.version_option(package_name='pyharm')
+def what_is(paths, **kwargs):
+    """This is a general utility for printing information about a dump, dump folder, grid file,
+    or other pyharm-adjacent file.
+    """
+
+    if os.path.isdir(paths[0]):
+        fnames = get_fnames(paths[0])
+    else:
+        fnames = paths
+
+    if kwargs['pars']:
+        # TODO if Parthenon-based file etc etc
+        f = h5py.File(fnames[0])
+        print(f['/Input'].attrs['File'])
+        # Really do this?  Ordering?
+        exit(0)
+
+    if len(fnames) > 1:
+        code = get_dump_type(fnames[0])
+        print("{} simulation run, {} files.".format(code, len(fnames)))
+        first_dump = pyharm.load_dump(fnames[0])
+        last_dump = pyharm.load_dump(fnames[-1])
+        print("Time: {:.3} to {:.3} ({:.3} simulation units/t_g)".format(
+            first_dump['t'], last_dump['t'], last_dump['t'] - first_dump['t']))
+
+        print()
+        print("First dump file information:")
+        print_dump_info(fnames[0])
+    else:
+        print_dump_info(fnames[0])
+
+
+def print_dump_info(fname):
+    code = get_dump_type(fname)
+    print("{} Dump file.".format(code))
+
+    dump = pyharm.load_dump(fname)
+    print("Code version: {}".format(dump['version']))
+    print("Dump time: {:.3}".format(dump['t']))
+    print("Recorded resolution: {}x{}x{}".format(dump['n1'], dump['n2'], dump['n3']))
+    print("Domain:", dump['r_in'], "to", dump['r_out'])
+    print("Coordinates: ", dump['coordinates'])
+
+    if code == "KHARMA":
+        # Parthenon version, now KHARMA version/git, etc etc
+        pass
+
+
+if __name__ == "__main__":
+    what_is()

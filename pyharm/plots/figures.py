@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -98,6 +98,28 @@ def simplest(fig, dump, diag, plotrc, type="both", var='log_rho'):
     plotrc['no_title'] = True
     return fig
 
+def simplest_half(fig, dump, diag, plotrc, type="both", var='rho'):
+    """Slices of the log10 of one variable without color bars for outreach animations.
+    Half of X-Z plot only
+    """
+    xz_slc = plt.subplot(1, 1, 1)
+
+    if 'vmin' not in plotrc or plotrc['vmin'] is None:
+        plotrc['vmin'] = 1e-4
+    if 'vmax' not in plotrc or plotrc['vmax'] is None:
+        plotrc['vmax'] = 3
+    plotrc['log'] = True
+
+    plot_xz(xz_slc, dump, var, label="", half_cut=True,
+            xlabel=False, ylabel=False, xticks=[], yticks=[],
+            cbar=False, frame=False, **plotrc)
+
+    xz_slc.axis('off')
+    fig.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=1)
+
+    # Make sure frame.py doesn't set a title
+    plotrc['no_title'] = True
+    return fig
 
 def simpler(fig, dump, diag, plotrc):
     """Like 'simplest', but with EH magnetization phi_b
@@ -105,7 +127,8 @@ def simpler(fig, dump, diag, plotrc):
     gs = gridspec.GridSpec(2, 2, height_ratios=[6, 1], width_ratios=[16, 17])
     ax_slc = [plt.subplot(gs[0, 0]), plt.subplot(gs[0, 1])]
     ax_flux = [plt.subplot(gs[1, :])]
-    plot_slices(ax_slc[0], ax_slc[1], dump, 'rho', log=True, **plotrc)
+    plotrc['log'] = True
+    plot_slices(ax_slc[0], ax_slc[1], dump, 'rho', **plotrc)
     plot_hst(ax_flux[0], diag, 'phi_b', tline=dump['t'])
     # Make sure frame.py doesn't set a title
     plotrc['no_title'] = True
@@ -117,7 +140,8 @@ def simple(fig, dump, diag, plotrc):
     gs = gridspec.GridSpec(3, 2, height_ratios=[4, 1, 1])
     ax_slc = [plt.subplot(gs[0, 0]), plt.subplot(gs[0, 1])]
     ax_flux = [plt.subplot(gs[1, :]), plt.subplot(gs[2, :])]
-    plot_slices(ax_slc[0], ax_slc[1], dump, 'rho', log=True, **plotrc)
+    plotrc['log'] = True
+    plot_slices(ax_slc[0], ax_slc[1], dump, 'rho', **plotrc)
     ana = AnaResults(diag)
     plot_hst(ax_flux[0], ana, 'Mdot', tline=dump['t'], xlabel="", xticklabels=[])
     plot_hst(ax_flux[1], ana, 'phi_b', tline=dump['t'])
@@ -134,15 +158,16 @@ def traditional(fig, dump, diag, plotrc):
     ax_flux = lambda i: plt.subplot(4, 2, i)
     # Usual movie: RHO beta fluxes
     # CUTS
-    plot_slices(ax_slc(1), ax_slc(2), dump, 'rho', log=True, **plotrc)
-    plot_slices(ax_slc(3), ax_slc(4), dump, 'UU', log=True, **{**plotrc, **{'ylabel': False}})
+    plotrc['log'] = True
+    plot_slices(ax_slc(1), ax_slc(2), dump, 'rho', **plotrc)
+    plot_slices(ax_slc(3), ax_slc(4), dump, 'UU', **{**plotrc, **{'ylabel': False}})
 
     # Beta
-    #plot_slices(ax_slc(5), ax_slc(6), dump, 'beta', log=True, **plotrc)
+    #plot_slices(ax_slc(5), ax_slc(6), dump, 'beta', **plotrc)
     # Zoomed in rho
-    plot_slices(ax_slc(5), ax_slc(6), dump, 'rho', log=True, **{**plotrc, **{'window': (-10, 10, -10, 10)}})
+    plot_slices(ax_slc(5), ax_slc(6), dump, 'rho', **{**plotrc, **{'window': (-10, 10, -10, 10)}})
     # bsq
-    #plot_slices(ax_slc(7), ax_slc(8), dump, 'bsq', log=True, **plotrc)
+    #plot_slices(ax_slc(7), ax_slc(8), dump, 'bsq', **plotrc)
 
     # FLUXES
     if diag is not None:
@@ -152,7 +177,7 @@ def traditional(fig, dump, diag, plotrc):
         plotrc['no_title'] = True # We have an indication of the time, so don't title with it
     else:
         print("Not plotting fluxes!", file=sys.stderr)
-        plot_slices(ax_slc(7), ax_slc(8), dump, 'beta', log=True, **plotrc)
+        plot_slices(ax_slc(7), ax_slc(8), dump, 'beta', **plotrc)
 
     fig.subplots_adjust(hspace=0.12, wspace=0.23, left=0.05, right=0.96, bottom=0.05, top=0.95)
     return fig
@@ -167,10 +192,10 @@ def prims(fig, dump, diag, plotrc, log=True, simple=False, type="poloidal"):
         fn = plot_xy
     if simple:
         plotrc.update({'xlabel': False, 'ylabel': False,
-                       'xticks': [], 'yticks': [],
+                       'xticks': [], 'yticks': [], 'log': log,
                        'cbar': False, 'frame': False, 'no_title': True})
     for i,var in enumerate(['RHO', 'UU', 'U1', 'U2', 'U3', 'B1', 'B2', 'B3']):
-        fn(ax_slc(i+1), dump, var, log=log, **plotrc)
+        fn(ax_slc(i+1), dump, var, **plotrc)
     if simple:
         fig.subplots_adjust(hspace=0, wspace=0, left=0, right=1, bottom=0, top=0.95)
     return fig
@@ -182,28 +207,31 @@ def vecs_prim(fig, dump, diag, plotrc):
     # Usual movie: RHO beta fluxes
     # CUTS
     plotrc['average'] = True
-    plot_slices(ax_slc(1), ax_slc(5), dump, 'rho', log=True, **plotrc)
+    plotrc['log'] = True
+    plot_slices(ax_slc(1), ax_slc(5), dump, 'rho', *plotrc)
 
     for i,var in zip((2,3,4,6,7,8), ("U1", "U2", "U3", "B1", "B2", "B3")):
-        plot_xz(ax_slc(i), dump, var, log=True, **plotrc)
+        plot_xz(ax_slc(i), dump, var, **plotrc)
     
     return fig
 
 def vecs_cov(fig, dump, diag, plotrc):
     """Covariant 4-vector components ucov, bcov
     """
+    plotrc['log'] = True
     ax_slc = lambda i: plt.subplot(2, 4, i)
     for i,var in zip((1,2,3,4,5,6,7,8), ("u_0", "u_r", "u_th", "u_3","b_0", "b_r", "b_th", "b_3")):
-        plot_xz(ax_slc(i), dump, var, log=True, **plotrc)
+        plot_xz(ax_slc(i), dump, var, **plotrc)
     
     return fig
 
 def vecs_con(fig, dump, diag, plotrc):
     """Contravariant 4-vector components ucon, bcon
     """
+    plotrc['log'] = True
     ax_slc = lambda i: plt.subplot(2, 4, i)
     for i,var in zip((1,2,3,4,5,6,7,8), ("u^0", "u^r", "u^th", "u^3","b^0", "b^r", "b^th", "b^3")):
-        plot_xz(ax_slc(i), dump, var, log=True, **plotrc)
+        plot_xz(ax_slc(i), dump, var, **plotrc)
     
     return fig
 
@@ -339,11 +367,13 @@ def floors(fig, dump, diag, plotrc):
     ax_slc = lambda i: plt.subplot(2, 5, i)
     plotrc['xlabel'] = False
     plotrc['xticks'] = []
-    plot_xz(ax_slc(1), dump, 'rho', log=True, **plotrc)
+    plotrc['log'] = True
+    plot_xz(ax_slc(1), dump, 'rho', **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 20
     plotrc['cmap'] = 'Reds'
     plotrc['sum'] = True
+    plotrc['log'] = False
     for i,ff in enumerate(FloorFlag_KHARMA):
         p = 2+i
         plotrc['cbar'] = (p % 5 == 0)
@@ -372,11 +402,13 @@ def fails(fig, dump, diag, plotrc):
     ax_slc = lambda i: plt.subplot(2, 4, i)
     plotrc['xlabel'] = False
     plotrc['xticks'] = []
-    plot_xz(ax_slc(1), dump, 'rho', log=True, **plotrc)
+    plotrc['log'] = True
+    plot_xz(ax_slc(1), dump, 'rho', **plotrc)
     plotrc['vmin'] = 0
     plotrc['vmax'] = 1
     plotrc['cmap'] = 'Reds'
     plotrc['sum'] = True
+    plotrc['log'] = False
     for i in range(1, 8):
         p = 1+i
         plotrc['cbar'] = (p % 4 == 0)

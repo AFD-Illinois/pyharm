@@ -1,0 +1,3 @@
+[submodule "external/hallmark"]
+	path = external/hallmark
+	url = https://github.com/l6a/hallmark

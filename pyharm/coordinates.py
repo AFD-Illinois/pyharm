@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,6 @@ __doc__ = \
 several coordinate systems.
 The intent is that any function can take an array of any shape, so long as the semantic index
 is *first*, e.g. an array X size [4,N1,N2,N3] of locations on a grid.
-
-TODO Coordinate system descriptions forthcoming.
 """
 
 default_met_params = {'a': 0.9375, 'hslope': 0.3, 'r_out': 50.0, 'n1tot': 192,
@@ -76,17 +74,23 @@ class CoordinateSystem(object):
         """
         raise NotImplementedError
 
-    def ks_coord(self, x):
+    def ks_coord(self, x, fourv=False):
         """Return Spherical Kerr-Schild or Minkowski coordinates corresponding to a point X in native coordinates.
         Individual coordinates below.
         """
-        return np.array([self.r(x), self.th(x), self.phi(x)])
+        if fourv:
+            return np.array([np.zeros_like(self.r(x)), self.r(x), self.th(x), self.phi(x)])
+        else:
+           return np.array([self.r(x), self.th(x), self.phi(x)])
 
-    def cart_coord(self, x):
+    def cart_coord(self, x, fourv=False):
         """Return Cartesian Kerr-Schild or Minkowski coordinates corresponding to a point X in native coordinates.
         Individual coordinates below.
         """
-        return np.array([self.cart_x(x), self.cart_y(x), self.cart_z(x)])
+        if fourv:
+            return np.array([np.zeros_like(self.cart_x(x)), self.cart_x(x), self.cart_y(x), self.cart_z(x)])
+        else:
+            return np.array([self.cart_x(x), self.cart_y(x), self.cart_z(x)])
 
     def get_bl(self):
         """Return a Boyer-Lindquist coordinate system with the same black hole spin.
@@ -167,11 +171,27 @@ class CoordinateSystem(object):
 
         return gcov_ks
 
+    def delta(self, x):
+        r = self.r(x)
+        return r**2 - 2.0*r + self.a**2
+
+    def sigma(self, x):
+        return self.r(x)**2 + self.a**2 * np.cos(self.th(x))**2
+
+    def aa(self, x):
+        return (self.r(x)**2 + self.a**2)**2 - self.a**2 * self.delta(x)*np.sin(self.th(x))**2
+
     def gcon_ks(self, x):
         """Contravariant metric in Kerr-Schild coordinates at some native location 4-vector X.
         Inverted numerically, maybe not the most accurate.
         """
         return self.gcon_from_gcov(self.gcov_ks(x))
+
+    def gcov_bl(self, x):
+        return self.get_bl().gcov(self.ks_coord(x, True))
+    
+    def gcon_bl(self, x):
+        return self.gcon_from_gcov(self.gcov_bl(x))
 
     def gcov(self, x):
         """Covariant metric in native coordinates at some native location 4-vector X"""
@@ -199,8 +219,11 @@ class CoordinateSystem(object):
         r"""Return the negative root determinant of the metric :math:`\sqrt{-g}`, given the covariant form."""
         return np.sqrt(-la.det(np.einsum("ij...->...ij", gcov)))
 
+    def lapse(self, X):
+        return 1./np.sqrt(-self.gcon(X)[0,0])
+
     # TODO Einsum this too
-    def conn_func(self, x, delta=1e-5):
+    def conn(self, x, delta=1e-5):
         r"""Calculate all connection coefficients :math:`\Gamma^{i}_{j, k}`.
         Returns a 3+N dimensional array conn[i,j,k,...]
         """
@@ -243,7 +266,7 @@ class CoordinateSystem(object):
         raise NotImplementedError
     
     def dxdX_bl(self, x):
-        return self.get_bl().dxdX(x)
+        return self.get_bl().dxdX(self.ks_coord(x, True))
 
     # Just take an inverse over first (!) 2 indices
     def dXdx(self, x):
@@ -282,11 +305,11 @@ class Minkowski(CoordinateSystem):
 
     @classmethod
     def th(cls, x):
-        return np.arctan(x[2] / x[1])
+        return np.atan2(np.sqrt(x[1] ** 2 + x[2] ** 2), x[3])
 
     @classmethod
     def phi(cls, x):
-        return np.arctan(np.sqrt(x[1] ** 2 + x[2] ** 2) / x[3])
+        return np.atan2(x[2], x[1])
 
     @classmethod
     def cart_x(cls, x, log_r=False):
@@ -350,6 +373,40 @@ class KS(CoordinateSystem):
         z1 = 1. + (1. - self.a**2)**(1/3) * ((1. + self.a)**(1/3) + (1. - self.a)**(1. / 3.))
         z2 = np.sqrt(3. * self.a**2 + z1**2)
         self.r_isco = 3. + z2 - (np.sqrt((3. - z1) * (3. + z1 + 2. * z2))) * np.sign(self.a)
+
+    def native_startx(self, met_params):
+        # TODO take direct 'startx' from met params?
+        if 'startx1' in met_params and 'startx2' in met_params and 'startx3' in met_params:
+            startx = np.array([0, met_params['startx1'], met_params['startx2'], met_params['startx3']])
+        elif 'r_in' in met_params:
+            # Set startx1 from r_in
+            startx = np.array([0, met_params['r_in'], 0, 0])
+        elif 'n1tot' in met_params and 'r_out' in met_params:
+            # Else via a guess, which we propagate back to the originating parameter file
+            met_params['r_in'] = ((met_params['n1tot'] * self.r_eh / 5.5 - met_params['r_out']) /
+                                    (-1. + met_params['n1tot'] / 5.5))
+            startx = np.array([0, met_params['r_in'], 0, 0])
+        elif 'n1' in met_params and 'r_out' in met_params:
+            # Or a more questionable guess
+            met_params['r_in'] = ((met_params['n1'] * self.r_eh / 5.5 - met_params['r_out']) /
+                                    (-1. + met_params['n1'] / 5.5))
+            startx = np.array([0, met_params['r_in'], 0, 0])
+        else:
+            print("The only parameters provided to native_startx were: ", met_params)
+            raise ValueError("Cannot find or guess startx!")
+        return startx
+
+    def native_stopx(self, met_params):
+        if 'r_out' in met_params:
+            return np.array([0, met_params['r_out'], np.pi, 2*np.pi])
+        elif ('startx1' in met_params and 'dx1' in met_params and 'n1' in met_params and
+               'startx2' in met_params and 'dx2' in met_params and 'n2' in met_params and
+               'startx3' in met_params and 'dx3' in met_params and 'n3' in met_params):
+            return np.array([0, met_params['startx1'] + met_params['n1']*met_params['dx1'],
+                            met_params['startx2'] + met_params['n2']*met_params['dx2'],
+                            met_params['startx3'] + met_params['n3']*met_params['dx3']])
+        else:
+            raise ValueError("Cannot find or guess stopx!")
 
     def r(self, x):
         return x[1]
@@ -483,15 +540,15 @@ class SEKS(KS):
 
 
     def r(self, x):
-        super_dist = x[1] - self.xn1br
-        return np.exp(x[1] + (super_dist > 0) * self.cpow2 * np.power(super_dist, self.npow2))
+        super_dist = np.where(x[1] > self.xn1br, x[1] - self.xn1br, 0.0)
+        return np.exp(x[1] + self.cpow2 * np.power(super_dist, self.npow2))
 
     def dxdX(self, x):
-        super_dist = x[1] - self.xn1br
+        super_dist = np.where(x[1] > self.xn1br, x[1] - self.xn1br, 0.0)
         dxdX = np.zeros([4, 4, *x.shape[1:]])
         dxdX[0, 0] = 1
-        dxdX[1, 1] = np.exp(x[1] + (super_dist > 0) * self.cpow2 * np.power(super_dist, self.npow2)) \
-                            * (1 + (super_dist > 0) * self.cpow2 * self.npow2 * np.power(super_dist, self.npow2-1))
+        dxdX[1, 1] = np.exp(x[1] + self.cpow2 * np.power(super_dist, self.npow2)) \
+                            * (1 + self.cpow2 * self.npow2 * np.power(super_dist, self.npow2-1))
         dxdX[2, 2] = 1
         dxdX[3, 3] = 1
         return dxdX

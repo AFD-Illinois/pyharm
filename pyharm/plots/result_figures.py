@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -85,14 +85,7 @@ def _model_pretty(folder):
             return model[-3]
         return model[-2].upper()+r" $"+model[-1]+r"^\circ$"
     else:
-        return folder
-
-
-def initial_conditions(results, kwargs, overplot=False): # TODO radial_averages_at
-    """
-    """
-    if kwargs['varlist'] is None:
-        vars=('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post')
+        return folder.replace("")
 
 def radial_profile(ax, result, var, arange=-1000, window=(2,50), disk=True, plot_std=False, plot_eh=False, selector=None, tag="",
                    print_time=False, model_shared_portion=0, **kwargs):
@@ -135,14 +128,15 @@ def radial_profile(ax, result, var, arange=-1000, window=(2,50), disk=True, plot
     ax.legend()
     ax.grid(True)
 
-def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-1000, selector=None, tag="",
-                  print_time=False, print_only_time=False, model_shared_portion=0, no_print_flux=False, **kwargs):
+def _point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-1000, selector=None, tag="",
+                  print_time=False, print_only_time=False, model_shared_portion=0, no_print_flux=False, plotrc={},
+                  **kwargs):
     if plot_vs == 'spin':
-        get_xval = lambda tag: float(tag.split(" ")[-1].lstrip("A"))
-        get_modelname = _trunc_at_spin
+        get_xval = lambda model: model['a']
+        get_modelname = lambda model: model.tag
     elif plot_vs == 'res':
-        get_xval = lambda tag: int(tag.split(" ")[-1].split("X")[0].split("x")[0])
-        get_modelname = lambda tag: " ".join(tag.split(" ")[:-1])
+        get_xval = lambda model: model['nx3']
+        get_modelname = lambda model: model.tag
 
     # Dictionaries by "model" of lists by spin
     model_xvals = {}
@@ -151,7 +145,7 @@ def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-100
     model_times = {}
     title = ""
     # Run through the files and suck up everything, sorting by "model" not including spin
-    for result in results.values():
+    for result in results:
         # If this thing is even readable...
         avg_slice = _get_t_slice(result, arange)
         if avg_slice is None:
@@ -159,8 +153,8 @@ def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-100
             continue
 
 
-        model = get_modelname(result.tag)
-        xval = get_xval(result.tag)
+        model = get_modelname(result)
+        xval = get_xval(result)
 
         model = " ".join(model.split(" ")[model_shared_portion:])
         title = " ".join(model.split(" ")[:model_shared_portion])
@@ -198,10 +192,10 @@ def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-100
         if to_plot == 'avg_std':
             # Sort all arrrays by x value to avoid weird back and forth lines
             xvals, yvals, ystd = zip(*sorted(zip(model_xvals[model], model_yvals[model], model_stds[model]), key=lambda x: x[0]))
-            axis.errorbar(xvals, yvals, yerr=ystd, fmt='.--', capsize=5, label=mname, **kwargs)
+            axis.errorbar(xvals, yvals, yerr=ystd, fmt='.--', capsize=5, label=mname, **plotrc)
         else:
             xvals, yvals = zip(*sorted(zip(model_xvals[model], model_yvals[model]), key=lambda x: x[0]))
-            axis.plot(xvals, yvals, '.--', label=mname, **kwargs)
+            axis.plot(xvals, yvals, '.--', label=mname, **plotrc)
 
     axis.set_title(title)
     axis.grid(True)
@@ -227,21 +221,32 @@ def point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-100
     axis.legend()
 
 # Ready-made names: figsize, save name, etc. TODO handle kwargs not passed on to line plot
-def std_vs_spin(ax, results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'std', 'spin', **kwargs)
-def avg_vs_spin(results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'avg', 'spin', **kwargs)
-def avg_std_vs_spin(results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'avg_std', 'spin', **kwargs)
+def std_vs_spin(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'std', 'spin', plotrc=plotrc, **kwargs)
+    return fig
+def avg_vs_spin(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'avg', 'spin', plotrc=plotrc, **kwargs)
+    return fig
+def avg_std_vs_spin(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'avg_std', 'spin', plotrc=plotrc, **kwargs)
+    return fig
 
-def res_study_std(results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'std', 'res', **kwargs)
-def res_study_avg(results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'avg', 'res', **kwargs)
-def res_study_avg_std(results, kwargs):
-    point_per_run(ax, results, kwargs['varlist'][0], 'avg_std', 'res', **kwargs)
+def res_study_std(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'std', 'res', plotrc=plotrc, **kwargs)
+    return fig
+def res_study_avg(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'avg', 'res', plotrc=plotrc, **kwargs)
+    return fig
+def res_study_avg_std(results, kwargs, plotrc={}):
+    fig, ax = plt.subplots(1,1)
+    _point_per_run(ax, results, kwargs['varlist'][0], 'avg_std', 'res', plotrc=plotrc, **kwargs)
+    return fig
 
-# TODO dump. Radial stuff
 def default_radial_averages(results, kwargs):
     if kwargs['vars'] is None:
         vars = ('rho', 'Pg', 'b', 'bsq', 'Ptot', 'u^3', 'sigma_post', 'inv_beta_post')
@@ -286,24 +291,6 @@ def plot_eh_phi_versions(ax, result):
     # Additionally plot
     ax[0].plot(result['t'], np.abs(result['t/phi_b_upper'])+np.abs(result['t/phi_b_lower']), label=result.tag+" hemispheres")
 
-def eh_fluxes(results, kwargs):
-    fig, _ = plt.subplots(4,1, figsize=(7,7))
-    for result in results.values():
-        # Event horizon fluxes
-        axes = fig.get_axes()
-        plot_eh_fluxes(axes, result)
-        plt.subplots_adjust(wspace=0.4)
-    return fig #TODO 
-
-def eh_fluxes_per(results, kwargs):
-    for result in results.values():
-        print(result.fname)
-        # Event horizon fluxes
-        fig, _ = plt.subplots(4,1, figsize=(7,7))
-        axes = fig.get_axes()
-        plot_eh_fluxes(axes, result, per=True)
-        plt.subplots_adjust(wspace=0.4)
-
 def eh_phi_versions(results, kwargs):
     for result in results.values():
         # Event horizon fluxes
@@ -311,16 +298,9 @@ def eh_phi_versions(results, kwargs):
         axes = fig.get_axes()
         plot_eh_phi_versions(axes, result)
         plt.subplots_adjust(wspace=0.4)
+    return fig
 
-def overplot_eh_phi_versions(results, kwargs):
-    for result in results.values():
-        # Event horizon fluxes
-        fig, _ = plt.subplots(3,1, figsize=(7,7))
-        axes = fig.get_axes()
-        plot_eh_phi_versions(axes, result)
-        plt.subplots_adjust(wspace=0.4)
-
-def overplot_eh_fluxes(results, kwargs):
+def eh_fluxes(results, kwargs):
     fig, _ = plt.subplots(4,1, figsize=(7,7))
     ax = fig.get_axes()
     for result in results.values():
@@ -328,3 +308,4 @@ def overplot_eh_fluxes(results, kwargs):
 
     ax[0].legend()
     plt.subplots_adjust(wspace=0.4)
+    return fig

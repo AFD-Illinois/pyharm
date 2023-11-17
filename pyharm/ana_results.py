@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -102,10 +102,18 @@ def smoothed(a, window_sz=101):
     """A potentially reasonably fast smoothing operation.
     Averages only available data, i.e. only half window-size at edges.
     """
+    window_sz = min(window_sz, len(a))
     ret = np.array([np.mean(a[:n+window_sz//2]) for n in range(1,window_sz//2+1)])
     ret = np.append(ret, np.convolve(a, np.ones(window_sz), 'valid') / window_sz)
     ret = np.append(ret, np.array([np.mean(a[-n-window_sz//2:]) for n in range(1,window_sz//2+1)]))
     return ret
+
+def _get_mdot(diag):
+    try:
+        # Get mass flux at r=5 to avoid floor effects
+        return np.abs(diag.get_dvar('rt','FM_disk')[:, i_of(diag['r'], 5)])
+    except IOError:
+        return np.abs(diag['Mdot'])
 
 class AnaResults(object):
     """Tools for dealing with the results computed by scripts/pyharm-analysis.
@@ -121,7 +129,7 @@ class AnaResults(object):
     variability.
 
     When using __getitem__ (i.e. res[]), the name after the slash doesn't have to be something
-    directly present in the file -- it can include many of the 'key' features available in FluidDump,
+    directly present in the file -- it can include many of the 'key' features available in FluidState,
     notably unary operators (sqrt_, abs_, etc), but this is all separate functions so YMMV.
     Time-dependent variables may also append '_smoothed' or '_smoothed_xx' to calculate a
     running average over xx values (that is, samples, not simulation time units).
@@ -158,8 +166,7 @@ class AnaResults(object):
                  'Edot': lambda diag: diag['Edot_EH'],
                  'Ldot': lambda diag: diag['Ldot_EH']}
     # How to load from analysis results
-    diags_ana = {#'mdot': lambda diag: np.abs(diag['Mdot'])
-                 'mdot': lambda diag: np.abs(diag.get_dvar('rt','FM_disk')[:, i_of(diag['r'], 5)]) # Get mass flux at r=5 to avoid floor effects
+    diags_ana = {'mdot': lambda diag: _get_mdot(diag),
                 }
 
     def __init__(self, fname, tag=""):
@@ -199,7 +206,7 @@ class AnaResults(object):
             self.file.close()
 
     def __getitem__(self, key):
-        """This operates a bit differently from its analog in FluidDump.
+        """This operates a bit differently from its analog in FluidState.
 
         Variables in reductions are specified by remaining independent variable, e.g.
         r/FM_disk for the mass flux in the "disk" region as a function of r (that is,
@@ -341,7 +348,7 @@ class AnaResults(object):
         the appropriate reduction of the dependent variable.
         Usually, this is called from __getitem__.
 
-        In implementation, this is the closest analog to FluidDump's __getitem__ function -- it's the
+        In implementation, this is the closest analog to FluidState's __getitem__ function -- it's the
         place to add any complex new tags/operations/whatever.
         """
         #print("Getting ivar/dvar ", ivar+"/"+dvar)

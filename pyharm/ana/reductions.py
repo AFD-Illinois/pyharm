@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ from pyharm.util import i_of
 
 __doc__ = \
 """The general interface for reductions is (dump, var, options)
-| dump: FluidDump object, generally pre-slice.
+| dump: FluidState object, generally pre-slice.
 | var: either the name of a variable to compute over the necessary slice,
 or a pre-sliced & computed variable of the right shape.
 

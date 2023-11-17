@@ -15,6 +15,10 @@
 #SBATCH --exclusive
 #SBATCH --mem=0
 
+NUM_NODES=${SLURM_JOB_NUM_NODES:-1}
+
+PROCS_PER_NODE=1
+
 # TODO if conda loaded...
 #conda deactivate
 #module unload anaconda3_cpu
@@ -32,7 +36,7 @@ export OMP_NUM_THREADS=8
 # if this proves efficient for simple stuff.
 if [[ "$*" != *"-d "* ]]
 then
-  srun -n $(($SLURM_JOB_NUM_NODES * 32)) --cpu-bind=no pyharm-movie "${@}"
+  srun -n $(($NUM_NODES * $PROCS_PER_NODE)) --cpu-bind=no --spread-job pyharm-movie "${@}"
 else
-  pyharm-analysis "${@}"
+  pyharm-movie "${@}"
 fi

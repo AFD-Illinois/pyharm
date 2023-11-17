@@ -3,7 +3,7 @@ __license__ = """
  
  BSD 3-Clause License
  
- Copyright (c) 2020-2022, AFD Group at UIUC
+ Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
@@ -111,7 +111,7 @@ class Iharm3DRestart(Iharm3DFile):
 
 def write_restart(dump, fname, astype=np.float64):
     """Write a valid iharm3d restart/KHARMA resize file,
-    containing the data in FluidDump 'dump', to 'fname', at precision 'astype'.
+    containing the data in FluidState 'dump', to 'fname', at precision 'astype'.
     """
     with h5py.File(fname, "w") as outf:
 

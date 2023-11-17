@@ -50,7 +50,7 @@ write_git_revision("pyharm")
 
 
 setup(name="pyharm",
-      version="2022.8",
+      version="2023.11",
       description="Python tools for HARM analysis",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
@@ -66,7 +66,8 @@ setup(name="pyharm",
           "tqdm",
           "pandas",
           "sphinx",
-          "pympler"],
+          "pympler",
+          "latex"],
 
       author="AFD Group, UIUC",
       packages=find_packages(),
