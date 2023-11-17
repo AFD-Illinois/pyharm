@@ -301,6 +301,10 @@ def frame(fname, diag, kwargs):
             overlay_grid(ax, dump.grid, kwargs['overlay_grid_spacing'], native=plotrc['native'], log_r=plotrc['log_r'])
         if 'overlay_blocks' in kwargs and kwargs['overlay_blocks']:
             overlay_blocks(ax, dump, native=plotrc['native'], log_r=plotrc['log_r'])
+            if len(fig.axes) > 2: # colorbar is an axis
+                overlay_blocks_xy(fig.axes[1], dump, native=plotrc['native'], log_r=plotrc['log_r'])
+
+
         # TODO options here, contours, etc.
 
         # TITLE
@@ -312,7 +316,7 @@ def frame(fname, diag, kwargs):
             if "divB" in movie_type:
                 # Special title for diagnostic divB
                 # movie_type might be a version calculated in post e.g. divB_prims
-                divb = dump[movie_type.replace("_poloidal","")]
+                divb = dump[movie_type.replace("_poloidal","").replace("log_","")]
                 divb_max = np.nanmax(divb)
                 divb_argmax = np.nanargmax(divb)
                 fig.suptitle(r"Max $\nabla \cdot B$ = {}".format(divb_max))
