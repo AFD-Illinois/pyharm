@@ -198,13 +198,28 @@ def write_dump(dump, fname, astype=np.float32, ghost_zones=False):
     """
     with h5py.File(fname, "w") as outf:
 
+
+        # Fill in a gap we can only do here
+        if 'n_prim' not in dump.params:
+            dump.params['n_prim'] = dump['prims'].shape[0]
+
         write_hdr(dump.params, outf)
 
         # Per-dump single variables
-        outf['t'] = dump['t']
-        outf['dt'] = dump['dt']
-        outf['dump_cadence'] = dump['dump_cadence']
-        outf['full_dump_cadence'] = dump['dump_cadence']
+        if 't' in dump.params:
+            outf['t'] = dump['t']
+        else:
+            outf['t'] = 0
+        if 'dt' in dump.params:
+            outf['dt'] = dump['dt']
+        else:
+            outf['dt'] = 0.1
+        if 'dump_cadence' in dump.params:
+            outf['dump_cadence'] = dump['dump_cadence']
+            outf['full_dump_cadence'] = dump['dump_cadence']
+        else:
+            outf['dump_cadence'] = 5
+            outf['full_dump_cadence'] = 5
         outf['is_full_dump'] = True
         if 'n_dump' in dump.params:
             outf['n_dump'] = dump['n_dump']
@@ -214,10 +229,10 @@ def write_dump(dump, fname, astype=np.float32, ghost_zones=False):
         # This will fetch and write all primitive variables
         G = dump.grid
         if G.NG > 0 and not ghost_zones:
-            p = dump.reader.read_var('prims', astype=astype)
+            p = dump['prims'].astype(astype)
             outf["prims"] = np.einsum("p...->...p", p[G.slices.allv + G.slices.bulk]).astype(astype)
         else:
-            p = dump.reader.read_var('prims', astype=astype)
+            p = dump['prims'].astype(astype)
             outf["prims"] = np.einsum("p...->...p", p).astype(astype)
 
         # Extra in-situ calculations or custom debugging additions

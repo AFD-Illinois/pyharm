@@ -102,13 +102,14 @@ def get_bondi_fluid_state(mdot, rc, gam, grid):
 
     # Construct a fluid state object
     state_data = {}
-    state_data['RHO'] = state_data['rho'] = soln['rho'][:,None,None]*np.ones_like(grid['r'])
-    state_data['UU'] = soln['u'][:,None,None]*np.ones_like(grid['r'])
+    sizer = np.ones((grid['n1'], grid['n2'], grid['n3']))
+    state_data['RHO'] = state_data['rho'] = soln['rho'][:,None,None]*sizer
+    state_data['UU'] = state_data['u'] = soln['u'][:,None,None]*sizer
     state_data['U1'] = utilde[0]
     state_data['U2'] = utilde[1]
     state_data['U3'] = utilde[2]
     state_data['uvec'] = utilde
-    state_data['B1'] = 1/grid['r']**3
+    state_data['B1'] = 1/grid['r']**3 * sizer
     state_data['B2'] = np.zeros_like(state_data['B1'])
     state_data['B3'] = np.zeros_like(state_data['B1'])
     state_data['B'] = np.array([state_data['B1'], state_data['B2'], state_data['B3']])

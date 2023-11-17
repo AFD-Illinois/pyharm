@@ -122,13 +122,13 @@ class FluidState:
                 self.cache['U2'] = self.cache['uvec'][1]
                 self.cache['U3'] = self.cache['uvec'][2]
             elif 'uvec' not in self.cache and 'U1' in self.cache:
-                self.cache['uvec'] = np.array((self.cache['U1'], self.cache['U2'], self.cache['U3']))
+                self.cache['uvec'] = np.stack((self.cache['U1'], self.cache['U2'], self.cache['U3']))
             if 'B1' not in self.cache and 'B' in self.cache:
                 self.cache['B1'] = self.cache['B'][0]
                 self.cache['B2'] = self.cache['B'][1]
                 self.cache['B3'] = self.cache['B'][2]
             elif 'B' not in self.cache and 'B1' in self.cache:
-                self.cache['B'] = np.array((self.cache['B1'], self.cache['B2'], self.cache['B3']))
+                self.cache['B'] = np.stack((self.cache['B1'], self.cache['B2'], self.cache['B3']))
             # Make sure we have both versions of u,rho
             if 'RHO' not in self.cache and 'rho' in self.cache:
                 self.cache['RHO'] = self.cache['rho']
@@ -138,6 +138,15 @@ class FluidState:
                 self.cache['UU'] = self.cache['u']
             elif 'u' not in self.cache and 'UU' in self.cache:
                 self.cache['u'] = self.cache['UU']
+            # Make sure we have 'prims'.  TODO no EMHD 'prims' this way, thus no generated EMHD->file
+            if 'prims' not in self.cache:
+                if 'B1' in self.cache:
+                    self.cache['prims'] = np.stack((self.cache['RHO'], self.cache['UU'],
+                                                    self.cache['U1'], self.cache['U2'], self.cache['U3'],
+                                                    self.cache['B1'], self.cache['B2'], self.cache['B3']))
+                else:
+                    self.cache['prims'] = np.stack((self.cache['RHO'], self.cache['UU'],
+                                                    self.cache['U1'], self.cache['U2'], self.cache['U3']))
 
         else:
             self.cache = {}
