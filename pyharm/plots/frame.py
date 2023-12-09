@@ -109,7 +109,7 @@ def do_plot(fig, dump, diag, movie_type, plotrc):
                 ax.set_title(pretty(var))
             elif "_1d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
-                movie_type = movie_type.replace("_av1d","")
+                movie_type = movie_type.replace("_1d","")
                 var = movie_type
                 sec = dump[:, 0, 0]
                 ax.plot(sec['r1d'], np.squeeze(sec[var])) # TODO some kind of radial_plot back in plot_dumps?
