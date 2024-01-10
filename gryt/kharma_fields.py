@@ -68,55 +68,61 @@ def setup_kharma_flags_fields(registry, ftype="gas", slice_info=None):
     def _solver_flags(field, data):
         return np.array(data["parthenon", "solve_fail"], dtype=np.int32)
     registry.add_field(
-        name=(ftype, "fflags"),
+        name=("KHARMA", "fflags"),
         function=_fflags,
         sampling_type="local",
         units="",
+        take_log=False,
     )
     registry.add_field(
-        name=(ftype, "pflags"),
+        name=("KHARMA", "pflags"),
         function=_pflags,
         sampling_type="local",
         units="",
+        take_log=False,
     )
     registry.add_field(
-        name=(ftype, "solver_flags"),
+        name=("KHARMA", "solver_flags"),
         function=_solver_flags,
         sampling_type="local",
         units="",
+        take_log=False,
     )
     
     # FLAGS
     def _floor(field, data):
         # Make sure we're &ing together ints
-        return data[ftype, "fflags"] & FloorFlag[field.name[1][6:]].value
+        return data["KHARMA", "fflags"] & FloorFlag[field.name[1][6:]].value
     for member in FloorFlag:
         registry.add_field(
-            name=(ftype, "FLOOR_"+member.name),
+            name=("KHARMA", "FLOOR_"+member.name),
             function=_floor,
             sampling_type="local",
             units="",
+            take_log=False,
         )
     
     def _pflag(field, data):
         # Make sure we're comparing ints
-        return data[ftype, "pflags"] == InversionStatus[field.name[1][6:]].value
+        return data["KHARMA", "pflags"] == InversionStatus[field.name[1][6:]].value
     for member in InversionStatus:
         registry.add_field(
-            name=(ftype, "PFLAG_"+member.name),
+            name=("KHARMA", "PFLAG_"+member.name),
             function=_pflag,
             sampling_type="local",
             units="",
+            take_log=False,
         )
 
     def _solver_flag(field, data):
         # Make sure we're comparing ints
-        return data[ftype, "solver_flags"] == SolverStatus[field.name[1][12:]].value
+        return data["KHARMA", "solver_flags"] == SolverStatus[field.name[1][12:]].value
     for member in SolverStatus:
         registry.add_field(
-            name=(ftype, "SOLVER_FLAG_"+member.name),
+            name=("KHARMA", "SOLVER_FLAG_"+member.name),
             function=_solver_flag,
             sampling_type="local",
             units="",
+            take_log=False,
         )
 
