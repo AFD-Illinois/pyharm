@@ -169,8 +169,9 @@ def fix(params):
     if (not 'r_out' in params) and 'Rout' in params:
         params['r_out'] = params['Rout']
 
-    params['electrons'] = to_number(params['config']['electrons']['on'])
-    params['emhd'] = to_number(params['config']['emhd']['on'])
+    if 'config' in params:
+        params['electrons'] = to_number(params['config']['electrons']['on'])
+        params['emhd'] = to_number(params['config']['emhd']['on'])
 
     if not ('prim_names' in params):
         if 'electrons' in params and params['electrons']:

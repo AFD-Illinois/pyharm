@@ -66,6 +66,7 @@ import matplotlib.pyplot as plt
 @click.option('--rel_tol', default=5e-10, help="Relative tolerance to consider a variable different.")
 @click.option('--abs_tol', default=1e20, help="Absolute tolerance to consider a variable different.")
 @click.option('--geometry', is_flag=True, help="Compare domain sizes & shapes.")
+@click.option('--no_plot', is_flag=True, help="Don't plot differences, just print & return.")
 def diff(dump1file, dump2file, **kwargs):
     """Plot the differences between two GRMHD output files and test for similarity.
 
@@ -83,7 +84,7 @@ def diff(dump1file, dump2file, **kwargs):
     #Hopefully this fails for dumps that shouldn't be compared
     dump2 = pyharm.load_dump(dump2file, ghost_zones=kwargs['ghost_zones'])
 
-    kwargs['vmin'] = 0 # Making plots without this is irresponsible
+    kwargs['vmin'] = 1e-5
     if 'vmax' not in kwargs and not kwargs['absolute']:
         kwargs['vmax'] = 1
 
@@ -93,6 +94,8 @@ def diff(dump1file, dump2file, **kwargs):
         kwargs['half_cut'] = True
         kwargs['window'] = None
 
+    kwargs['log'] = True
+
     return_code = 0
 
     # TODO if vars is none get list...
@@ -101,35 +104,37 @@ def diff(dump1file, dump2file, **kwargs):
     else:
         vars = kwargs['vars'].split(",")
 
-    # Always do XZ
-    fig, _ = plt.subplots(3, 3, figsize=(kwargs['fig_x'], kwargs['fig_y']))
-    axes = fig.get_axes()
-    for var, ax in zip(vars, axes):
-        pplt.plot_diff_xz(ax, dump1, dump2, var, **kwargs)
-        ax.set_xlabel('')
-        ax.set_ylabel('')
-
+    for var in vars:
         l1_norm = np.sum(np.abs(dump1[var] - dump2[var])) / np.sum(np.abs(dump1[var]))
         if l1_norm > kwargs['rel_tol']:
             print("Outputs disagree in {}: normalized L1: {}".format(var, l1_norm))
             return_code = 1
 
-    plt.tight_layout()
-    plt.savefig(imname+"_xz.png", dpi=100)
-    plt.close(fig)
-
-    # Do XY if not 2D
-    if dump1['n3'] > 1:
+    if not kwargs['no_plot']:
+        # Always do XZ
         fig, _ = plt.subplots(3, 3, figsize=(kwargs['fig_x'], kwargs['fig_y']))
         axes = fig.get_axes()
-        for var,ax in zip(vars, axes):
-            pplt.plot_diff_xy(ax, dump1, dump2, var, **kwargs)
+        for var, ax in zip(vars, axes):
+            pplt.plot_diff_xz(ax, dump1, dump2, var, **kwargs)
             ax.set_xlabel('')
             ax.set_ylabel('')
 
         plt.tight_layout()
-        plt.savefig(imname+"_xy.png", dpi=100)
+        plt.savefig(imname+"_xz.png", dpi=100)
         plt.close(fig)
+
+        # Do XY if not 2D
+        if dump1['n3'] > 1:
+            fig, _ = plt.subplots(3, 3, figsize=(kwargs['fig_x'], kwargs['fig_y']))
+            axes = fig.get_axes()
+            for var,ax in zip(vars, axes):
+                pplt.plot_diff_xy(ax, dump1, dump2, var, **kwargs)
+                ax.set_xlabel('')
+                ax.set_ylabel('')
+
+            plt.tight_layout()
+            plt.savefig(imname+"_xy.png", dpi=100)
+            plt.close(fig)
 
     if kwargs['geometry']:
         print(dump1.grid.startx, dump2.grid.startx)
