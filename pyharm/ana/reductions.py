@@ -76,6 +76,8 @@ def flatten_xz(dump, var, at=None, sum=False, half_cut=False):
     else:
         if at is None:
             at = 0
+        else:
+            at = at % dump['n3']
         if isinstance(var, str):
             if half_cut:
                 return np.squeeze(dump[:, :, at][var])
