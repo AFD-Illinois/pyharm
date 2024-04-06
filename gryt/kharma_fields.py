@@ -49,17 +49,19 @@ def setup_kharma_fields(registry, ftype="gas", slice_info=None):
         registry.alias((ftype, name), ("parthenon", name))
     for pvname in ['uvec', 'B']:
         for i in range(3):
-            registry.alias((ftype, pvname+"_%d" % i), ("parthenon", "prims."+pvname+"_%d" % i))
+            registry.alias((ftype, pvname+"_%d" % (i+1)), ("parthenon", "prims."+pvname+"_%d" % i))
+            registry.alias((ftype, pvname+"%d" % (i+1)), ("parthenon", "prims."+pvname+"_%d" % i))
     for fourvname in ['jcon']:
         for i in range(4):
             registry.alias((ftype, fourvname+"_%d" % i), ("parthenon", fourvname+"_%d" % i))
+    for i in range(3):
+        registry.alias((ftype, "U"+"%d" % (i+1)), ("parthenon", "prims.uvec_%d" % i))
     # TODO also pressure, 3vel etc
     registry.alias((ftype, "density"), (ftype, "rho"))
 
 
-@register_field_plugin
-def setup_kharma_flags_fields(registry, ftype="gas", slice_info=None):
-    
+
+    # FLAGS
     # Cast the arrays
     def _fflags(field, data):
         return np.array(data["parthenon", "fflag"], dtype=np.int32)
@@ -92,7 +94,7 @@ def setup_kharma_flags_fields(registry, ftype="gas", slice_info=None):
     # FLAGS
     def _floor(field, data):
         # Make sure we're &ing together ints
-        return data["KHARMA", "fflags"] & FloorFlag[field.name[1][6:]].value
+        return data["KHARMA", "fflags"].v & FloorFlag[field.name[1][6:]].value
     for member in FloorFlag:
         registry.add_field(
             name=("KHARMA", "FLOOR_"+member.name),
