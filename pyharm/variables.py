@@ -91,6 +91,7 @@ fns_dict = {# 4-vectors
             'Gamma': lambda dump: lorentz_calc(dump),
             'cs': lambda dump: np.sqrt(dump['gam'] * dump['Pg'] / (dump['RHO'] + dump['gam'] * dump['UU'])),
             'vA': lambda dump: alfven_speed(dump),
+            'vr': lambda dump: dump["u^r"] / dump["u^t"],
             'Omega': lambda dump: dump["u^phi"] / dump["u^t"] ,
             # TODO magnetosonic, EMHD speed, effective timestep
             # Fluxes in radial direction: Mass, Energy, Angular Momentum

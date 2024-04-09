@@ -322,11 +322,8 @@ class FluidState:
         if self.fname != "memory_array":
             # Read things that we haven't cached and absolutely can't calculate
             # The reader keeps its own cache, so we don't add its items to ours
-            if "flag" in key:
-                out = self.reader.read_var(key, astype=np.int32, slc=self.slice)
-            else:
-                # TODO Option for double
-                out = self.reader.read_var(key, astype=np.float64, slc=self.slice)
+            astype = np.int32 if "flag" in key else np.float64
+            out = self.reader.read_var(key, astype=astype, slc=self.slice)
             if out is not None:
                 return out
 
