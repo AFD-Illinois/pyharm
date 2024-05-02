@@ -6,14 +6,14 @@ import click
 
 import numpy as np
 import matplotlib.pyplot as plt
-import yt
-
-from yt.geometry.api import Geometry
-from unyt import unyt_array
 
 import gryt.callbacks
 import gryt.gr_fields
 import gryt.kharma_fields
+
+import yt
+from yt.geometry.api import Geometry
+from unyt import unyt_array
 
 class DirlistOrCurdir(click.Argument):
     def __init__(self, *args, **kwargs):
@@ -99,7 +99,7 @@ def movie(movie_type, paths, **kwargs):
         subplots_args = {'top': 0.98, 'bottom': 0.03,
                          'left': 0.07, 'right': 0.95,
                          'wspace': 0.03, 'hspace': 0.03}
-    if movie_type == "solver":
+    elif movie_type == "solver":
         field = [("KHARMA", "SOLVER_FLAG_FAIL"),
                 ("KHARMA", "SOLVER_FLAG_BEYOND_TOL"),
                 ("KHARMA", "SOLVER_FLAG_BACKTRACK")]
@@ -156,8 +156,11 @@ def movie(movie_type, paths, **kwargs):
 
         # Timestamp formatting: appropriate left padding...
         if kwargs['tend'] is None:
-            kwargs['tend'] = ts[-1].current_time.v+1
-        kwargs['time_digits'] = int(np.log10(kwargs['tend']))+1
+            if kwargs['numeric_fnames']:
+                kwargs['tend'] = int(ts[-1].filename.split('.')[-2])
+            else:
+                kwargs['tend'] = ts[-1].current_time.v
+        kwargs['time_digits'] = int(np.log10(kwargs['tend']+1))+1
         # ...and automatically make times accurate to hundredths if t_end < 100
         if kwargs['time_digits'] < 3:
             kwargs['accurate_fnames'] = True
@@ -168,15 +171,16 @@ def movie(movie_type, paths, **kwargs):
         for ds in ts.piter():
             frame_folder = os.path.join(os.getcwd().replace(base_path, out_path), "frames_"+movie_type)
             if 'numeric_fnames' in kwargs and kwargs['numeric_fnames']:
-                time_formatted = ds.filename.split('.')[-2]
+                time_formatted = str(int(ds.filename.split('.')[-2])).rjust(kwargs['time_digits'],'0')
+                tend_formatted = str(kwargs['tend'])
                 frame_name = os.path.join(frame_folder, "frame_"+time_formatted+".png")
             elif 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
                 time_formatted = ("%.2f" % ds.current_time).rjust(kwargs['time_digits'],'0')
-                tend_formatted = ("%.2f" % kwargs['tend']).rjust(kwargs['time_digits'],'0')
+                tend_formatted = ("%.2f" % kwargs['tend'])
                 frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
             else:
                 time_formatted = ("%d" % int(ds.current_time)).rjust(kwargs['time_digits'],'0')
-                tend_formatted = ("%d" % int(kwargs['tend'])).rjust(kwargs['time_digits'],'0')
+                tend_formatted = ("%d" % int(kwargs['tend']))
                 frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
 
             if kwargs['resume'] and os.path.exists(frame_name):
@@ -204,6 +208,7 @@ def movie(movie_type, paths, **kwargs):
             #fig, axes, colorbars = get_multi_plot(3, 2, colorbar='horizontal', bw=4)
 
             # TODO options/decisions for poloidal/toroidal
+            #print("Getting", field)
             if kwargs['midplane']:
                 plot = yt.SlicePlot(ds, 1, field, **plotargs)
             elif kwargs['sum'] or kwargs['average']:
@@ -269,7 +274,10 @@ def movie(movie_type, paths, **kwargs):
             # Normally export to mpl for a predictable figure resolution for movies
             # Simple figs are predictable as-is though and mpl export has a colorbar
             if kwargs['simple']:
-                plot.save(frame_name, mpl_kwargs=dict(dpi=kwargs['fig_dpi']))
+                try:
+                    plot.save(frame_name, mpl_kwargs=dict(dpi=kwargs['fig_dpi']))
+                except ValueError as e:
+                    print("MATPLOTLIB WARNING: ",e)
             else:
                 fig = plot.export_to_mpl_figure((naxes_y, naxes_x), cbar_mode='each') # rows, cols
                 fig.set_size_inches(kwargs['fig_x'], kwargs['fig_y'])
@@ -283,7 +291,10 @@ def movie(movie_type, paths, **kwargs):
                     # Base axes
                     for ax in fig.get_axes()[naxes:naxes_grid]:
                         fig.delaxes(ax)
-                fig.savefig(frame_name, dpi=kwargs['fig_dpi'])
+                try:
+                    fig.savefig(frame_name, dpi=kwargs['fig_dpi'])
+                except ValueError as e:
+                    print("MATPLOTLIB WARNING: ",e)
 
             #pbar.update()
             ds.index.clear_all_data()
