@@ -152,15 +152,24 @@ def movie(movie_type, paths, **kwargs):
             ld_parameters = {'native': False}
         # Load *only* the numbered dumps.  This keeps strict ordering, as "now" and "final" will
         # sort past numbers despite being from earlier times
-        ts = yt.load(os.path.join(path,"*.out0.[0-9][0-9][0-9][0-9][0-9].phdf"), parameters=ld_parameters)
+        if ".phdf" in path:
+            # TODO support passing globs
+            ts = [yt.load(path, parameters=ld_parameters),]
+            ds_set = ts
+        else:
+            ts = yt.load(os.path.join(path,"*.out0.[0-9][0-9][0-9][0-9][0-9].phdf"), parameters=ld_parameters)
+            ds_set = ts.piter()
 
         # Timestamp formatting: appropriate left padding...
         if kwargs['tend'] is None:
             if kwargs['numeric_fnames']:
                 kwargs['tend'] = int(ts[-1].filename.split('.')[-2])
             else:
-                kwargs['tend'] = ts[-1].current_time.v
-        kwargs['time_digits'] = int(np.log10(kwargs['tend']+1))+1
+                try:
+                    kwargs['tend'] = ts[-1].current_time.v
+                except:
+                    kwargs['tend'] = ts[-2].current_time.v
+        kwargs['time_digits'] = int(np.log10(kwargs['tend']))+1
         # ...and automatically make times accurate to hundredths if t_end < 100
         if kwargs['time_digits'] < 3:
             kwargs['accurate_fnames'] = True
@@ -168,7 +177,7 @@ def movie(movie_type, paths, **kwargs):
         # TODO bring this back when it supports parallelism
         #pbar = yt.funcs.get_pbar("Frames", len(ts))
 
-        for ds in ts.piter():
+        for ds in ds_set:
             frame_folder = os.path.join(os.getcwd().replace(base_path, out_path), "frames_"+movie_type)
             if 'numeric_fnames' in kwargs and kwargs['numeric_fnames']:
                 time_formatted = str(int(ds.filename.split('.')[-2])).rjust(kwargs['time_digits'],'0')
@@ -185,7 +194,7 @@ def movie(movie_type, paths, **kwargs):
 
             if kwargs['resume'] and os.path.exists(frame_name):
                 continue
-            
+
             # Keep all the prints aligned
             print("Processing t = {} / {}".format(time_formatted, tend_formatted), file=sys.stderr)
 

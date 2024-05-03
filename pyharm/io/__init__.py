@@ -81,7 +81,8 @@ def get_fnames(path, prefer_iharm3d=False):
             # Explicitly take out some common things in dump directories
             files = [f for f in files if ("grid" not in f) and ("eht_out" not in f)]
             return files
-    raise FileNotFoundError("No dump files found at {}".format(path))
+
+    raise FileNotFoundError("No dump files found at {}/{}".format(os.getcwd(),path))
 
 def _get_filter_class(fname):
     """Internal pyharm i/o function to choose which class to use when reading a new file.
