@@ -276,7 +276,7 @@ class KHARMAFile(DumpFile):
             # Allocate the full output mesh size
             if "jcon" in var:
                 out = np.zeros((4, *out_shape), dtype=astype)
-            elif var.split(".")[-1][:1] == "B" or var.split(".")[-1] == "uvec": # We cache the whole thing even for an index
+            elif var.split(".")[-1] in ["B", "uvec"]: # We cache the whole thing even for an index
                 out = np.zeros((3, *out_shape), dtype=astype)
             else:
                 out = np.zeros(out_shape, dtype=astype)
@@ -332,7 +332,7 @@ class KHARMAFile(DumpFile):
                     except (IndexError, ValueError):
                         try:
                             # Newer format: block, var, k, j, i on disk
-                            out[out_slc] = fil.fid[var][(ib, 0) + fil_slc].T
+                            out[out_slc] = fil.fid[var][(ib, 1) + fil_slc].T
                         except (IndexError, ValueError):
                             # Older format: block, k, j, i, var
                             out[out_slc] = fil.fid[var][(ib,) + fil_slc + (0,)].T

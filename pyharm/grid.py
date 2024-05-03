@@ -178,34 +178,23 @@ class Grid:
         self.slices = Slices(self.NG)
         self.shapes = Shapes(self, params)
 
-        if params['coordinates'] in ["minkowski", "cartesian"]:
+        if "null" in params['transform'] and "cartesian_minkowski" in params['base']: # TODO will need to change for CKS
             # There are no parameters to Minkowski coordinates, so this is a class, not an object
             self.coords = Minkowski
-        # MKS, FMKS expect the parameters a, hslope
-        elif params['coordinates'] == "mmks" or params['coordinates'] == "fmks":
-            # FMKS additionally requires poly_xt, poly_alpha, mks_smooth
+        elif "fmks" in params['transform'] or "funky" in params['transform']:
             self.coords = FMKS(params)
-        elif params['coordinates'] == "cmks":
-            # MMKS additionally requires poly_xt and poly_alpha
-            self.coords = CMKS(params)
-        elif params['coordinates'] == "bhac_mks":
-            # BHAC's MKS
-            self.coords = BHAC_MKS(params)
-        elif params['coordinates'] == "mks3" or params['coordinates'] == "mks2":
-            # KORAL's MKS.  MKS2 == MKS3 w/ MY1,2,MP0 == 0
-            self.coords = MKS3(params)
-        elif params['coordinates'] == "mks":
+        elif "mks" in params['transform'] or "modif" in params['transform']:
             self.coords = MKS(params)
-        elif params['coordinates'] == "eks":
+        elif "eks" in params['transform'] or "exponent" in params['transform']:
             self.coords = EKS(params)
-        elif params['coordinates'] == "superexp":
-            self.coords = SEKS(params)
-        elif params['coordinates'] == "ks":
+        elif "null" in params['transform'] and "ks" in params['base']:
             self.coords = KS(params)
-        elif params['coordinates'] == "bl":
+        elif "null" in params['transform'] and "bl" in params['base']:
             self.coords = BL(params)
+        elif "super" in params['transform']:
+            self.coords = SEKS(params)
         else:
-            raise ValueError("metric is {}!! must be minkowski, mks, mmks, or fmks".format(params['coordinates']))
+            raise ValueError("Unknown base/transform combination {}/{}. base must be in [TODO] and transform in [TODO]".format(params['base'], params['transform']))
 
         # If we got native coordinates, use those
         if 'x1min' in params:

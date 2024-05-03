@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 import gryt.callbacks
 import gryt.gr_fields
+import gryt.grmhd_fields
 import gryt.kharma_fields
 
 import yt

@@ -9,6 +9,7 @@ from scipy.interpolate import splrep, splev
 from scipy.interpolate import RegularGridInterpolator as rgi
 
 import yt
+from yt.fields.api import register_field_plugin
 
 @register_field_plugin
 def setup_grmhd_fields(registry, ftype="grmhd", slice_info=None):
@@ -25,7 +26,7 @@ def setup_grmhd_fields(registry, ftype="grmhd", slice_info=None):
         )
 
     yt.add_field(
-    name=("parthenon", "jsq"),
+    name=(ftype, "jsq"),
     function=_jsq,
     sampling_type="local",
     units="",
