@@ -73,7 +73,7 @@ class KHARMAFile(DumpFile):
     # the order they would appear
     # If iharm3d ever supports viscous AND e- together we're out of spec here & in general
     var_names_ordered = ['rho', 'u', 'u1', 'u2', 'u3', 'B1', 'B2', 'B3', 'q', 'dP',
-                         'Ktot', 'Kel_Constant', 'Kel_Werner', 'Kel_Rowan', 'Kel_Sharma', 'Kel_Howes', 'Kel_Kawazura']
+                         'Ktot', 'Kel_Constant', 'Kel_Howes', 'Kel_Kawazura', 'Kel_Rowan', 'Kel_Sharma', 'Kel_Werner']
 
 
     @classmethod
