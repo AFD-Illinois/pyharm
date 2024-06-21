@@ -66,13 +66,14 @@ class KHARMAFile(DumpFile):
                        "KEL_WERNER":   "Kel_Werner",
                        "KEL_ROWAN":    "Kel_Rowan",
                        "KEL_SHARMA":   "Kel_Sharma",
+                       "KEL_HOWES":    "Kel_Howes",
                        "KEL_CONSTANT": "Kel_Constant"}
     # The ordering of primitive variables, for returning "prims" and "cons"
     # The file doesn't need to contain all these, they just need to be in
     # the order they would appear
     # If iharm3d ever supports viscous AND e- together we're out of spec here & in general
     var_names_ordered = ['rho', 'u', 'u1', 'u2', 'u3', 'B1', 'B2', 'B3', 'q', 'dP',
-                         'Ktot', 'Kel_Constant', 'Kel_Werner', 'Kel_Rowan', 'Kel_Sharma']
+                         'Ktot', 'Kel_Constant', 'Kel_Werner', 'Kel_Rowan', 'Kel_Sharma', 'Kel_Howes', 'Kel_Kawazura']
 
 
     @classmethod

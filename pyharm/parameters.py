@@ -175,7 +175,8 @@ def fix(params):
     if not ('prim_names' in params):
         if 'electrons' in params and params['electrons']:
             params['electrons'] = True # In case it was an int
-            params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KTOT", "KEL"]
+            # params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KTOT", "KEL"]
+            params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KEL_WERNER","KEL_ROWAN","KEL_SHARMA","KEL_HOWES","KEL_KAWAZURA"]
         else:
             params['electrons'] = False
             params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3"]
