@@ -175,6 +175,8 @@ def fix(params):
     if not ('prim_names' in params):
         if 'electrons' in params and params['electrons']:
             params['electrons'] = True # In case it was an int
+            # we want a has_electrons flag for ipole to read as well, for consistency
+            params['has_electrons'] = True
             # params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3", "KTOT", "KEL"]
             params['prim_names'] = ["RHO", "UU", "U1", "U2", "U3", "B1", "B2", "B3","KEL_HOWES","KEL_KAWAZURA","KEL_ROWAN","KEL_SHARMA","KEL_WERNER"]
         else:
