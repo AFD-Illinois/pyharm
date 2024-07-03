@@ -32,7 +32,7 @@ __license__ = """
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-from scipy.integrate import trapz
+from scipy.integrate import trapezoid
 import numpy.linalg as la
 
 from matplotlib.patches import Circle
@@ -186,12 +186,12 @@ def overlay_flowlines(ax, dump, varx1, varx2, levels=None, nlines=20, color='k',
         for i in range(N1):
             if not reverse:
                 AJ_phi[i, N2 - 1 - j] = AJ_phi[i, N2 + j] = \
-                    (trapz(varx2[:i, j], dx=dump['dx1']) -
-                     trapz(varx1[i, :j], dx=dump['dx2']))
+                    (trapezoid(varx2[:i, j], dx=dump['dx1']) -
+                     trapezoid(varx1[i, :j], dx=dump['dx2']))
             else:
                 AJ_phi[i, N2 - 1 - j] = AJ_phi[i, N2 + j] = \
-                    (trapz(varx2[:i, j], dx=dump['dx1']) +
-                     trapz(varx1[i, j:], dx=dump['dx2']))
+                    (trapezoid(varx2[:i, j], dx=dump['dx1']) +
+                     trapezoid(varx1[i, j:], dx=dump['dx2']))
     AJ_phi -= AJ_phi.min()
 
     Amax = AJ_phi.max()
