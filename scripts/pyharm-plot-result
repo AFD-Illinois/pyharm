@@ -72,6 +72,7 @@ class ExtensibleCmd(click.Command):
 @click.option('-v', '--varlist', default=None, help="Comma-separated list of variables to use")
 @click.option('--model_prefix', default="", help="String to prepend to all model names (e.g. GRMHD run parameters)")
 @click.option('--tag', default="", help="String to add to output plot names")
+@click.option('--file_tags', default=None, help="Comma-separated list of names/tags for result files")
 # Bounds
 @click.option('--xmax', default=None, help="X-axis maximum")
 @click.option('--xmin', default=None, help="X-axis minimum")
@@ -99,6 +100,10 @@ def plot_results(plot_type, files, **kwargs):
 
     # Always load results
     results = [pyharm.load_result(f) for f in files]
+    
+    if kwargs['file_tags'] is not None:
+        for i,tag in enumerate(kwargs['file_tags'].split(",")):
+            results[i].tag = tag
 
     # Hack to get the list of functions in current file,
     # so we can call them based on runtime user-spec string
@@ -107,6 +112,12 @@ def plot_results(plot_type, files, **kwargs):
     local_fns = {}
     for fnname, fn in figure_list:
         local_fns[fnname] = fn
+
+    if 'avg_min' in kwargs:
+        if 'avg_max' in kwargs:
+            kwargs['arange'] = (kwargs['avg_min'], kwargs['avg_max'])
+        else:
+            kwargs['arange'] = kwargs['avg_min']
 
     # If this is a local single-result function, just plot it for everything
     if plot_type in local_fns.keys():
