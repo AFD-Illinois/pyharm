@@ -178,6 +178,10 @@ class Grid:
         self.slices = Slices(self.NG)
         self.shapes = Shapes(self, params)
 
+        # Ensure we're comparing apples to apples
+        params['base'] = params['base'].lower()
+        params['transform'] = params['transform'].lower()
+
         if "null" in params['transform'] and "cartesian_minkowski" in params['base']: # TODO will need to change for CKS
             # There are no parameters to Minkowski coordinates, so this is a class, not an object
             self.coords = Minkowski

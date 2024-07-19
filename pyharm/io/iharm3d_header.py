@@ -36,6 +36,7 @@ import numpy as np
 import h5py, sys
 
 from ..grid import Grid
+from ..coordinates import *
 from .. import parameters
 
 __doc__ = \
@@ -197,37 +198,6 @@ def read_hdr(grp):
     if close_file:
         fil.close()
 
-
-    # Make parameters look more like KHARMA params
-    if params['coordinates'] in ["minkowski", "cartesian"]:
-        # There are no parameters to Minkowski coordinates, so this is a class, not an object
-        params['base'] = 'cartesian_minkowski'
-        params['transform'] = 'null'
-    # MKS, FMKS expect the parameters a, hslope
-    elif params['coordinates'] == "mmks" or params['coordinates'] == "fmks":
-        # FMKS additionally requires poly_xt, poly_alpha, mks_smooth
-        self.coords = FMKS(params)
-    elif params['coordinates'] == "cmks":
-        # MMKS additionally requires poly_xt and poly_alpha
-        self.coords = CMKS(params)
-    elif params['coordinates'] == "bhac_mks":
-        # BHAC's MKS
-        self.coords = BHAC_MKS(params)
-    elif params['coordinates'] == "mks3" or params['coordinates'] == "mks2":
-        # KORAL's MKS.  MKS2 == MKS3 w/ MY1,2,MP0 == 0
-        self.coords = MKS3(params)
-    elif params['coordinates'] == "mks":
-        self.coords = MKS(params)
-    elif params['coordinates'] == "eks":
-        self.coords = EKS(params)
-    elif params['coordinates'] == "superexp":
-        self.coords = SEKS(params)
-    elif params['coordinates'] == "ks":
-        self.coords = KS(params)
-    elif params['coordinates'] == "bl":
-        self.coords = BL(params)
-    else:
-        raise ValueError("metric is {}!! must be minkowski, mks, mmks, or fmks".format(params['coordinates']))
 
     return parameters.fix(params)
 
