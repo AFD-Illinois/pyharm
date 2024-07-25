@@ -71,17 +71,23 @@ defaults = {'n_prims_passive': 0, 'version': "pyharm-writer-0", 'gridfile': 'non
 translations = {'n1': 'n1tot', 'n2': 'n2tot', 'n3': 'n3tot',
                 'metric': 'coordinates', 'metric_run': 'coordinates'}
 
-def write_hdr(params, outf):
+def write_hdr(params, outf, amr_level=0):
     """Write a valid iharm3d/Illinois HDF header"""
+
+    stride = 2**(amr_level)
+    params['n1'] *= stride
+    params['n2'] *= stride
+    params['n3'] *= stride
+
     if 'electrons' in params and params['electrons']:
         _write_param_grp(params, header_keys_electrons, 'header', outf)
     else:
         _write_param_grp(params, header_keys, 'header', outf)
-    
+
     G = Grid(params)
-    geom_params = {'dx1': G.dx[1],
-                   'dx2': G.dx[2],
-                   'dx3': G.dx[3],
+    geom_params = {'dx1': G.dx[1] / stride,
+                   'dx2': G.dx[2] / stride,
+                   'dx3': G.dx[3] / stride,
                    'startx1': G.startx[1],
                    'startx2': G.startx[2],
                    'startx3': G.startx[3],
@@ -105,6 +111,7 @@ def write_hdr(params, outf):
         raise NotImplementedError("Fluid dump files in {} coordinates not implemented!".format(params['coordinates']))
 
     # Write everything except the pointers to an archival copy
+    unwritten_pars = False
     if "extras" not in outf:
         outf.create_group("extras")
     if "extras/pyharm_params" not in outf:
@@ -115,7 +122,9 @@ def write_hdr(params, outf):
         except TypeError:
             # This particular key is expected to be missing, keep quiet
             if key != 'phdf_aux':
-                print("Not writing parameter {}".format(key), file=sys.stderr)
+                unwritten_pars = True
+    if 0: # unwritten_pars
+        print("Some parameters from original object were not written!", file=sys.stderr)
 
 def read_hdr(grp):
     """Read an iharm3d/Illinois HDF header.

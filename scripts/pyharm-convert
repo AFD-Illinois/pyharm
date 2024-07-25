@@ -45,12 +45,12 @@ import numpy as np
 import pyharm
 from pyharm.parallel import map_parallel
 
-def convert_file(name_pair, double=False, to_restart=False, resume=False):
+def convert_file(name_pair, double=False, to_restart=False, amr_level=0, resume=False):
     """Read a single file of some type, and write it as Illinois HDF5 format"""
     fname, outfname = name_pair
     #print("Converting {} -> {}".format(fname, outfname), file=sys.stderr)
     if not (resume and os.path.exists(outfname)):
-        dump = pyharm.load_dump(fname, use_grid_cache=False)
+        dump = pyharm.load_dump(fname, use_grid_cache=False, amr_level=amr_level)
         if to_restart:
             # TODO complain a lot if dump is not in double!!
             pyharm.io.iharm3d_restart.write_restart(dump, outfname)
@@ -66,9 +66,10 @@ def convert_file(name_pair, double=False, to_restart=False, resume=False):
 @click.option('-r', '--resume', is_flag=True, help="Only convert files not already present in the output directory")
 @click.option('--double', is_flag=True, help="Read/write in double precision")
 @click.option('--to_restart', is_flag=True, help="Write an iharm3d restart file suitable for resizing. Implies --double.")
+@click.option('--amr_level', default=0, help="Read an SMR/AMR file at this refinement level (base=0)")
 @click.option('-nt', '--nthreads', default=None, help="Number of parallel conversions -- defaults to min(nprocs, 64)")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
-def convert(files, path, outfile, double, to_restart, resume, nthreads, debug):
+def convert(files, path, outfile, double, to_restart, amr_level, resume, nthreads, debug):
     """Convert a file from KHARMA format (or any readable format) into iharm3d/Illinois HDF5 format
     (and only this format, as pyharm cannot write other file formats).
 
@@ -100,14 +101,14 @@ def convert(files, path, outfile, double, to_restart, resume, nthreads, debug):
 
     if debug:
         for file, outfile in zip(files, outfiles):
-            convert_file((file, outfile), double, to_restart)
+            convert_file((file, outfile), double, to_restart, amr_level)
     else:
         if nthreads is None:
             nthreads = min(min(psutil.cpu_count(), len(files)), 32)
         else:
             nthreads = int(nthreads)
 
-        convert_func = partial(convert_file, double=double, to_restart=to_restart, resume=resume)
+        convert_func = partial(convert_file, double=double, to_restart=to_restart, resume=resume, amr_level=amr_level)
 
         print("Converting {} files with {} threads".format(len(files), nthreads))
         map_parallel(convert_func, zip(files, outfiles), nprocs=nthreads)
