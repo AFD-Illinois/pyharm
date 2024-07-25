@@ -254,7 +254,7 @@ class KHARMAFile(DumpFile):
         ng_iy = params['ng'] if params['n2'] > 1 else 0
         ng_iz = params['ng'] if params['n3'] > 1 else 0
         ntot = [params['n1']+2*ng_ix, params['n2']+2*ng_iy, params['n3']+2*ng_iz]
-        # Even if we don't want ghosts, we'll potentially need to cut them from the file
+        # Even though we don't want ghosts, we'll potentially need to cut them from the file
         ngf = [params['ng_file'],
                params['ng_file'] if params['n2'] > 1 else 0,
                params['ng_file'] if params['n3'] > 1 else 0]
@@ -266,11 +266,9 @@ class KHARMAFile(DumpFile):
         # What locations do we want to read from the file?
         # Get a start and end point based on the *total* size and slice
         file_start, file_stop = slice_to_index((0, 0, 0), ntot, slc)
+        # Our output may be on a finer grid than the file base grid,
+        # but remember that 'slc' is always on the base/file grid.
         out_shape = [(file_stop[i] - file_start[i]) * 2**read_amr_level for i in range(len(file_stop))]
-        # Now that we know which dimensions *stay* non-trivial, revise our output size slicing
-        ng = [params['ng'] if out_shape[0] > 1 else 0,
-              params['ng'] if out_shape[1] > 1 else 0,
-              params['ng'] if out_shape[2] > 1 else 0]
 
         #print("Reading slice", slc, " of file, indices ", file_start, " to ", file_stop, " to shape ", out_shape)
 
@@ -289,27 +287,30 @@ class KHARMAFile(DumpFile):
             # How much smaller is this block's dx vs the file norm?
             block_dx = np.abs(bb[1] - bb[0])/fil.MeshBlockSize[0]
             level = int(np.log2(int(round(dx[0] / block_dx))))
-            read_stride = max(2**(level - read_amr_level), 1)
-            read_pad = max(2**(read_amr_level - level), 1)
+            level_stride = 2**(level) # File's current grid, compared to base
+            out_stride   = 2**(read_amr_level) # Output grid level, compared to base
+            read_stride = max(2**(level - read_amr_level), 1) # If file level is above output grid, skip this many elements
+            read_pad = max(2**(read_amr_level - level), 1)    # If file is below output grid, double it up by this many elements
             #print("Reading at level {}, output to level {}. Therefore stride by {} and pad by {}.".format(level, read_amr_level, read_stride, read_pad))
-            # Internal location of the block i.e. starting/stopping physical indices in the final, big mesh
-            # First, take the start/stop locations and map them to integers
-            # We only need to add ghost zones here if the file has them *and* we want them:
-            # If so, each block will be 2*ng bigger, but we'll want to handle indices from zero regardless
-            b = tuple([slice(int((bb[2*i]   + dx[i]/2 - startx[i])/dx[i]) + ng[i],
-                             int((bb[2*i+1] + dx[i]/2 - startx[i])/dx[i]) + ng[i]) for i in range(3)])
+
+            # Internal location of the block i.e. starting/stopping physical indices in the base mesh
+            # First, take the block's start/stop locations on the *base* grid
+            b = tuple([slice(int((bb[2*i]   + dx[i]/2 - startx[i])/dx[i]),
+                             int((bb[2*i+1] + dx[i]/2 - startx[i])/dx[i])) for i in range(3)]) # BASE
             # Intersect block's global bounds with our desired slice: this is where we're outputting to,
             # on the (never instantiated) global grid
-            loc_slc = tuple([slice(max(b[i].start, file_start[i]), min(b[i].stop, file_stop[i])) for i in range(3)])
-            # Subtract off the start of the slice: this is where we're outputting to in our real array
-            out_slc = tuple([slice((loc_slc[i].start - file_start[i] - ng[i]//read_stride)*read_pad, (loc_slc[i].stop - file_start[i] + ng[i]//read_stride)*read_pad) for i in range(3)])
+            loc_slc = tuple([slice(max(b[i].start, file_start[i]), min(b[i].stop, file_stop[i])) for i in range(3)]) # BASE
+            
+            
+            # Subtract off the start of the slice: this is where we're outputting to in our real array, potentially w/more zones than base grid
+            out_slc = tuple([slice((loc_slc[i].start - file_start[i])*out_stride, (loc_slc[i].stop - file_start[i])*out_stride) for i in range(3)]) # REFINED
             # Subtract off the block's global starting point: this is what we're taking from in the block
             # If the ghost zones are included (ng_f > 0) but we don't want them (all) (ng_i = 0),
             # then take a portion of the file.  Otherwise take it all.
-            fil_slc = (slice((loc_slc[2].start - b[2].start)*read_stride + ngf[2] - ng[2], (loc_slc[2].stop - b[2].start)*read_stride + ngf[2] + ng[2], read_stride),
-                       slice((loc_slc[1].start - b[1].start)*read_stride + ngf[1] - ng[1], (loc_slc[1].stop - b[1].start)*read_stride + ngf[1] + ng[1], read_stride),
-                       slice((loc_slc[0].start - b[0].start)*read_stride + ngf[0] - ng[0], (loc_slc[0].stop - b[0].start)*read_stride + ngf[0] + ng[0], read_stride))
-            if (fil_slc[-3].start > fil_slc[-3].stop) or (fil_slc[-2].start > fil_slc[-2].stop) or (fil_slc[-1].start > fil_slc[-1].stop):
+            block_slc = (slice((loc_slc[2].start - b[2].start)*level_stride + ngf[2], (loc_slc[2].stop - b[2].start)*level_stride + ngf[2], read_stride),
+                       slice((loc_slc[1].start - b[1].start)*level_stride + ngf[1], (loc_slc[1].stop - b[1].start)*level_stride + ngf[1], read_stride),
+                       slice((loc_slc[0].start - b[0].start)*level_stride + ngf[0], (loc_slc[0].stop - b[0].start)*level_stride + ngf[0], read_stride)) # REFINED
+            if (block_slc[-3].start > block_slc[-3].stop) or (block_slc[-2].start > block_slc[-2].stop) or (block_slc[-1].start > block_slc[-1].stop):
                 # Don't read blocks outside our domain
                 #print("Skipping block: ", b, " would be to location ", out_slc, " from portion ", fil_slc)
                 continue
@@ -324,36 +325,36 @@ class KHARMAFile(DumpFile):
                     # try:
                         # Newer format: block, var, k, j, i on disk
                         if read_pad == 1:
-                            out[(slice(None),) + out_slc] = fil.fid[var][(ib, slice(None)) + fil_slc].transpose(0,3,2,1)
+                            out[(slice(None),) + out_slc] = fil.fid[var][(ib, slice(None)) + block_slc].transpose(0,3,2,1)
                         else:
-                            out[(slice(None),) + out_slc] = fil.fid[var][(ib, slice(None)) + fil_slc].transpose(0,3,2,1).repeat(read_pad, axis=1).repeat(read_pad, axis=2).repeat(read_pad, axis=3)
+                            out[(slice(None),) + out_slc] = fil.fid[var][(ib, slice(None)) + block_slc].transpose(0,3,2,1).repeat(read_pad, axis=1).repeat(read_pad, axis=2).repeat(read_pad, axis=3)
                     # except (IndexError, ValueError):
                     #     # Older format: block, k, j, i, var
                     #     out[(slice(None),) + out_slc] = fil.fid[var][(ib,) + fil_slc + (slice(None),)].T
                 else: # Read a scalar, knocking off the extra index if necessary
                     #print("Reading scalar ", var, " on-disk size ", fil.fid[var].shape, " to loc size ", out[out_slc].shape)
-                    #print("Using slice ", fil_slc)
+                    #print("Using slice ", block_slc)
                     try:
                         # Newest (and ironically, also oldest) format: scalars as k, j, i only
                         if read_pad == 1:
-                            out[out_slc] = fil.fid[var][(ib,) + fil_slc].T
+                            out[out_slc] = fil.fid[var][(ib,) + block_slc].T
                         else:
-                            out[out_slc] = fil.fid[var][(ib,) + fil_slc].T.repeat(read_pad, axis=0).repeat(read_pad, axis=1).repeat(read_pad, axis=2)
+                            out[out_slc] = fil.fid[var][(ib,) + block_slc].T.repeat(read_pad, axis=0).repeat(read_pad, axis=1).repeat(read_pad, axis=2)
                     except (IndexError, ValueError):
                         try:
                             # Newer format: block, var, k, j, i on disk
-                            out[out_slc] = fil.fid[var][(ib, 1) + fil_slc].T
+                            out[out_slc] = fil.fid[var][(ib, 1) + block_slc].T
                         except (IndexError, ValueError):
                             # Older format: block, k, j, i, var
-                            out[out_slc] = fil.fid[var][(ib,) + fil_slc + (0,)].T
+                            out[out_slc] = fil.fid[var][(ib,) + block_slc + (0,)].T
 
             else:
                 # Old file formats.  First anything scalar:
                 if var in fil.Variables:
-                    out[(Ellipsis,) + out_slc] = fil.fid[var][(ib,) + fil_slc + (slice(None),)].T
+                    out[(Ellipsis,) + out_slc] = fil.fid[var][(ib,) + block_slc + (slice(None),)].T
                 # If we'd split out "B" it was called "B_prim" (wasn't find/replaced above)
                 elif var[0] == "B" and 'c.c.bulk.B_prim' in fil.Variables:
-                        out[(slice(None),) + out_slc] = fil.fid['c.c.bulk.B_prim'][(ib,) + fil_slc + (slice(None),)].T
+                        out[(slice(None),) + out_slc] = fil.fid['c.c.bulk.B_prim'][(ib,) + block_slc + (slice(None),)].T
                 else:
                     i = self.index_of(var)
                     if i is None:
@@ -362,9 +363,9 @@ class KHARMAFile(DumpFile):
                     else:
                         # Both the int & slice cases require the same line: first 3 indices of file -> last 3 indices of output
                         #print("Read {} at {}".format(var, i))
-                        #print(fil_slc + (i,), file=sys.stderr)
+                        #print(block_slc + (i,), file=sys.stderr)
                         #print((Ellipsis,) + out_slc, file=sys.stderr)
-                        out[(Ellipsis,) + out_slc] = fil.fid['c.c.bulk.prims'][(ib,) + fil_slc + (i,)].T
+                        out[(Ellipsis,) + out_slc] = fil.fid['c.c.bulk.prims'][(ib,) + block_slc + (i,)].T
         # Close
         fil.fid.close()
         del fil
