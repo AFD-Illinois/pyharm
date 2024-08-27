@@ -369,7 +369,8 @@ def plot_thphi(ax, dump, var, at_r=None, at_i=None, cmap='jet', vmin=None, vmax=
         var = vname
         if log:
             var = "log_"+var
-    _decorate_plot(ax, dump, var, bh=False, **kwargs)
+    kwargs['bh'] = False
+    _decorate_plot(ax, dump, var, **kwargs)
 
     return mesh
 

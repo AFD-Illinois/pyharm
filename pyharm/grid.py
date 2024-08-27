@@ -40,12 +40,14 @@ from pyharm.defs import Loci, Slices, Shapes
 from pyharm.coordinates import *
 
 
-def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
+def make_some_grid(base, transform, n1=128, n2=128, n3=128, a=0, hslope=0.3,
                    poly_xt=0.82, poly_alpha=14.0, mks_smooth=0.5,
                    r_in=None, r_out=1000, caches=True, cache_conn=False):
     """Convenience function for generating grids with particular known parameters.
 
-    :param system: coordinate system, denoted 'eks', 'mks', 'fmks', 'minkowski', or
+    :param base: basic coordinates, e.g. 'ks' for spherical Kerr-Schild or
+                 'cartesian_minkowski' for Cartesian Minkowski 
+    :param transform: the coordinate transformation of the simulation, 'eks', 'mks', 'fmks', 'null', or
                  anything exotic defined in :mode`pyharm.coordinates`
 
     All other parameters are as described in Grid.__init__, and are optional with
@@ -54,7 +56,8 @@ def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
     """
 
     params = {}
-    params['coordinates'] = system
+    params['base'] = base
+    params['transform'] = transform
     params['n1tot'] = n1
     params['n2tot'] = n2
     params['n3tot'] = n3
@@ -63,21 +66,21 @@ def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
     params['n3'] = n3
     params['ng'] = 0
 
-    if system == 'minkowski' or system == 'cartesian':
+    if 'cartesian' in base:
         params['x1min'] = 0
         params['x2min'] = 0
         params['x3min'] = 0
         params['x1max'] = 1
         params['x2max'] = 1
         params['x3max'] = 1
-    elif 'ks' in system:
+    elif 'ks' in base:
         params['a'] = a
         params['r_out'] = r_out
         if r_in is not None:
             params['r_in'] = r_in
-        if 'mks' in system:
+        if 'mks' in transform:
             params['hslope'] = hslope
-        if system == 'fmks' or system == 'mmks':
+        if transform == 'fmks' or transform == 'mmks':
             params['poly_xt'] = poly_xt
             params['poly_alpha'] = poly_alpha
             params['mks_smooth'] = mks_smooth
@@ -209,7 +212,7 @@ class Grid:
             # Ask our new coordinate system where to start/stop the native grid,
             # so it aligns with the KS boundaries we've been assigned
             self.startx = self.coords.native_startx(params)
-            if params['coordinates'] not in ["minkowski", "cartesian"] and self.startx[1] < 0.0:
+            if self.coords != Minkowski and self.startx[1] < 0.0:
                 raise ValueError("Not enough radial zones! Increase N1!")
 
         if 'dx1' in params:
