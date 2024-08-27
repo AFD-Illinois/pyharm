@@ -50,12 +50,13 @@ import pyharm.grid as grid
 @click.option('-nb', '--nblocks', default=1, help="Number of blocks")
 @click.option('-tf', '--time', default=10000, help="Simulation time in t_g")
 @click.option('-n', '--nodes', default=1, help="Number of nodes performing simulation")
-@click.option('-c', '--coords', default='fmks', help="Grid coordinate system")
+@click.option('--base', default='ks', help="Base coordinate system")
+@click.option('-c', '--transform', default='mks', help="Grid coordinate transform")
 @click.option('--r_out', default=1000., help="Simulation outer radius")
 @click.option('-a', '--spin', default=0.5, help="BH spin a_*")
 @click.option('-p', '--perf', default=100, help="Performance before weak scaling, million ZCPS")
 @click.option('-w', '--weak_scaling', default=0.9, help="Weak scaling of performance with node count")
-def estimate_cost(gridsize, blocksize, dumpsize, nblocks, time, nodes, coords, r_out, spin, perf, weak_scaling):
+def estimate_cost(gridsize, blocksize, dumpsize, nblocks, time, nodes, base, transform, r_out, spin, perf, weak_scaling):
     """Script to calculate how many zone-cycles are required to complete a simulation.
 
     Note that current estimates use weak scaling only (suitable for SMR with known blocksize, for example).
@@ -66,10 +67,10 @@ def estimate_cost(gridsize, blocksize, dumpsize, nblocks, time, nodes, coords, r
     n1b, n2b, n3b = [int(x) for x in blocksize.split("x")]
     n1d, n2d, n3d = [int(x) for x in dumpsize.split("x")]
 
-    print("Building grid: {}, a = {}, {}x{}x{} to r_out of {}".format(
-        coords, spin, n1, n2, n3, r_out))
+    print("Building grid: {} on {}, a = {}, {}x{}x{} to r_out of {}".format(
+        transform, base, spin, n1, n2, n3, r_out))
 
-    G = grid.make_some_grid(coords, n1, n2, n3, a=spin, r_out=r_out, cache_conn=False)
+    G = grid.make_some_grid(base, transform, n1, n2, n3, a=spin, r_out=r_out, cache_conn=False)
 
     dt = G.dt_light()
 
