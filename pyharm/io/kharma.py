@@ -66,7 +66,9 @@ class KHARMAFile(DumpFile):
                        "KEL_WERNER":   "Kel_Werner",
                        "KEL_ROWAN":    "Kel_Rowan",
                        "KEL_SHARMA":   "Kel_Sharma",
-                       "KEL_CONSTANT": "Kel_Constant"}
+                       "KEL_CONSTANT": "Kel_Constant",
+                       "Q_TILDE":      "q",
+                       "DP_TILDE":     "dP"}
     # The ordering of primitive variables, for returning "prims" and "cons"
     # The file doesn't need to contain all these, they just need to be in
     # the order they would appear
