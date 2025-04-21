@@ -1,25 +1,25 @@
 __license__ = """
  File: analyses.py
- 
+
  BSD 3-Clause License
- 
+
  Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
  All rights reserved.
- 
+
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
- 
+
  1. Redistributions of source code must retain the above copyright notice, this
     list of conditions and the following disclaimer.
- 
+
  2. Redistributions in binary form must reproduce the above copyright notice,
     this list of conditions and the following disclaimer in the documentation
     and/or other materials provided with the distribution.
- 
+
  3. Neither the name of the copyright holder nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
- 
+
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -78,9 +78,14 @@ def basic(dump, out, **kwargs):
     # EHT code-comparison normalization has all these values positive
     for var, flux in [['Edot', 'FE'], ['Mdot', 'FM'], ['Ldot', 'FL']]:
         out['t/'+var] = shell_sum(dump, flux, at_i=iEH)
+        # Also add the fluxes at r=5, which avoids floor trash and inaccuracies
+        out['t/'+var+'_5'] = shell_sum(dump, flux, at_r=5.)
+
     # Mdot and Edot are defined inward/positive at EH
     out['t/Mdot'] *= -1
     out['t/Edot'] *= -1
+    out['t/Mdot_5'] *= -1
+    out['t/Edot_5'] *= -1
 
 def dynamo(dump, out, **kwargs):
     """Compare magnetization in the upper and lower hemisphere of EH, and at 5 r_g
@@ -107,7 +112,7 @@ def r_profiles(dump, out, vars=('rho', 'Pg', 'u^r', 'u^3', 'u_3', 'b', 'inv_beta
     jmin, jmax = get_j_bounds(dump)
     for var in vars:
         out['rt/' + var + '_disk'] = shell_avg(dump, var, j_slice=(jmin, jmax))
-        out['rt/' + var + '_notdisk'] = (shell_avg(dump, var, j_slice=(0, jmin)) + 
+        out['rt/' + var + '_notdisk'] = (shell_avg(dump, var, j_slice=(0, jmin)) +
                                          shell_avg(dump, var, j_slice=(jmax, dump['n2']))) / 2
         if _get(kwargs, 'do_tavgs'):
             out['r/' + var + '_disk'] = out['rt/' + var + '_disk']
@@ -306,7 +311,7 @@ def jet_cut_lite(dump, out, **kwargs):
     for var in ['rho', 'Pg', 'u^r', 'u^th', 'u^3', 'b^r', 'b^th', 'b^3', 'b', 'inv_beta', 'Ptot']:
         out['rt/' + var + '_jet'] = shell_avg(dump, var, mask=is_jet)
     del is_jet
-    
+
 
 def lumproxy(dump, out, **kwargs):
     """Luminosity proxy from GRMHD code comparison '19
