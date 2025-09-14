@@ -59,7 +59,8 @@ class FluidState:
     various derived properties directly.
     """
 
-    def __init__(self, data_source, tag="", ghost_zones=False, add_grid=True, use_grid_cache=True, cache_conn=False, grid=None, units=None, params=None, multizone=False):
+    def __init__(self, data_source, tag="", amr_level=0, ghost_zones=False, add_grid=True, use_grid_cache=True,
+                 cache_conn=False, grid=None, units=None, params=None, multizone=False):
         """Attach the fluid dump file 'data_source' and make its contents accessible like a dictionary.  For a list of some
         variables and properties accessible this way, see the README.
 
@@ -77,6 +78,7 @@ class FluidState:
 
         :param data_source: file name or path to dump, OR dictionary with all arrays of all primitive variables (i.e., starting cache)
         :param tag: any string, usually long name of dump/model for plotting
+        :param amr_level: refinement level at which to interpolate SMR/AMR KHARMA dumps, with 0 as the base. Currently uses nearest neighbor!
         :param ghost_zones: Load ghost zones when reading from a dump file
         :param add_grid: Whether to construct a Grid object at all.  Only used for copy construction.
         :param use_grid_cache: Cache geometry values in the grid file.  These are *not* yet automatically added,
@@ -85,7 +87,7 @@ class FluidState:
         :param grid: used to pass in a ``Grid`` object directly (rarely needed).  Used instead of constructing a grid with previous parameters.
         :param units: a 'Units' object representing a physical scale for the dump (density M_unit and BH mass MBH)
         :param params: dictionary of parameters. Only used for copy construction.
-        :param multizone: whether to force a KHARMAMZFile backing, rather than single KHARMAFile
+        :param multizone: whether to read several dumps from numbered folders in a classic multi-zone run.
         """
 
         # This chooses an importer based on what we know of filenames/structures
@@ -104,6 +106,10 @@ class FluidState:
             self.tag = self.fname
         else:
             self.tag = tag
+        
+        # A single reader can return different variables at different AMR levels,
+        # but none of the FluidState infra can handle that so we set 1 level/object
+        self.amr_level = amr_level
 
         if params is None:
             try:
@@ -322,11 +328,11 @@ class FluidState:
         if self.fname != "memory_array":
             # Read things that we haven't cached and absolutely can't calculate
             # The reader keeps its own cache, so we don't add its items to ours
-            if "flag" in key:
-                out = self.reader.read_var(key, astype=np.int32, slc=self.slice)
+            astype = np.int32 if "flag" in key else np.float64
+            if self.amr_level > 0:
+                out = self.reader.read_var(key, read_amr_level=self.amr_level, astype=astype, slc=self.slice)
             else:
-                # TODO Option for double
-                out = self.reader.read_var(key, astype=np.float64, slc=self.slice)
+                out = self.reader.read_var(key, astype=astype, slc=self.slice)
             if out is not None:
                 return out
 

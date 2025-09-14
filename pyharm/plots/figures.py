@@ -36,6 +36,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+import h5py
 
 from ..ana.reductions import *
 from .plot_dumps import *
@@ -442,5 +443,25 @@ def old_floors(fig, dump, diag, plotrc):
     plotrc['sum'] = True
     for i,ff in enumerate(FloorFlag_iharm3d):
         plot_xz(ax_slc(2+i), dump, dump['fflag'] & ff.value, label=ff.name, **plotrc)
+
+    return fig
+
+def electron_temps(fig, dump, diag, plotrc):
+    """KHARMA FILES ONLY
+    """
+    with h5py.File(dump.reader.fname) as hfile:
+        elec_list = [ k.replace("prims.","") for k in hfile if "Kel" in k ]
+    n_elec = len(elec_list)
+    ax_slc = lambda i: plt.subplot(1, n_elec, i)
+
+    plotrc['window'] = [0, 2*plotrc['window'][1]/3, plotrc['window'][2], plotrc['window'][3]]
+    plotrc['half_cut'] = True
+    for i, elec in enumerate(elec_list):
+        etype = elec.replace("Kel_","")
+        do_cbar = plotrc['vmin'] is None or plotrc['vmax'] is None or i == n_elec-1
+        plot_xz(ax_slc(i+1), dump, dump[elec]*dump['rho']**(dump['gam_e']-1),
+                cbar=do_cbar, ylabel=(i == 0), label=etype, **plotrc)
+
+    fig.subplots_adjust(left=0.03, right=0.97)
 
     return fig

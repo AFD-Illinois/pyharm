@@ -303,7 +303,7 @@ def eh_phi_versions(results, kwargs):
 def eh_fluxes(results, kwargs):
     fig, _ = plt.subplots(4,1, figsize=(7,7))
     ax = fig.get_axes()
-    for result in results.values():
+    for result in results: #.values():
         plot_eh_fluxes(ax, result)
 
     ax[0].legend()

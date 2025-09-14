@@ -1,0 +1,313 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import click
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+import gryt.callbacks
+import gryt.gr_fields
+import gryt.grmhd_fields
+import gryt.kharma_fields
+
+import yt
+from yt.geometry.api import Geometry
+from unyt import unyt_array
+
+class DirlistOrCurdir(click.Argument):
+    def __init__(self, *args, **kwargs):
+        kwargs['nargs'] = -1
+        kwargs['type'] = click.Path(exists=True)
+        super().__init__(*args, **kwargs)
+
+    def full_process_value(self, ctx, value):
+        return super().process_value(ctx, value or ('.',))
+
+@click.command()
+@click.argument('movie_type', nargs=1)
+@click.argument('paths', cls=DirlistOrCurdir)
+# Common options
+@click.option('-s', '--tstart', default=None, type=float, help="Start time.")
+@click.option('-e', '--tend', default=None, type=float, help="End time.")
+@click.option('-n', '--nthreads', default=None, type=int, help="Number of processes to use, if not using MPI")
+@click.option('-o', '--output-dir', default=".", type=click.Path(exists=True),
+              help="Base directory for outputs. Any folder structure of models will be preserved.")
+# TODO(BSP)
+#@click.option('--multizone', is_flag=True, help="Image a multizone run.  Call on each run folder separately!")
+#@click.option('--nodiag', is_flag=True, help="Don't load a history/diagnostic text file")
+# Figure options
+@click.option('--fig-x', default=16.0, help="Figure width in inches.")
+@click.option('--fig-y', default=9.0, help="Figure height in inches.")
+@click.option('--fig-dpi', default=100, help="DPI of resulting figure.")
+@click.option('--title-time/--no-title-time', default=True, help="Put the current simulation time in the title.")
+# TODO(BSP) title-max, title-min for e.g. divB
+@click.option('--simple/--no-simple', default=False, help="Minimal figure without axis labels or colorbar.")
+# Dump file plotting options
+#@click.option('-g','--ghost-zones', is_flag=True, help="Plot ghost zones.")
+@click.option('-at','--at','--at-zone', 'at', default=0, help="Phi zone to plot at.")
+@click.option('--average/--no-average', default=False, help="Average quantities over phi.")
+@click.option('--sum/--no-sum', default=False, help="Sum quantities over phi.")
+@click.option('-sh','--sh','--shading', 'shading', default='flat', help="Shading: flat, nearest, gouraud.")
+@click.option('--vmin', default=None, type=float, help="Colorscale minimum.")
+@click.option('--vmax', default=None, type=float, help="Colorscale maximum.")
+@click.option('--cmap', default='jet', help="Colormap.")
+@click.option('--log/--no-log', default=True, help="Plot natural log of the specified variable. Colorbar is properly marked vs prepending log_")
+@click.option('-sz','--sz','--size', 'size', default=20.0, help="Window size, in M each side of central object.")
+@click.option('--xmin', default=None, type=float, help="Window X minimum in code units.")
+@click.option('--xmax', default=None, type=float, help="Window X maximum in code units.")
+@click.option('--ymin', default=None, type=float, help="Window Y minimum in code units.")
+@click.option('--ymax', default=None, type=float, help="Window Y maximum in code units.")
+@click.option('--log-r', is_flag=True, help="Make the plots logarithmic in radius.")
+@click.option('--overlay-field', is_flag=True, help="Overlay field lines.")
+@click.option('--nlines', default=20, help="Number of total field lines to overlay.")
+@click.option('--overlay-grid', is_flag=True, help="Overlay simulation zone borders.")
+@click.option('--overlay-grid-spacing', default=1, help="Only plot grid every X lines.")
+@click.option('--overlay-blocks/--no-overlay-blocks', default=True, help="Overlay simulation block borders.")
+@click.option('--native', is_flag=True, help="Plot in code-native coordinates rather than converting.")
+@click.option('--bh/--no-bh', default=True, help="Whether to show the BH shadow.")
+@click.option('--midplane', is_flag=True, help="Plot the midplane, rather than poloidal slice")
+# Extras
+@click.option('--accurate-fnames', is_flag=True, help="Name frames by 1/100M, for short runs.")
+@click.option('--numeric-fnames', is_flag=True, help="Name frames by file number.")
+@click.option('-r', '--resume', is_flag=True, help="Continue a previous run, by skipping existing frames")
+@click.option('--mpi/--no-mpi', default=True, help="Toggle using MPI even if available")
+@click.option('--yt-log-level', default=50, help="Enable logging from yt, lower==more verbose")
+def movie(movie_type, paths, **kwargs):
+    yt.set_log_level(kwargs['yt_log_level'])
+    if kwargs['mpi']:
+        yt.enable_parallelism()
+
+    # TODO move these out of this file somehow
+    naxes = 1
+    subplots_args = {}
+    if movie_type == "floors":
+        field = [("KHARMA", "FLOOR_GEOM_RHO"),
+                ("KHARMA", "FLOOR_GEOM_U"),
+                ("KHARMA", "FLOOR_B_RHO"),
+                ("KHARMA", "FLOOR_B_U"),
+                ("KHARMA", "FLOOR_TEMP"),
+                ("KHARMA", "FLOOR_GAMMA"),
+                ("KHARMA", "FLOOR_KTOT")]
+        naxes = 7
+        kwargs['title_time'] = False
+        kwargs['log'] = False
+        kwargs['sum'] = True
+        kwargs['cmap'] = 'Reds'
+        kwargs['vmin'] = 0
+        kwargs['vmax'] = 10
+        subplots_args = {'top': 0.98, 'bottom': 0.03,
+                         'left': 0.07, 'right': 0.95,
+                         'wspace': 0.03, 'hspace': 0.03}
+    elif movie_type == "solver":
+        field = [("KHARMA", "SOLVER_FLAG_FAIL"),
+                ("KHARMA", "SOLVER_FLAG_BEYOND_TOL"),
+                ("KHARMA", "SOLVER_FLAG_BACKTRACK")]
+        naxes = 3
+        kwargs['title_time'] = False
+        kwargs['log'] = False
+        kwargs['sum'] = True
+        kwargs['cmap'] = 'Reds'
+        kwargs['vmin'] = 0
+        kwargs['vmax'] = 10
+        subplots_args = {'top': 0.98, 'bottom': 0.03,
+                         'left': 0.07, 'right': 0.95,
+                         'wspace': 0.03, 'hspace': 0.03}
+    elif "/" in movie_type:
+        fparts = movie_type.split("/")
+        field = (fparts[0], fparts[1])
+        movie_type = movie_type.replace("/", "_")
+    else:
+        field = ("gas", movie_type)
+        # TODO if toroidal/poloidal etc
+        naxes = 1
+
+    naxes_x = min(naxes, 4)
+    naxes_y = (naxes-1)//4 + 1
+    naxes_grid = naxes_x * naxes_y
+    #print("Plotting {}x{} grid".format(naxes_x, naxes_y))
+
+    # Paths
+    start_path = os.path.abspath(os.getcwd())
+    if 'GRYT_DUMPS_DIR' in os.environ:
+        base_path = os.path.abspath(os.environ['GRYT_DUMPS_DIR'])
+    else:
+        base_path = start_path
+    if 'GRYT_MOVIES_DIR' in os.environ and kwargs['output_dir'] == ".":
+        out_path = os.path.abspath(os.environ['GRYT_MOVIES_DIR'])
+    else:
+        # Defaults to current dir
+        out_path = os.path.abspath(kwargs['output_dir'])
+
+    #for movie_type in movie_types.split(","):
+    frame_dir = os.path.join(os.getcwd().replace(base_path, out_path), "frames_"+movie_type)
+    os.makedirs(frame_dir, exist_ok=True)
+    yt.funcs.ensure_dir_exists(frame_dir) # Pause other MPI processes
+
+    # TODO make this parallel too?
+    for path in paths:
+        if kwargs['native']:
+            ld_parameters = {'native': True}
+        else:
+            ld_parameters = {'native': False}
+        # Load *only* the numbered dumps.  This keeps strict ordering, as "now" and "final" will
+        # sort past numbers despite being from earlier times
+        if ".phdf" in path:
+            # TODO support passing globs
+            ts = [yt.load(path, parameters=ld_parameters),]
+            ds_set = ts
+        else:
+            ts = yt.load(os.path.join(path,"*.out0.[0-9][0-9][0-9][0-9][0-9].phdf"), parameters=ld_parameters)
+            ds_set = ts.piter()
+
+        # Timestamp formatting: appropriate left padding...
+        if kwargs['tend'] is None:
+            if kwargs['numeric_fnames']:
+                kwargs['tend'] = int(ts[-1].filename.split('.')[-2])
+            else:
+                try:
+                    kwargs['tend'] = ts[-1].current_time.v
+                except:
+                    kwargs['tend'] = ts[-2].current_time.v
+        kwargs['time_digits'] = int(np.log10(kwargs['tend']))+1
+        # ...and automatically make times accurate to hundredths if t_end < 100
+        if kwargs['time_digits'] < 3:
+            kwargs['accurate_fnames'] = True
+
+        # TODO bring this back when it supports parallelism
+        #pbar = yt.funcs.get_pbar("Frames", len(ts))
+
+        for ds in ds_set:
+            frame_folder = os.path.join(os.getcwd().replace(base_path, out_path), "frames_"+movie_type)
+            if 'numeric_fnames' in kwargs and kwargs['numeric_fnames']:
+                time_formatted = str(int(ds.filename.split('.')[-2])).rjust(kwargs['time_digits'],'0')
+                tend_formatted = str(kwargs['tend'])
+                frame_name = os.path.join(frame_folder, "frame_"+time_formatted+".png")
+            elif 'accurate_fnames' in kwargs and kwargs['accurate_fnames']:
+                time_formatted = ("%.2f" % ds.current_time).rjust(kwargs['time_digits'],'0')
+                tend_formatted = ("%.2f" % kwargs['tend'])
+                frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
+            else:
+                time_formatted = ("%d" % int(ds.current_time)).rjust(kwargs['time_digits'],'0')
+                tend_formatted = ("%d" % int(kwargs['tend']))
+                frame_name = os.path.join(frame_folder, "frame_t"+time_formatted+".png")
+
+            if kwargs['resume'] and os.path.exists(frame_name):
+                continue
+
+            # Keep all the prints aligned
+            print("Processing t = {} / {}".format(time_formatted, tend_formatted), file=sys.stderr)
+
+            # TODO(BSP) custom window support
+            if 1: #ds.dimensionality < 3:
+                sz = kwargs['size']
+            else:
+                sz = kwargs['size'] * 2
+
+            # For some reason yt hates when I set a center in the initial args,
+            # so we just use set_center later.
+            plotargs = {'axes_unit': "cm",} #'center': unyt_array((sz/2, 0, 0), "cm"),
+            if kwargs['simple']:
+                plotargs['width'] = (sz, kwargs['fig_y']/kwargs['fig_x']*sz)
+                plotargs['buff_size'] = (kwargs['fig_x']*kwargs['fig_dpi'], kwargs['fig_y']*kwargs['fig_dpi'])
+            else:
+                plotargs['width'] = sz
+
+            # Setup figure
+            #fig, axes, colorbars = get_multi_plot(3, 2, colorbar='horizontal', bw=4)
+
+            # TODO options/decisions for poloidal/toroidal
+            #print("Getting", field)
+            if kwargs['midplane']:
+                plot = yt.SlicePlot(ds, 1, field, **plotargs)
+            elif kwargs['sum'] or kwargs['average']:
+                if kwargs['sum']:
+                    plotargs['method'] = "sum"
+                else:
+                    plotargs['method'] = "integrate"
+                plot = yt.ProjectionPlot(ds, 2, field, **plotargs)
+            else:
+                plot = yt.SlicePlot(ds, 2, field, **plotargs)
+                # for fd in field:
+                #     vplot = plot.plots[fd]
+                #     vplot.figure = plot.plots[fd]._figure
+                #     vplot.axes = plot.plots[fd]._axes
+
+            # Focus right of zero in poloidal plots
+            if not kwargs['midplane']: #ds.dimensionality < 3:
+                plot.set_center((sz/2,0))
+            else:
+                plot.set_center((0, 0))
+
+            # TODO(BSP) poloidal needs a mirrored slice plot to left
+            # TODO(BSP) slice plots together
+
+            # Set plot size/buff size/options
+            #plot.set_buff_size(max(kwargs['fig_x'], kwargs['fig_y'])*kwargs['fig_dpi'])
+            plot.set_figure_size((kwargs['fig_x'], kwargs['fig_y']))
+            plot.set_zlim(field,
+                        zmin='min' if kwargs['vmin'] is None else kwargs['vmin'],
+                        zmax='max' if kwargs['vmax'] is None else kwargs['vmax'])
+            plot.set_cmap(field, kwargs['cmap'])
+            plot.set_background_color(field)
+            if not kwargs['log']:
+                plot.set_log(field, False)
+                
+            # Then add overlays
+            if kwargs['simple']:
+                plot.hide_axes()
+                plot.hide_colorbar()
+            else:
+                # Change cm -> r_g
+                if not kwargs['native']:
+                    plot.annotate_grav_units()
+                if kwargs['title_time']:
+                    # TODO get this working in spherical...
+                    #plot.annotate_timestamp()
+                    if kwargs['accurate_fnames']:
+                        plot.annotate_title(r"t = {:.2f} $t_g$".format(ds.current_time.v))
+                    else:
+                        plot.annotate_title(r"t = {:.0f} $t_g$".format(ds.current_time.v))
+
+            if kwargs['overlay_blocks']:
+                # Show block outlines
+                if ds.geometry == Geometry.SPHERICAL or \
+                    ds.geometry == Geometry.TRANSFORMED_SPHERICAL:
+                    plot.annotate_grids_spherical(ds)
+                else:
+                    plot.annotate_grids()
+            if kwargs['bh'] and not kwargs['native']:
+                plot.annotate_event_horizon(ds)
+
+            # Save it out.
+            # Normally export to mpl for a predictable figure resolution for movies
+            # Simple figs are predictable as-is though and mpl export has a colorbar
+            if kwargs['simple']:
+                try:
+                    plot.save(frame_name, mpl_kwargs=dict(dpi=kwargs['fig_dpi']))
+                except ValueError as e:
+                    print("MATPLOTLIB WARNING: ",e)
+            else:
+                fig = plot.export_to_mpl_figure((naxes_y, naxes_x), cbar_mode='each') # rows, cols
+                fig.set_size_inches(kwargs['fig_x'], kwargs['fig_y'])
+                if len(subplots_args) > 0:
+                    plt.subplots_adjust(**subplots_args)
+                # Delete any excess axes
+                if naxes < naxes_grid:
+                    # Colorbar axes
+                    for ax in fig.get_axes()[naxes_grid+naxes:2*naxes_grid]:
+                        fig.delaxes(ax)
+                    # Base axes
+                    for ax in fig.get_axes()[naxes:naxes_grid]:
+                        fig.delaxes(ax)
+                try:
+                    fig.savefig(frame_name, dpi=kwargs['fig_dpi'])
+                except ValueError as e:
+                    print("MATPLOTLIB WARNING: ",e)
+
+            #pbar.update()
+            ds.index.clear_all_data()
+
+if __name__ == "__main__":
+    movie()

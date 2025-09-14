@@ -354,6 +354,11 @@ class Minkowski(CoordinateSystem):
         return np.ones([*gcov.shape[2:]])
 
     @classmethod
+    def lapse(cls, x):
+        # TODO return 1 preserving shape
+        return 1./np.sqrt(-cls.gcon(x)[0,0])
+
+    @classmethod
     def conn_func(cls, x, delta=1e-5):
         return np.zeros([4, 4, 4, *(x.shape[1:])])
 

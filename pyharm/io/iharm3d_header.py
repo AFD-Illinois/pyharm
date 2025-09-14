@@ -32,10 +32,13 @@ __license__ = """
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import sys
+import copy
 import numpy as np
-import h5py, sys
+import h5py
 
 from ..grid import Grid
+from ..coordinates import *
 from .. import parameters
 
 __doc__ = \
@@ -70,17 +73,24 @@ defaults = {'n_prims_passive': 0, 'version': "pyharm-writer-0", 'gridfile': 'non
 translations = {'n1': 'n1tot', 'n2': 'n2tot', 'n3': 'n3tot',
                 'metric': 'coordinates', 'metric_run': 'coordinates'}
 
-def write_hdr(params, outf):
+def write_hdr(params, outf, amr_level=0):
     """Write a valid iharm3d/Illinois HDF header"""
-    if 'electrons' in params and params['electrons']:
-        _write_param_grp(params, header_keys_electrons, 'header', outf)
+
+    stride = 2**(amr_level)
+    params_write = copy.deepcopy(params)
+    params_write['n1'] = params_write['n1tot'] = params_write['nx1'] = params['n1'] * stride
+    params_write['n2'] = params_write['n2tot'] = params_write['nx2'] = params['n2'] * stride
+    params_write['n3'] = params_write['n3tot'] = params_write['nx3'] = params['n3'] * stride
+
+    if 'electrons' in params_write and params_write['electrons']:
+        _write_param_grp(params_write, header_keys_electrons, 'header', outf)
     else:
-        _write_param_grp(params, header_keys, 'header', outf)
-    
-    G = Grid(params)
-    geom_params = {'dx1': G.dx[1],
-                   'dx2': G.dx[2],
-                   'dx3': G.dx[3],
+        _write_param_grp(params_write, header_keys, 'header', outf)
+
+    G = Grid(params) # Use original size for grid (TODO take all n1/etc/etc from the Grid?)
+    geom_params = {'dx1': G.dx[1] / stride,
+                   'dx2': G.dx[2] / stride,
+                   'dx3': G.dx[3] / stride,
                    'startx1': G.startx[1],
                    'startx2': G.startx[2],
                    'startx3': G.startx[3],
@@ -89,32 +99,35 @@ def write_hdr(params, outf):
     _write_param_grp(geom_params, geom_keys, 'geom', outf['header'])
 
 
-    if params['coordinates'] in ["cartesian", "minkowski"]:
+    if params_write['coordinates'] in ["cartesian", "minkowski"]:
         # No special geometry to record
         pass
-    elif params['coordinates'] == "mks":
-        _write_param_grp(params, mks_keys, 'mks', outf['header/geom'])
-    elif params['coordinates'] == "fmks":
-        _write_param_grp(params, mks_keys+fmks_keys, 'fmks', outf['header/geom'])
+    elif params_write['coordinates'] == "mks":
+        _write_param_grp(params_write, mks_keys, 'mks', outf['header/geom'])
+    elif params_write['coordinates'] == "fmks":
+        _write_param_grp(params_write, mks_keys+fmks_keys, 'fmks', outf['header/geom'])
         # FOR NOW: Duplicate into "mmks" header because codes expect things there
-        _write_param_grp(params, mks_keys+fmks_keys, 'mmks', outf['header/geom'])
-    elif params['coordinates'] == "mmks":
-        _write_param_grp(params, mks_keys+mmks_keys, 'mmks', outf['header/geom'])
+        _write_param_grp(params_write, mks_keys+fmks_keys, 'mmks', outf['header/geom'])
+    elif params_write['coordinates'] == "mmks":
+        _write_param_grp(params_write, mks_keys+mmks_keys, 'mmks', outf['header/geom'])
     else:
-        raise NotImplementedError("Fluid dump files in {} coordinates not implemented!".format(params['coordinates']))
+        raise NotImplementedError("Fluid dump files in {} coordinates not implemented!".format(params_write['coordinates']))
 
     # Write everything except the pointers to an archival copy
+    exist_unwritten_pars = False
     if "extras" not in outf:
         outf.create_group("extras")
     if "extras/pyharm_params" not in outf:
         outf['extras'].create_group("pyharm_params")
-    for key in params:
+    for key in params_write:
         try:
-            _write_value(outf, params[key], 'header/'+key)
+            _write_value(outf, params_write[key], 'header/'+key)
         except TypeError:
             # This particular key is expected to be missing, keep quiet
             if key != 'phdf_aux':
-                print("Not writing parameter {}".format(key), file=sys.stderr)
+                    exist_unwritten_pars = True
+    if 0: # unwritten_pars
+        print("Some parameters from original object were not written!", file=sys.stderr)
 
 def read_hdr(grp):
     """Read an iharm3d/Illinois HDF header.
@@ -196,6 +209,7 @@ def read_hdr(grp):
 
     if close_file:
         fil.close()
+
 
     return parameters.fix(params)
 

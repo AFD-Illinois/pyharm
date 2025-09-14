@@ -118,9 +118,9 @@ def write_restart(dump, fname, astype=np.float64):
         # Record this was converted
         _write_value(outf, "pyharm-converter-0.1", 'version')
         # Variables needed for restarting
-        outf['n1'] = dump['n1']
-        outf['n2'] = dump['n2']
-        outf['n3'] = dump['n3']
+        outf['n1'] = dump['n1'] * 2**(dump.amr_level)
+        outf['n2'] = dump['n2'] * 2**(dump.amr_level)
+        outf['n3'] = dump['n3'] * 2**(dump.amr_level)
         outf['gam'] = dump['gam']
         outf['cour'] = dump['cour']
         outf['t'] = dump['t']
@@ -178,8 +178,8 @@ def write_restart(dump, fname, astype=np.float64):
         # sans ghost zones as is customary for iharm3d restart files
         G = dump.grid
         if G.NG > 0:
-            p = dump.reader.read_var('prims', astype=astype)
-            outf["p"] = np.einsum("pijk->pkji", p[G.slices.allv + G.slices.bulk]).astype(astype)
+            p = dump['prims'].astype(astype)
+            outf["p"] = np.einsum("pijk->pkji", p[G.slices.allv + G.slices.bulk])
         else:
-            p = dump.reader.read_var('prims', astype=astype)
-            outf["p"] = np.einsum("pijk->pkji", p).astype(astype)
+            p = dump['prims'].astype(astype)
+            outf["p"] = np.einsum("pijk->pkji", p)

@@ -172,6 +172,9 @@ def fix(params):
     if 'config' in params:
         params['electrons'] = to_number(params['config']['electrons']['on'])
         params['emhd'] = to_number(params['config']['emhd']['on'])
+    else:
+        params['electrons'] = 0
+        params['emhd'] = 0
 
     if not ('prim_names' in params):
         if 'electrons' in params and params['electrons']:

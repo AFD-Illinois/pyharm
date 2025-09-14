@@ -91,6 +91,15 @@ def do_plot(fig, dump, diag, movie_type, plotrc):
                 if "divB" in var:
                     var = dump[var]
                 plot_xy(ax, dump, var, **plotrc)
+            elif "_thphi" in movie_type:
+                ax = plt.subplot(1, 1, 1)
+                movie_type = movie_type.replace("_thphi","")
+                var = movie_type
+                if 'at' in plotrc:
+                    plotrc['at_i'] = plotrc['at']
+                if "divB" in var:
+                    var = dump[var]
+                plot_thphi(ax, dump, var, **plotrc)
             elif "_av1d" in movie_type:
                 ax = plt.subplot(1, 1, 1)
                 movie_type = movie_type.replace("_av1d","")
@@ -186,7 +195,8 @@ def frame(fname, diag, kwargs):
 
     # This just attaches the file and creates a grid.  We do need to specify
     # if any movie will need ghosts, for the index math
-    dump = FluidState(fname, ghost_zones=ghost_zones, use_grid_cache=(not kwargs['no_grid_cache']), multizone=kwargs['multizone'])
+    dump = FluidState(fname, ghost_zones=ghost_zones, use_grid_cache=(not kwargs['no_grid_cache']),
+                      multizone=kwargs['multizone'], amr_level=kwargs['amr_level'])
 
     for movie_type in movie_types:
         # Set plotting options we'll pass on to figure-specific code

@@ -40,12 +40,14 @@ from pyharm.defs import Loci, Slices, Shapes
 from pyharm.coordinates import *
 
 
-def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
+def make_some_grid(base, transform, n1=128, n2=128, n3=128, a=0, hslope=0.3,
                    poly_xt=0.82, poly_alpha=14.0, mks_smooth=0.5,
                    r_in=None, r_out=1000, caches=True, cache_conn=False):
     """Convenience function for generating grids with particular known parameters.
 
-    :param system: coordinate system, denoted 'eks', 'mks', 'fmks', 'minkowski', or
+    :param base: basic coordinates, e.g. 'ks' for spherical Kerr-Schild or
+                 'cartesian_minkowski' for Cartesian Minkowski 
+    :param transform: the coordinate transformation of the simulation, 'eks', 'mks', 'fmks', 'null', or
                  anything exotic defined in :mode`pyharm.coordinates`
 
     All other parameters are as described in Grid.__init__, and are optional with
@@ -54,7 +56,8 @@ def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
     """
 
     params = {}
-    params['coordinates'] = system
+    params['base'] = base
+    params['transform'] = transform
     params['n1tot'] = n1
     params['n2tot'] = n2
     params['n3tot'] = n3
@@ -63,21 +66,21 @@ def make_some_grid(system, n1=128, n2=128, n3=128, a=0, hslope=0.3,
     params['n3'] = n3
     params['ng'] = 0
 
-    if system == 'minkowski' or system == 'cartesian':
+    if 'cartesian' in base:
         params['x1min'] = 0
         params['x2min'] = 0
         params['x3min'] = 0
         params['x1max'] = 1
         params['x2max'] = 1
         params['x3max'] = 1
-    elif 'ks' in system:
+    elif 'ks' in base:
         params['a'] = a
         params['r_out'] = r_out
         if r_in is not None:
             params['r_in'] = r_in
-        if 'mks' in system:
+        if 'mks' in transform:
             params['hslope'] = hslope
-        if system == 'fmks' or system == 'mmks':
+        if transform == 'fmks' or transform == 'mmks':
             params['poly_xt'] = poly_xt
             params['poly_alpha'] = poly_alpha
             params['mks_smooth'] = mks_smooth
@@ -178,34 +181,27 @@ class Grid:
         self.slices = Slices(self.NG)
         self.shapes = Shapes(self, params)
 
-        if params['coordinates'] in ["minkowski", "cartesian"]:
+        # Ensure we're comparing apples to apples
+        params['base'] = params['base'].lower()
+        params['transform'] = params['transform'].lower()
+
+        if "null" in params['transform'] and "cartesian_minkowski" in params['base']: # TODO will need to change for CKS
             # There are no parameters to Minkowski coordinates, so this is a class, not an object
             self.coords = Minkowski
-        # MKS, FMKS expect the parameters a, hslope
-        elif params['coordinates'] == "mmks" or params['coordinates'] == "fmks":
-            # FMKS additionally requires poly_xt, poly_alpha, mks_smooth
+        elif "fmks" in params['transform'] or "funky" in params['transform']:
             self.coords = FMKS(params)
-        elif params['coordinates'] == "cmks":
-            # MMKS additionally requires poly_xt and poly_alpha
-            self.coords = CMKS(params)
-        elif params['coordinates'] == "bhac_mks":
-            # BHAC's MKS
-            self.coords = BHAC_MKS(params)
-        elif params['coordinates'] == "mks3" or params['coordinates'] == "mks2":
-            # KORAL's MKS.  MKS2 == MKS3 w/ MY1,2,MP0 == 0
-            self.coords = MKS3(params)
-        elif params['coordinates'] == "mks":
+        elif "mks" in params['transform'] or "modif" in params['transform']:
             self.coords = MKS(params)
-        elif params['coordinates'] == "eks":
+        elif "eks" in params['transform'] or "exponent" in params['transform']:
             self.coords = EKS(params)
-        elif params['coordinates'] == "superexp":
-            self.coords = SEKS(params)
-        elif params['coordinates'] == "ks":
+        elif "null" in params['transform'] and "ks" in params['base']:
             self.coords = KS(params)
-        elif params['coordinates'] == "bl":
+        elif "null" in params['transform'] and "bl" in params['base']:
             self.coords = BL(params)
+        elif "super" in params['transform']:
+            self.coords = SEKS(params)
         else:
-            raise ValueError("metric is {}!! must be minkowski, mks, mmks, or fmks".format(params['coordinates']))
+            raise ValueError("Unknown base/transform combination {}/{}. base must be in [TODO] and transform in [TODO]".format(params['base'], params['transform']))
 
         # If we got native coordinates, use those
         if 'x1min' in params:
@@ -216,7 +212,7 @@ class Grid:
             # Ask our new coordinate system where to start/stop the native grid,
             # so it aligns with the KS boundaries we've been assigned
             self.startx = self.coords.native_startx(params)
-            if params['coordinates'] not in ["minkowski", "cartesian"] and self.startx[1] < 0.0:
+            if self.coords != Minkowski and self.startx[1] < 0.0:
                 raise ValueError("Not enough radial zones! Increase N1!")
 
         if 'dx1' in params:

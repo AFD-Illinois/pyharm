@@ -76,11 +76,14 @@ def flatten_xz(dump, var, at=None, sum=False, half_cut=False):
     else:
         if at is None:
             at = 0
+        else:
+            at = at % dump['n3']
         if isinstance(var, str):
             if half_cut:
                 return np.squeeze(dump[:, :, at][var])
             else:
-                return np.append(np.squeeze(dump[:, :, at][var]), np.flip(np.squeeze(dump[:, :, at + dump['n3']//2][var]), 1), 1)
+                ta = (at + dump['n3']//2) % dump['n3']
+                return np.append(np.squeeze(dump[:, :, at][var]), np.flip(np.squeeze(dump[:, :, ta][var]), 1), 1)
         else:
             if half_cut:
                 if len(var.shape) == 3:
@@ -88,7 +91,8 @@ def flatten_xz(dump, var, at=None, sum=False, half_cut=False):
                 else:
                     return var
             else:
-                return np.append(var[:, :, at], np.flip(var[:, :, at + dump['n3']//2], 1), 1)
+                ta = (at + dump['n3']//2) % dump['n3']
+                return np.append(var[:, :, at], np.flip(var[:, :, ta], 1), 1)
 
 def flatten_xy(dump, var, at=None, sum=False):
     """Return an X-Y slice or sum of var.  Note sums are *not* GR-aware!

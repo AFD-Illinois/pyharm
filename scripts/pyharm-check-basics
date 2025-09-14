@@ -48,10 +48,14 @@ def check_dump_properties(name, check_all=True, check_divb=False, allowed_divb=1
     retcode = 0
 
     if check_divb or check_all:
-        not_tested_divb = 0
-        for var,desc in [('divB', 'from file'),
+        if dump.params['b_field']['solver'] == "face_ct":
+            divb_list = [('divB', 'from file'),]
+        else:
+            divb_list = [('divB', 'from file'),
                          ('divB_prims', 'from primitive vars'),
-                         ('divB_cons', 'from conserved vars')]:
+                         ('divB_cons', 'from conserved vars')]
+        not_tested_divb = 0
+        for var,desc in divb_list:
             try:
                 max_divb = np.max(dump[var])
                 print("Maximum divB {} is {:g}".format(desc, max_divb))

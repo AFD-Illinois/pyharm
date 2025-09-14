@@ -19,10 +19,12 @@
 # We use spread-job below to make sure this actually results in fewer procs/node
 if [[ "$*" == *"448"* ]]
 then
-  NPROC=16
+  NPROC_DEF=16
 else
-  NPROC=32
+  NPROC_DEF=32
 fi
+NPROC=${NPROC:-"$NPROC_DEF"}
+NPROC=1
 
 # Reloading the 'python' module messes with anaconda environment,
 # just have it loaded before submitting/as a default module.

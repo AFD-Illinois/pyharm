@@ -1,51 +1,36 @@
-__license__ = """
- File: variables.py
- 
- BSD 3-Clause License
- 
- Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
- All rights reserved.
- 
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions are met:
- 
- 1. Redistributions of source code must retain the above copyright notice, this
-    list of conditions and the following disclaimer.
- 
- 2. Redistributions in binary form must reproduce the above copyright notice,
-    this list of conditions and the following disclaimer in the documentation
-    and/or other materials provided with the distribution.
- 
- 3. Neither the name of the copyright holder nor the names of its
-    contributors may be used to endorse or promote products derived from
-    this software without specific prior written permission.
- 
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
 
 __doc__ = \
 """Functions for calculating various quantities in terms of the primitive variables and geometry.
 """
 
 import numpy as np
-
 from numpy import array
 from scipy.interpolate import splrep, splev
 from scipy.interpolate import RegularGridInterpolator as rgi
 
-from .defs import Loci
-from .grmhd.b_field import *
+import yt
+from yt.fields.api import register_field_plugin
 
-import matplotlib.pyplot as plt
+@register_field_plugin
+def setup_grmhd_fields(registry, ftype="grmhd", slice_info=None):
+
+
+    def _jcov(field, data):
+        return data["gr", "gcov_00"]
+
+    def _jsq(field, data):
+        return (
+            data["parthenon", "jcon_1"]**2
+            + data["parthenon", "jcon_2"]**2
+            + data["parthenon", "jcon_3"]**2
+        )
+
+    yt.add_field(
+    name=(ftype, "jsq"),
+    function=_jsq,
+    sampling_type="local",
+    units="",
+    )
 
 # Define a dict of names, coupled with the functions required to obtain their variables.
 # That way, we only need to specify lists and final operations in eht_analysis,
@@ -57,15 +42,15 @@ fns_dict = {# 4-vectors
             'bcov': lambda dump: dump.grid.lower_grid(dump['bcon']),
             # Versions in base coordinates
             # these use the reverse of dxdX/dXdx as they transform *back*
-            'ucon_base': lambda dump: np.einsum("ij...,j...->i...", dump["dxdX"], dump['ucon']),
-            'ucov_base': lambda dump: np.einsum("ij...,j...->i...", dump["dXdx"], dump['ucov']),
-            'bcon_base': lambda dump: np.einsum("ij...,j...->i...", dump["dxdX"], dump['bcon']),
-            'bcov_base': lambda dump: np.einsum("ij...,j...->i...", dump["dXdx"], dump['bcov']),
+            'ucon_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucon"], dump['dxdX']),
+            'ucov_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucov"], dump['dXdx']),
+            'bcon_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcon"], dump['dxdX']),
+            'bcov_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcov"], dump['dXdx']),
             # Versions in Cartesian
-            'ucon_cart': lambda dump: np.einsum("ij...,j...->i...", dump["dXdx_cart"], dump['ucon_base']),
-            'ucov_cart': lambda dump: np.einsum("ij...,j...->i...", dump["dxdX_cart"], dump['ucov_base']),
-            'bcon_cart': lambda dump: np.einsum("ij...,j...->i...", dump["dXdx_cart"], dump['bcon_base']),
-            'bcov_cart': lambda dump: np.einsum("ij...,j...->i...", dump["dxdX_cart"], dump['bcov_base']),
+            'ucon_cart': lambda dump: np.einsum("i...,ij...->j...", dump["ucon_base"], dump['dXdx_cart']),
+            'ucov_cart': lambda dump: np.einsum("i...,ij...->j...", dump["ucov_base"], dump['dxdX_cart']),
+            'bcon_cart': lambda dump: np.einsum("i...,ij...->j...", dump["bcon_base"], dump['dXdx_cart']),
+            'bcov_cart': lambda dump: np.einsum("i...,ij...->j...", dump["bcov_base"], dump['dxdX_cart']),
             # Versions in BL
             'ucon_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dxdX_bl'], dump['ucon_base']),
             'ucov_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dXdx_bl'], dump['ucov_base']),
@@ -91,7 +76,6 @@ fns_dict = {# 4-vectors
             'Gamma': lambda dump: lorentz_calc(dump),
             'cs': lambda dump: np.sqrt(dump['gam'] * dump['Pg'] / (dump['RHO'] + dump['gam'] * dump['UU'])),
             'vA': lambda dump: alfven_speed(dump),
-            'vr': lambda dump: dump["u^r"] / dump["u^t"],
             'Omega': lambda dump: dump["u^phi"] / dump["u^t"] ,
             # TODO magnetosonic, EMHD speed, effective timestep
             # Fluxes in radial direction: Mass, Energy, Angular Momentum

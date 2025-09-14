@@ -197,7 +197,7 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
 def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
             xlabel=True, ylabel=True, native=False, log=False,
             cmap='jet', shading='gouraud',
-            at=None, average=False, sum=False, cbar=True, log_r=False, **kwargs):
+            at=None, cw=None, average=False, sum=False, cbar=True, log_r=False, **kwargs):
     """Plot a toroidal or X1/X3 slice of a dump file.
     Note this function also accepts all keyword arguments to _decorate_plot()
 
@@ -227,6 +227,8 @@ def plot_xy(ax, dump, var, vmin=None, vmax=None, window=None,
 
     x, y = dump.grid.get_xy_locations(mesh=(shading == 'flat'), native=native, log_r=log_r)
     var = flatten_xy(dump, var, at, sum or average)
+    if cw is not None:
+        var = np.roll(var, -cw, axis=-1)
     if average:
         var /= dump['n2']
     if shading != 'flat':
@@ -367,7 +369,8 @@ def plot_thphi(ax, dump, var, at_r=None, at_i=None, cmap='jet', vmin=None, vmax=
         var = vname
         if log:
             var = "log_"+var
-    _decorate_plot(ax, dump, var, bh=False, **kwargs)
+    kwargs['bh'] = False
+    _decorate_plot(ax, dump, var, **kwargs)
 
     return mesh
 

@@ -198,12 +198,11 @@ def write_dump(dump, fname, astype=np.float32, ghost_zones=False):
     """
     with h5py.File(fname, "w") as outf:
 
-
         # Fill in a gap we can only do here
         if 'n_prim' not in dump.params:
             dump.params['n_prim'] = dump['prims'].shape[0]
 
-        write_hdr(dump.params, outf)
+        write_hdr(dump.params, outf, dump.amr_level)
 
         # Per-dump single variables
         if 't' in dump.params:
@@ -230,10 +229,10 @@ def write_dump(dump, fname, astype=np.float32, ghost_zones=False):
         G = dump.grid
         if G.NG > 0 and not ghost_zones:
             p = dump['prims'].astype(astype)
-            outf["prims"] = np.einsum("p...->...p", p[G.slices.allv + G.slices.bulk]).astype(astype)
+            outf["prims"] = np.einsum("p...->...p", p[G.slices.allv + G.slices.bulk])
         else:
             p = dump['prims'].astype(astype)
-            outf["prims"] = np.einsum("p...->...p", p).astype(astype)
+            outf["prims"] = np.einsum("p...->...p", p)
 
         # Extra in-situ calculations or custom debugging additions
         if "extras" not in outf:
