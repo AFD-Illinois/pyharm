@@ -1,6 +1,6 @@
 [submodule "external/hallmark"]
 	path = external/hallmark
-	url = https://github.com/l6a/hallmark
+	url = https://github.com/bprather/hallmark
 [submodule "external/yt"]
 	path = external/yt
 	url = https://github.com/bprather/yt.git
