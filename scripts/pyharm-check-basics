@@ -83,10 +83,10 @@ def check_dump_properties(name, check_all=True, check_divb=False, allowed_divb=1
 @click.option('-nt', '--nthreads', default=None, help="Number of parallel conversions -- defaults to min(nprocs, 64)")
 @click.option('-d', '--debug', is_flag=True, help="Serial operation for debugging")
 # Checks
-@click.option('-all', '--check_all', default=False, help="Perform all checks")
-@click.option('-divb', '--check_divb', default=True, help="Check magnetic field divergence")
-@click.option('--allowed_divb', default=1e-9, help="Maximum allowable field divergence")
-@click.option('-nan', '--check_nan', default=True, help="Check for any NaN in the file")
+@click.option('-all', '--check-all', default=False, help="Perform all checks")
+@click.option('-divb', '--check-divb', default=True, help="Check magnetic field divergence")
+@click.option('--allowed-divb', default=1e-9, help="Maximum allowable field divergence")
+@click.option('-nan', '--check-nan', default=True, help="Check for any NaN in the file")
 def convert(files, debug, nthreads, **kwargs):
     """Check basic properties which should be true of a GRMHD file, and return a code
     if it fails.
