@@ -132,6 +132,8 @@ fns_dict = {# 4-vectors
             'lam_MRI': lambda dump: lam_MRI(dump),
             'lam_MRI_old': lambda dump: lam_MRI_old(dump),
             'lam_MRI_transform': lambda dump: lam_MRI_transform(dump),
+            # BEGIN EXTRAS
+            # divB needs either a real dump or extra data
             'divB_prims': lambda dump: divB(dump.grid, dump['B']),
             'divB_cons': lambda dump: divB_cons(dump.grid, dump['cons.B']),
             'divB_cons_rel': lambda dump: divB_cons(dump.grid, dump['cons.B']) / dump['b'] / dump["gdet"] * dump["dx1"],

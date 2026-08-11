@@ -50,8 +50,8 @@ write_git_revision("pyharm")
 
 
 setup(name="pyharm",
-      version="2025.8",
-      description="Python tools for HARM/KHARMA analysis",
+      version="2026.8",
+      description="Python tools for GRMHD simulation analysis",
       long_description=open("README.md", "rt").read(),
       long_description_content_type='text/markdown',
       scripts=glob.glob("scripts/pyharm*"),
@@ -69,6 +69,6 @@ setup(name="pyharm",
           "pympler",
           "latex"],
 
-      author="pyharm Contributors",
+      author="pyharm contributors",
       packages=find_packages(),
       )

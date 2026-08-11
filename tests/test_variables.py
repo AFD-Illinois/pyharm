@@ -50,7 +50,7 @@ from common import compare
 
 # Parameters for FMKS from a particular simulation,
 # MAD a+0.9375 384x192x192 iharm3D eht_v1 run
-params = {'coordinates': 'fmks', 'a': 0.9375,
+params = {'base': 'spherical_ks', 'transform': 'fmks', 'a': 0.9375,
           'r_in': 1.2175642950007606, 'r_out': 1000.0,
           'hslope': 0.3, 'mks_smooth': 0.5, 'poly_xt': 0.82, 'poly_alpha': 14.0,
           'n1': 384, 'n2': 192, 'n3': 192,
@@ -93,7 +93,12 @@ def test_compute_all_vars():
         warnings.simplefilter("ignore")
 
         for var in pyharm.variables.fns_dict:
-            assert state[var].shape[-3:] == (1,1,1)
+            # This is the first variable not computable from what our fake state contains
+            if 'divB' in var:
+                break
+            # Also skip stuff that returns just single floats
+            if not isinstance(state[var], float):
+                assert state[var].shape[-3:] == (1,1,1)
 
         for vec in ['u^', 'u_', 'b^', 'b_']:
             for i in range(4):
