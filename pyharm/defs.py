@@ -42,6 +42,14 @@ to make vectorized operations a bit more readable.
 Some of this is pretty old.
 """
 
+class JobReturn(Enum):
+    RUNNING = 0
+    SUCCESS = 1
+    CRASH = 2
+    SEGFAULT = 3
+    TIMELIMIT = 4
+    KILLED = 5
+
 class Loci(Enum):
     """Location enumerated value.
     Locations are defined by::

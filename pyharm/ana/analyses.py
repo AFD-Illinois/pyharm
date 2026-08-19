@@ -74,6 +74,8 @@ def basic(dump, out, **kwargs):
         # The HARM B_unit is sqrt(4pi)*c*sqrt(rho), and this is standard for EHT comparisons
         # Event horizon ONLY, 5M makes no sense
         out['t/Phi_b'] = 0.5 * shell_sum(dump, 'abs_B1', at_i=iEH)
+        out['t/Phi_b_hemispheres'] = (shell_sum(dump, 'B1', at_i=iEH, j_slice=(0, dump['n2']//2)) - 
+                                      shell_sum(dump, 'B1', at_i=iEH, j_slice=(dump['n2']//2, dump['n2']))) / 2
 
         # FLUXES
         # Radial profiles of Mdot and Edot, and their particular values
@@ -88,22 +90,6 @@ def basic(dump, out, **kwargs):
         out['t/Edot_EH'] *= -1
         out['t/Mdot_5'] *= -1
         out['t/Edot_5'] *= -1
-
-def dynamo(dump, out, **kwargs):
-    """Compare magnetization in the upper and lower hemisphere of EH, and at 5 r_g
-    """
-    # We have r_eh from the dump, but sometimes we want to calculate
-    # at a particular location
-    iEH = _get(kwargs, 'iEH')
-
-    # FIELD STRENGTHS
-    # The HARM B_unit is sqrt(4pi)*c*sqrt(rho), and this is standard for EHT comparisons
-    out['t/Phi_b_upper'] = shell_sum(dump, 'B1', at_i=iEH, j_slice=(0, dump['n2']//2))
-    out['t/Phi_b_lower'] = shell_sum(dump, 'B1', at_i=iEH, j_slice=(dump['n2']//2, dump['n2']))
-
-    out['t/Phi_b_5'] = 0.5 * shell_sum(dump, 'abs_B1', at_r=5)
-    out['t/Phi_b_upper_5'] = shell_sum(dump, 'B1', at_r=5, j_slice=(0, dump['n2']//2))
-    out['t/Phi_b_lower_5'] = shell_sum(dump, 'B1', at_r=5, j_slice=(dump['n2']//2, dump['n2']))
 
 def r_profiles(dump, out, vars=('rho', 'Pg', 'u^r', 'u^phi', 'u_phi', 'b', 'inv_beta', 'Ptot'), **kwargs):
     """Calculate Radial profiles, by averaging over phi and some portion of theta.

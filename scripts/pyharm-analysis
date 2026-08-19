@@ -44,6 +44,7 @@ import h5py
 import inspect
 import textwrap
 import tqdm
+import shutil
 import pandas
 
 import pyharm
@@ -117,6 +118,7 @@ def out_path(run_path, kwargs):
 @click.option('-d', '--debug', is_flag=True, default=False, help="Serial operation for debugging")
 @click.option('--nompi', is_flag=True, default=False, help="Avoid MPI even if available")
 @click.option('--progressbar', is_flag=True, default=False, help="Show tqdm progressbar rather than numbers")
+@click.option('--stage-tmp/--no-stage-tmp', is_flag=True, default=True, help="Stage output file in /tmp for speed")
 def analysis(ana_types, paths, **kwargs):
     """Analyze the simulation output at each of PATHS with the function/combo specified by ANA_TYPES
 
@@ -190,8 +192,13 @@ def analysis(ana_types, paths, **kwargs):
 
         if do_out():
             # Initialize or open the file, creating parent dir if not present
-            file_path = os.path.join(kwargs['out_path'], kwargs['filename'])
+            if kwargs['stage_tmp']:
+                file_path = os.path.join("/tmp", kwargs['filename'])
+            else:
+                file_path = os.path.join(kwargs['out_path'], kwargs['filename'])
             if kwargs['append'] or kwargs['add_hst']:
+                if kwargs['stage_tmp']:
+                    shutil.copy(os.path.join(kwargs['out_path'], kwargs['filename']), file_path)
                 outfile = h5py.File(file_path, 'a')
             else:
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -232,6 +239,9 @@ def analysis(ana_types, paths, **kwargs):
                         continue
             if kwargs['add_hst']:
                 # All we needed to do. Continue.
+                outfile.close()
+                if kwargs['stage_tmp']:
+                    shutil.copy(file_path, os.path.join(kwargs['out_path'], kwargs['filename']))
                 continue
 
             # And record pretty much the only relevant command-line parameters
@@ -308,6 +318,9 @@ def analysis(ana_types, paths, **kwargs):
                         write_ana_dict(result, outfile, n, len(files))
                 outfile.close()
 
+        # Copy from /tmp to destination
+        if kwargs['stage_tmp']:
+            shutil.copy(file_path, os.path.join(kwargs['out_path'], kwargs['filename']))
 
 
         if do_out(): print("Ran analyses {} on model {}".format(ana_types, run_path), file=sys.stderr)
