@@ -70,7 +70,6 @@ class ExtensibleCmd(click.Command):
 @click.argument('plot_type', nargs=1)
 @click.argument('files', nargs=-1, type=click.Path(exists=True))
 @click.option('--varlist', default=None, help="Comma-separated list of variables to use")
-@click.option('--model_prefix', default="", help="String to prepend to all model names (e.g. GRMHD run parameters)")
 @click.option('--tag', default="compare", help="String to add to output plot names")
 @click.option('--file-tags', default=None, help="Comma-separated list of names/tags for result files")
 @click.option('--prefer-hst', is_flag=True, help="Prefer KHARMA's fluxes to post-processing values")
@@ -198,7 +197,7 @@ def plot_results(plot_type, files, **kwargs):
             ax.set_xlim(kwargs['xmin'],  kwargs['xmax'])
             ax.set_ylim(kwargs['ymin'],  kwargs['ymax'])
 
-        # TODO no both this way
+        # this allows both options to be specified
         if kwargs['one_ymin'] is not None:
             for ymin_tuple in kwargs['one_ymin']:
                 ymax = None
@@ -214,7 +213,7 @@ def plot_results(plot_type, files, **kwargs):
                 if kwargs['one_ymin'] is not None and \
                     ymax_tuple[0] in [t[0] for t in kwargs['one_ymin']]:
                     continue
-                axes[ymax_tuple[0]-1].set_ylim((ymax_tuple[1], None))
+                axes[ymax_tuple[0]-1].set_ylim((None, ymax_tuple[1]))
 
         # User tag (or file, if one file), then fn, then extension
         if len(results) == 1 and kwargs['tag'] == "compare":

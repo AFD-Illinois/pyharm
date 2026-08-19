@@ -90,9 +90,6 @@ def _model_pretty(folder):
         return folder.replace("")
 
 def _radial_profile(ax, result, var, **kwargs):
-    global max_this_invocation
-    if not var in max_this_invocation:
-        max_this_invocation[var] = 0.
 
     # Get the times to average
     avg_slice = _get_t_slice(result, kwargs['arange'])
@@ -145,6 +142,11 @@ def _radial_profile(ax, result, var, **kwargs):
     ax.grid(True)
 
 def _plot_radial_averages(results, kwargs, vars, max_nx=4):
+    global max_this_invocation
+    for var in vars:
+        if not var in max_this_invocation:
+            max_this_invocation[var] = 0.
+
     # Radial profiles of variables
     nx = min(len(vars), max_nx)
     ny = (len(vars) - 1) // max_nx + 1
@@ -282,7 +284,7 @@ def _plot_time_evolution(ax, result, var, arange=None, show_arange=True, label=N
             ax.set_yscale('log')
 
     if stats:
-        print(f"{result.tag} peak: {np.max(data)} at {np.argmax(np.squeeze(data))}")
+        print(f"{result.tag} peak {var}: {np.max(data)} at {np.squeeze(time)[np.argmax(np.squeeze(data))]}")
 
     if arange is not None:
         # Get the times to average
@@ -294,7 +296,7 @@ def _plot_time_evolution(ax, result, var, arange=None, show_arange=True, label=N
             ax.hlines(avg, times[0], times[1], colors=pt[0].get_color(), linestyles='dashed')
             ax.text(times[1], avg, f"{avg:.2f}")
         if stats:
-            print(f"{result.tag} avg {times[0]}-{times[1]}: {avg}")
+            print(f"{result.tag} avg {var}, {times[0]}-{times[1]}: {avg}")
 
 
 
@@ -349,6 +351,11 @@ def eh_fluxes_norms(results, kwargs):
 def eh_fluxes_smooth(results, kwargs):
     return _plot_time_evolutions(results, kwargs, vars=('smooth_mdot', 'smooth_phi_b', 'smooth_spinup', 'smooth_eff'))
 
+def eh_fluxes_smoothmdot(results, kwargs):
+    for result in results:
+        result.avg_is_smooth = True
+    return _plot_time_evolutions(results, kwargs, vars=('smooth_mdot', 'phi_b', 'spinup', 'eff'))
+
 def eh_fluxes_old(results, kwargs):
     return _plot_time_evolutions(results, kwargs, vars=('mdot', 'phi_b', 'ldot', 'eff'))
 
@@ -359,7 +366,7 @@ def eh_fluxes_raw(results, kwargs):
     return _plot_time_evolutions(results, kwargs, vars=('Mdot', 'Phi_b', 'Ldot', 'Edot'))
 
 def eff_versions(results, kwargs):
-    return _plot_time_evolutions(results, kwargs, vars=('eff_55', 'eff_5EH', 'eff_EHEH', 'eff_jet50'))
+    return _plot_time_evolutions(results, kwargs, vars=('eff_55', 'eff_5EH', 'eff_EHEH')) #, 'eff_jet50'))
 
 def spinup(results, kwargs):
     return _plot_time_evolutions(results, kwargs, vars=('spinup',))

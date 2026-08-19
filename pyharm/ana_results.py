@@ -162,17 +162,25 @@ class AnaResults(object):
                     'edot': lambda diag: diag['Edot'] / diag['avg_Mdot'],
                     'ldot_per': lambda diag: diag['Ldot'] / diag['Mdot'],
                     'ldot': lambda diag: diag['Ldot'] / diag['avg_Mdot'],
-                    'spinup': lambda diag: (diag['Ldot'] - 2*diag.params['a']*diag['Edot']) / -diag['avg_Mdot'],
-                    'spinup_per': lambda diag: (diag['Ldot'] - 2*diag.params['a']*diag['Edot']) / -diag['Mdot'],
                     # Post-processing functions for fluxes
+                    # Spinup
+                    'spinup': lambda diag: diag['spinup_5EH'],
+                    'spinup_per': lambda diag: diag['spinup_5EH_per'],
+                    'spinup_55': lambda diag: (diag['Ldot_5'] - 2*diag.params['a']*diag['Edot_5']) / -diag['avg_Mdot_5'],
+                    'spinup_55_per': lambda diag: (diag['Ldot_5'] - 2*diag.params['a']*diag['Edot_5']) / -diag['Mdot_5'],
+                    'spinup_EHEH': lambda diag: (diag['Ldot_EH'] - 2*diag.params['a']*diag['Edot_EH']) / -diag['avg_Mdot_EH'],
+                    'spinup_EHEH_per': lambda diag: (diag['Ldot_EH'] - 2*diag.params['a']*diag['Edot_EH']) / -diag['Mdot_EH'],
+                    'spinup_5EH': lambda diag: (diag['Ldot_5'] - 2*diag.params['a']*diag['Edot_5']) / -diag['avg_Mdot_EH'],
+                    'spinup_5EH_per': lambda diag: (diag['Ldot_5'] - 2*diag.params['a']*diag['Edot_5']) / -diag['Mdot_EH'],
+                    # Jet efficiency
                     'eff': lambda diag: diag['eff_5EH'],
                     'eff_per': lambda diag: diag['eff_5EH_per'],
                     'eff_55': lambda diag: -(diag['Edot_5'] - diag['Mdot_5']) / diag['avg_Mdot_5'],
                     'eff_55_per': lambda diag: -(diag['Edot_5'] - diag['Mdot_5']) / diag['Mdot_5'],
                     'eff_EHEH': lambda diag: -(diag['Edot_EH'] - diag['Mdot_EH']) / diag['avg_Mdot_EH'],
                     'eff_EHEH_per': lambda diag: -(diag['Edot_EH'] - diag['Mdot_EH']) / diag['Mdot_EH'],
-                    'eff_5EH': lambda diag: -(diag['Edot_5'] - diag['Mdot_EH']) / diag['avg_Mdot_EH'],
-                    'eff_5EH_per': lambda diag: -(diag['Edot_5'] - diag['Mdot_EH']) / diag['Mdot_EH'],
+                    'eff_5EH': lambda diag: -(diag['Edot_5'] - diag['Mdot_5']) / diag['avg_Mdot_EH'],
+                    'eff_5EH_per': lambda diag: -(diag['Edot_5'] - diag['Mdot_5']) / diag['Mdot_EH'],
                     'eff_jet50': lambda diag: np.abs(diag['rt/P_jet'][:,i_of(diag['r'], 50.)] - diag['rt/Mdot_jet'][:,i_of(diag['r'], 50.)]) / diag['avg_mdot'],
                     'eff_jet50_per': lambda diag: np.abs(diag['rt/P_jet'][:,i_of(diag['r'], 50.)] - diag['rt/Mdot_jet'][:,i_of(diag['r'], 50.)]) / diag['mdot'],
                     # BZ rotation rate
@@ -223,11 +231,21 @@ class AnaResults(object):
         
 
     def __init__(self, fname, tag=None, avg_is_smooth=False, avg_ends=None, prefer_hst=False):
+        # Must specify tags manually on results w/no file
         if tag is not None:
             self.tag = tag
         else:
-            # If there's no explicit tag, use our folder's name
-            self.tag = os.path.basename(os.path.dirname(os.path.realpath(fname)))
+            dirname = os.path.dirname(os.path.realpath(fname))
+            # Must be first line of file, one line only
+            if os.path.exists(os.path.join(dirname, "tag.tex")):
+                with open(os.path.join(dirname, "tag.tex")) as tagfile:
+                    self.tag = tagfile.readline()[:-1]
+            elif os.path.exists(os.path.join(dirname, "name.txt")):
+                with open(os.path.join(dirname, "name.txt")) as tagfile:
+                    self.tag = tagfile.readline()[:-1]
+            else:
+                # If there's no explicit tag, use our folder's name
+                self.tag = os.path.basename(os.path.dirname(os.path.realpath(fname)))
         self.cache = {}
         self.avg_is_smooth = avg_is_smooth
         self.avg_ends = avg_ends
