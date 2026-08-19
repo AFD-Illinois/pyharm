@@ -39,52 +39,11 @@ import click
 import glob
 import h5py
 import numpy as np
-from enum import Enum
 
 import pyharm
-
-class JobReturn(Enum):
-    RUNNING = 0
-    SUCCESS = 1
-    CRASH = 2
-    SEGFAULT = 3
-    TIMELIMIT = 4
-    KILLED = 5
-
-def check_log(fname, lastn_lines=10):
-    with open(fname, 'rb') as f:
-        try:  # catch OSError in case of a one line file 
-            f.seek(-2, os.SEEK_END)
-            nlines = 0
-            # Scroll back several lines
-            while nlines <= lastn_lines:
-                if f.read(1) == b'\n':
-                    nlines += 1
-                f.seek(-2, os.SEEK_CUR)
-        except OSError:
-            f.seek(0)
-
-        lines = []
-        for l in range(nlines+1):
-            lines.append(f.readline().decode())
-
-    for line in reversed(lines[1:]):
-        if "Aborted" in line:
-            # TODO split out crashes by Parthenon error?
-            return JobReturn.CRASH
-        elif "Segmentation fault" in line:
-            # TODO search segfault stuff in last ~50
-            return JobReturn.SEGFAULT
-        elif "DUE TO TIME LIMIT" in line:
-            # TODO search DUE TO TIME LIMIT in last ~10
-            return JobReturn.TIMELIMIT
-        elif "zone-cycles/wallsecond" in line:
-            return JobReturn.SUCCESS
-        elif "DUE to SIGNAL Terminated" in line:
-            return JobReturn.KILLED
-
-    # If these phrases aren't in last X lines, script is probably (?) still running
-    return JobReturn.RUNNING
+# Really only support kharma for now, will write abstract versions if necessary
+import pyharm.io.kharma as kio
+from pyharm.defs import JobReturn
 
 @click.command()
 @click.argument('op', nargs=1)
@@ -119,7 +78,8 @@ def queue(op, paths, **kwargs):
                     continue
 
             for logfile in loglist:
-                status = check_log(logfile)
+                lines = kio.read_stdout(logfile, -10)
+                status = kio.job_status(logfile)
                 print(logfile.split("/")[-1]+":", end="")
                 if status == JobReturn.RUNNING:
                     print("Running")

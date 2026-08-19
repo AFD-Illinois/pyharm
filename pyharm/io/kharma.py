@@ -34,14 +34,17 @@ __license__ = """
 
 import sys
 import glob
+import os
+import re
+import tarfile
+
 import numpy as np
 import pandas
 import h5py
-import tarfile
 
 from .. import parameters
 from ..util import slice_to_index, i_of
-from ..defs import Loci
+from ..defs import Loci, JobReturn
 from ..grid import Grid
 from .interface import DumpFile
 
@@ -53,6 +56,125 @@ __doc__ = \
 """Read KHARMA output files and logs.  Pretty much supports any Parthenon code including (interpolated) AMR.
 Contains much index math.
 """
+
+## Module functions
+
+def read_log(fname):
+    with open(fname) as inf:
+        line = inf.readline()
+        # First comment line that isn't generic should be the header
+        # otherwise it's probably not in the parthenon history format
+        # If there's not a header in 10 lines, don't go wasting time searching --
+        # user will need to fix it.
+        nread = 0
+        while (('#' not in line) or ('History' in line)) and nread < 10:
+            line = inf.readline()
+            nread += 1
+        header = [e.split('=')[1].rstrip() for e in line.split('[')[1:]]
+
+    tab = pandas.read_table(fname, sep=r"\s+", comment='#', names=header, on_bad_lines='skip')
+    out = {}
+    for name in header:
+        out[name] = np.array(tab[name])
+
+    if not 'time' in out:
+        print("Not loading KHARMA log file: header not present!")
+        return None
+    
+    # Files can contain multiple runs and restarts
+    # First, start at the most recent zero (argmin returns all in order)
+    start = len(out['time']) - np.argmin(out['time'][::-1]) - 1
+    for name in header:
+        out[name] = out[name][start:]
+
+    # Then run forward, look for jumps back, and take the more recent run
+    # The indices will all shift, so repeat from zero as necessary
+    caught_up = False
+    while not caught_up:
+        t_last = -1
+        caught_up = True
+        for i,t in enumerate(out['time']):
+            # This heuristic asks "did we jump back, and can we more or less refill the gap?"
+            if t < t_last and i_of(out['time'][i:], t_last) > i - i_of(out['time'], t) - 100:
+                # i_of returns only first occurrence
+                i_start = i_of(out['time'], t)
+                # i_of returns the index *before* current time
+                i_end = i
+                for name in header:
+                    out[name] = np.append(out[name][:i_start], out[name][i_end:])
+                caught_up = False
+                break
+            t_last = t
+
+    return out
+
+def read_stdout(fname, nlines=None):
+    """Reads stdout capture file from KHARMA (e.g., slurm-XXXXXX.out).
+    Optionally read only X lines (negative reads backward from end)
+    """
+    with open(fname, 'rb') as f:
+        if nlines == None:
+            raise NotImplementedError("full file reads not implemented")
+        elif nlines < 0:
+            try:  # catch OSError in case of a one line file 
+                f.seek(-2, os.SEEK_END)
+                lines_read = 0
+                # Scroll back several lines
+                while lines_read <= -nlines:
+                    if f.read(1) == b'\n':
+                        lines_read += 1
+                    f.seek(-2, os.SEEK_CUR)
+            except OSError:
+                f.seek(0)
+
+            lines = []
+            for l in range(lines_read+1):
+                lines.append(f.readline().decode())
+            lines = lines[1:]
+        elif nlines > 0:
+            raise NotImplementedError("top-file reads not implemented")
+
+    return lines
+
+def job_status(lines):
+    """Return a single status for a job (running, exited, failed, etc.) from output lines.
+    Should only need last ~10 lines.
+    """
+    for line in reversed(lines):
+        if "Aborted" in line:
+            # TODO split out crashes by Parthenon error?
+            return JobReturn.CRASH
+        elif "Segmentation fault" in line:
+            # TODO search segfault stuff in last ~50
+            return JobReturn.SEGFAULT
+        elif "DUE TO TIME LIMIT" in line:
+            # TODO search DUE TO TIME LIMIT in last ~10
+            return JobReturn.TIMELIMIT
+        elif "zone-cycles/wallsecond" in line:
+            # TODO likely false positive, sometimes there are prints after
+            return JobReturn.SUCCESS
+        elif "DUE to SIGNAL Terminated" in line:
+            return JobReturn.KILLED
+
+    # If these phrases aren't in last X lines, script is probably (?) still running
+    return JobReturn.RUNNING
+
+def job_sim_time(lines):
+    """Return simulation time based on output lines.
+    Should only need last ~10 lines.
+    """
+    for line in reversed(lines):
+        if "time=" in line:
+            match = re.search(r'time=(\d+\.\d+)', line)
+            if match:
+                return float(text_match.group(1))
+
+def job_wall_time(lines):
+    """Return wallclock time a run has been active, based on output lines.
+    Should only need last ~10 lines.
+    """
+    raise NotImplementedError("no wall time yet")
+
 
 class KHARMAFile(DumpFile):
     """File filter for KHARMA files"""
@@ -403,57 +525,6 @@ class KHARMAFile(DumpFile):
                 return self.cache[var][ind]
             else:
                 return self.cache[var]
-
-## Module functions
-
-def read_log(fname):
-    with open(fname) as inf:
-        line = inf.readline()
-        # First comment line that isn't generic should be the header
-        # otherwise it's probably not in the parthenon history format
-        # If there's not a header in 10 lines, don't go wasting time searching --
-        # user will need to fix it.
-        nread = 0
-        while (('#' not in line) or ('History' in line)) and nread < 10:
-            line = inf.readline()
-            nread += 1
-        header = [e.split('=')[1].rstrip() for e in line.split('[')[1:]]
-
-    tab = pandas.read_table(fname, sep=r"\s+", comment='#', names=header)
-    out = {}
-    for name in header:
-        out[name] = np.array(tab[name])
-
-    if not 'time' in out:
-        print("Not loading KHARMA log file: header not present!")
-        return None
-    
-    # Files can contain multiple runs and restarts
-    # First, start at the most recent zero (argmin returns all in order)
-    start = len(out['time']) - np.argmin(out['time'][::-1]) - 1
-    for name in header:
-        out[name] = out[name][start:]
-
-    # Then run forward, look for jumps back, and take the more recent run
-    # The indices will all shift, so repeat from zero as necessary
-    caught_up = False
-    while not caught_up:
-        t_last = -1
-        caught_up = True
-        for i,t in enumerate(out['time']):
-            # This heuristic asks "did we jump back, and can we more or less refill the gap?"
-            if t < t_last and i_of(out['time'][i:], t_last) > i - i_of(out['time'], t) - 100:
-                # i_of returns only first occurrence
-                i_start = i_of(out['time'], t)
-                # i_of returns the index *before* current time
-                i_end = i
-                for name in header:
-                    out[name] = np.append(out[name][:i_start], out[name][i_end:])
-                caught_up = False
-                break
-            t_last = t
-
-    return out
 
 class KHARMATarFile(KHARMAFile):
 
