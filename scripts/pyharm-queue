@@ -42,12 +42,13 @@ import numpy as np
 
 import pyharm
 # Really only support kharma for now, will write abstract versions if necessary
-import pyharm.io.kharma as kio
+import pyharm.io.logs_kharma as kio
 from pyharm.defs import JobReturn
 
 @click.command()
 @click.argument('op', nargs=1)
 @click.argument('paths', nargs=-1, type=click.Path(exists=True))
+@click.option('--file-glob', default=None, help="Expression to use to find log files. Default *.out, *.txt")
 @click.version_option(package_name='pyharm')
 def queue(op, paths, **kwargs):
     """This is a utility for interacting with batch queues and KHARMA -- currently slurm-only.
@@ -66,25 +67,57 @@ def queue(op, paths, **kwargs):
 
     # Detect partial restart files
 
-    if op == "status":
+    if op in ["status", "current", "running"]:
         for pathname in paths:
             path = os.path.realpath(pathname)
-            print(path)
-            loglist = glob.glob(os.path.join(path, "*.out"))
+            loglist = glob.glob(os.path.join(path, "slurm-*.out"))
             if len(loglist) == 0:
-                loglist = glob.glob(os.path.join(path, "*.txt"))
-                if len(loglist) == 0:
-                    print("No logs present!")
-                    continue
+                #print("No logs present!")
+                continue
+
+            # We can't rely on touch times or lexical order
+            def jobnum(fname):
+                return int(''.join(c for c in fname if c.isdigit()))
+            loglist.sort(key=jobnum)
+
+            # Just the current file
+            if op != "status":
+                loglist = loglist[-1:]
+
+            run_name = path.split("/")[-1]
+            if len(run_name) < 20:
+                run_name = run_name+" "*(20-len(run_name))
+            else:
+                run_name = run_name[:20]
+            #print(f"RUN: {path.split("/")[-1]}")
 
             for logfile in loglist:
-                lines = kio.read_stdout(logfile, -10)
-                status = kio.job_status(logfile)
-                print(logfile.split("/")[-1]+":", end="")
+                lines = kio.read_stdout(logfile, -100)
+                status = kio.job_status(lines)
+                # Print only running jobs
+                if op == "running" and status != JobReturn.RUNNING:
+                    continue
+
+                # Assemble a line of info
+                pline = f"{run_name} job {jobnum(logfile.split('/')[-1])}"
+
                 if status == JobReturn.RUNNING:
-                    print("Running")
+                    pline += f" Running:  "
                 else:
-                    print("Returned", status.name)
+                    pline += f" " + status.name + ":" + " "*(12 - len(status.name))
+
+                pline += f" {kio.job_sim_time(lines):.4} t_g"
+                pline += f", {kio.job_perf(lines):.4} ZCPS"
+
+                if kio.job_flags(lines, "fflag") > 0:
+                    fflag_pct = kio.job_flag_pct(lines, "fflag")
+                    pline += f", {fflag_pct}% floors"
+
+                pflag_pct = kio.job_flag_pct(lines, "pflag")
+                if pflag_pct > 5:
+                    pline += f" PFLAGS {pflag_pct}% OF CELLS"
+
+                print(pline)
 
     # op == prep: ensure final is last-written & last in sim, link or move things otherwise
 
