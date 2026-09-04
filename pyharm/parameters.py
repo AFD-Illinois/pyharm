@@ -223,8 +223,11 @@ def fix(params):
             print("Defaulting to MKS coordinate system...")
             params['coordinates'] = "mks"
 
+    # We've definitely set coordinates now, and this is definitely spherical/non
+    params['spherical'] = "cartesian" not in params['coordinates']
+
     # Also add eh radius
-    if params['coordinates'] != "cartesian" and 'r_eh' not in params and 'a' in params:
+    if 'r_eh' not in params and 'a' in params:
         params['r_eh'] = (1. + np.sqrt(1. - params['a'] ** 2))
 
     # Metric defaults we're pretty safe in setting

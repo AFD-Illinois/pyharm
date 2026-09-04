@@ -35,15 +35,21 @@ __license__ = """
 """
 
 import os
+import sys
 import click
 import glob
 import h5py
 import numpy as np
+import glob
+
+from astropy.io import ascii
+from astropy.table import Table
 
 import pyharm
 # Really only support kharma for now, will write abstract versions if necessary
 import pyharm.io.logs_kharma as kio
 from pyharm.defs import JobReturn
+from pyharm.ana.info import SimulationRun
 
 @click.command()
 @click.argument('op', nargs=1)
@@ -67,66 +73,30 @@ def queue(op, paths, **kwargs):
 
     # Detect partial restart files
 
-    if op in ["status", "current", "running"]:
+    if op in ["all_returns", "current", "running"]:
+        cols = ('run_name', 'jobnum', 'status_str', 'simtime', 'perf', 'floors_pct','pflags_pct')
+        table = Table(names=SimulationRun.table_names(cols),
+                      dtype=SimulationRun.table_types(cols))
         for pathname in paths:
-            path = os.path.realpath(pathname)
-            loglist = glob.glob(os.path.join(path, "slurm-*.out"))
-            if len(loglist) == 0:
-                #print("No logs present!")
+            try:
+                sim_status = SimulationRun(pathname, n_dumps_to_load=0)
+            except Exception as e:
+                print(e)
+                continue
+            
+            # Skip non-running jobs if we're restricting to running
+            if op == "running" and sim_status['status'] != JobReturn.RUNNING:
                 continue
 
-            # We can't rely on touch times or lexical order
-            def jobnum(fname):
-                return int(''.join(c for c in fname if c.isdigit()))
-            loglist.sort(key=jobnum)
+            table.add_row(sim_status.table_row(cols), mask=sim_status.table_mask(cols))
 
-            # Just the current file
-            if op != "status":
-                loglist = loglist[-1:]
-
-            run_name = path.split("/")[-1]
-            if len(run_name) < 20:
-                run_name = run_name+" "*(20-len(run_name))
-            else:
-                run_name = run_name[:20]
-            #print(f"RUN: {path.split("/")[-1]}")
-
-            for logfile in loglist:
-                lines = kio.read_stdout(logfile, -100)
-                status = kio.job_status(lines)
-                # Print only running jobs
-                if op == "running" and status != JobReturn.RUNNING:
-                    continue
-
-                # Assemble a line of info
-                pline = f"{run_name} job {jobnum(logfile.split('/')[-1])}"
-
-                if status == JobReturn.RUNNING:
-                    pline += f" Running:  "
-                else:
-                    pline += f" " + status.name + ":" + " "*(12 - len(status.name))
-
-                pline += f" {kio.job_sim_time(lines):.4} t_g"
-                pline += f", {kio.job_perf(lines):.4} ZCPS"
-
-                if kio.job_flags(lines, "fflag") > 0:
-                    fflag_pct = kio.job_flag_pct(lines, "fflag")
-                    pline += f", {fflag_pct}% floors"
-
-                pflag_pct = kio.job_flag_pct(lines, "pflag")
-                if pflag_pct > 5:
-                    pline += f" PFLAGS {pflag_pct}% OF CELLS"
-
-                print(pline)
+        ascii.write(table, sys.stdout, format='fixed_width')
 
     # op == prep: ensure final is last-written & last in sim, link or move things otherwise
 
     # op == stack: submit a job from a template
     # default to naming it according to current folder
     # depend on any job running submitted from current dir
-
-
-
 
 if __name__ == "__main__":
     queue()

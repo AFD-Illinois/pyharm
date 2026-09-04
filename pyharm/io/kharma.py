@@ -231,6 +231,10 @@ class KHARMAFile(DumpFile):
         if params is None:
             raise RuntimeError("No parameters could be found in KHARMA dump {}".format(self.fname))
 
+        # Set KHARMA version, since it's in headers
+        params['version'] = fil.fid['Params'].attrs['Globals/version']
+        params['branch'] = fil.fid['Params'].attrs['Globals/branch']
+        params['code_SHA1'] = fil.fid['Params'].attrs['Globals/SHA1']
         # Use Parthenon's reader for the file-specific stuff
         params['ng_file'] = fil.NGhost * fil.IncludesGhost
         # Set incidental parameters from what we've read

@@ -35,15 +35,19 @@ __license__ = """
 """
 
 import os
+import sys
 import click
-
+from astropy.io import ascii
+from astropy.table import Table
 import h5py
+from pathlib import Path
 
 import pyharm
 # We're practically an io function
-from pyharm.io import *
+import pyharm.io as io
 import pyharm.io.kharma as kio
-from pyharm.parameters import parse_parthenon_dat
+import pyharm.ana.info as info
+from pyharm.ana.info import SimulationDump, SimulationRun
 
 # Count files, get times, grid sizes, MAD/SANE, fluid properties
 
@@ -52,7 +56,9 @@ from pyharm.parameters import parse_parthenon_dat
 @click.option('--pars/--no-pars', help="Print a dump file's parameters and exit")
 @click.option('--compare/--no-compare', help="Compare parameters of two dump files")
 @click.option('-v', '--verbose', is_flag=True, help="Print extra statistics")
-@click.option('--all/--one')
+@click.option('--table', default="", help="Print a table of runs.  'ascii' for a text table, 'latex' for a LaTeX table")
+@click.option('--table-cols', is_flag=True, help="Colums to print in the table")
+@click.option('--all/--one', default=False, help="Print info on all dump files in a folder, or just one (default)")
 @click.version_option(package_name='pyharm')
 def info(paths, **kwargs):
     """This is a general utility for printing information about a dump, dump folder, grid file,
@@ -65,156 +71,48 @@ def info(paths, **kwargs):
             print("Error: --compare requires exactly 2 paths")
             exit(1)
         
-        compare_dump_pars(paths[0], paths[1])
+        info.compare_dump_pars(paths[0], paths[1])
         exit()
 
+    if kwargs['table'] != "":
+        cols = kwargs['table_cols'].split(",") if 'cols' in kwargs else ['run_name', 'resolution', 'beta_min']
+        if kwargs['table'] == "latex":
+            latexdict={'tabletype': 'table*',
+                        'col_align': "|"+"|".join(SimulationRun.table_alignments(cols))+"|"}
+
+        table = Table(names=SimulationRun.table_names(cols),
+                      dtype=SimulationRun.table_types(cols))
+        #table.set_types(SimulationRun.table_types(cols))
+        for path in paths:
+            try:
+                table.add_row(SimulationRun(path).table_row(cols))
+            except:
+                pass
+        ascii.write(table, sys.stdout, format=kwargs['table'])
+        exit()
+
+    # If not comparing or tabling, just print
     for path in paths:
         if ".hst" in path:
             print_hst_info(path, verbose=kwargs['verbose'])
             continue
-
-        if os.path.isdir(path):
-            fnames = get_fnames(path)
         else:
-            fnames = [path,]
-
-        if kwargs['pars']:
-            # TODO if Parthenon-based file etc etc
-            f = h5py.File(fnames[0])
-            print(f['/Input'].attrs['File'])
-            # Really do this?  Ordering?
-            exit(0)
-
-        if len(fnames) > 1:
-            code = get_dump_type(fnames[0])
-            print("{} simulation run, {} files.".format(code, len(fnames)))
-            first_dump = pyharm.load_dump(fnames[0])
-            last_dump = pyharm.load_dump(fnames[-1])
-            print("Time: {:.3} to {:.3} ({:.3} simulation units/t_g)".format(
-                first_dump['t'], last_dump['t'], last_dump['t'] - first_dump['t']))
-
-            print()
-            if not kwargs['all']:
-                print("First dump file information:")
-                print_dump_info(fnames[0], verbose=kwargs['verbose'])
+            if os.path.isdir(path):
+                print(SimulationRun(path))
+                fnames = io.get_fnames(path)
             else:
-                print("Information on all dump files:")
+                fnames = [path,]
+
+            if kwargs['all']:
                 for fname in fnames:
-                    print_dump_info(fname, verbose=kwargs['verbose'])
-        else:
-            print_dump_info(fnames[0], verbose=kwargs['verbose'])
-
-
-def print_dump_info(fname, verbose=False):
-    code = get_dump_type(fname)
-    print("{} Dump file.".format(code))
-
-    dump = pyharm.load_dump(fname)
-    print("Code version:\t{}".format(dump['version']))
-    print("Dump time:\t{:.3}".format(dump['t']))
-    print("Recorded resolution:\t{}x{}x{}".format(dump['n1'], dump['n2'], dump['n3']))
-    # TODO if spherical
-    if 'base' in dump.params:
-        print("Base coordinates:\t", dump.params['base'])
-        print("Coordinate transform:\t", dump.params['transform'])
-    print("Combined/iharm3d coordinates:\t", dump.params['coordinates'])
-
-    if not "cartesian" in dump.params['base']:
-        print(f"Domain:\tr={dump['r_in']} to {dump['r_out']}")
-    else:
-        print(f"Domain:\t({dump['x1min']}, {dump['x1max']}), ({dump['x2min']}, {dump['x2max']}), ({dump['x3min']}, {dump['x3max']})")
-
-    if code == "KHARMA":
-        # TODO Parthenon version, now KHARMA version/git, etc etc
-
-        # Beta
-        Pg_max = np.max(dump['Pg'])
-        Pb_max = np.max(dump['Pb'])
-        if verbose:
-            print("Gas pressure max:\t", Pg_max)
-            print("Mag. pressure max:\t", Pb_max)
-        print("beta_min (ratio of maxima):\t", Pg_max/Pb_max)
-        if verbose:
-            print("beta_min (on grid):\t", np.min(dump['beta']))
-            print("beta_avg (on grid):\t", np.sum(dump['gdet']*dump['beta'])/np.sum(dump['gdet']*dump['1']))
-
-        # Basics
-        print("rho_max:\t", np.max(dump['rho']))
-        print("rho_min:\t", np.min(dump['rho']))
-        print("u_max:\t", np.max(dump['u']))
-        print("u_min:\t", np.min(dump['u']))
-
-        # Basics
-        print("rho_max:\t", np.max(dump['rho']))
-        print("rho_min:\t", np.min(dump['rho']))
-        print("u_max:\t", np.max(dump['u']))
-        print("u_min:\t", np.min(dump['u']))
-
-        # Sigma
-        print("sigma_max (on grid):\t", np.max(dump['sigma']))
-        if verbose:
-            print("sigma_max (ratio of minima):\t", np.min(dump['bsq']) / np.min(dump['rho']))
-        print("sigma_min (on grid):\t", np.min(dump['sigma']))
-        if verbose:
-            print("sigma_min (ratio of maxima):\t", np.max(dump['bsq']) / np.max(dump['rho']))
-
-def compare_dump_pars(fname1, fname2):
-        # Load parameters from both paths
-        pars1 = {}
-        pars2 = {}
-        
-        # Try to load as dump files first
-        try:
-            dump1 = pyharm.load_dump(fname1)
-            pars1 = dump1.get('parameters', {})
-        except:
-            # If not a dump file, try to read as a parameter file
-            try:
-                with open(fname1, 'r') as f:
-                    pars1 = parse_parthenon_dat(f.read())
-            except:
-                print(f"Could not parse {fname1} as dump or parameter file")
-                exit(1)
-        
-        try:
-            dump2 = pyharm.load_dump(fname2)
-            pars2 = dump2.get('parameters', {})
-        except:
-            # If not a dump file, try to read as a parameter file
-            try:
-                with open(fname2, 'r') as f:
-                    pars2 = parse_parthenon_dat(f.read())
-            except:
-                print(f"Could not parse {fname2} as dump or parameter file")
-                exit(1)
-        
-        # Compare parameters
-        print("Comparing parameters from:")
-        print(f"  {fname1}")
-        print(f"  {fname2}")
-        print()
-        
-        # Simple comparison function based on example
-        def compare_dicts(dict1, dict2):
-            set1 = set(dict1.items())
-            set2 = set(dict2.items())
-            diff = set1 ^ set2
-            if len(diff) > 0:
-                print("Differences found:")
-                for item in diff:
-                    print(f"  {item}")
+                    print(SimulationDump(fname))
             else:
-                print("No differences found")
-        
-        # Compare parameters
-        compare_dicts(pars1, pars2)
-
-def print_hst_info(fname, verbose=False):
-    log = kio.read_log(fname)
-    print("KHARMA history file:")
-    print("Keys:", log.keys())
-    print("Log lines:", len(log['time']))
-    print("Time range:", log['time'][0], log['time'][-1])
+                if kwargs['pars']:
+                    # TODO if Parthenon-based file etc etc
+                    with h5py.File(fnames[0]) as f:
+                        print(f['/Input'].attrs['File'])
+                else:
+                    print(SimulationDump(fnames[0]))
 
 if __name__ == "__main__":
     info()

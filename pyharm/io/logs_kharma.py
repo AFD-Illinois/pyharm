@@ -98,6 +98,11 @@ def job_sim_time(lines):
     """
     return job_stat(lines, "time")
 
+def job_wall_time(lines):
+    """Return total wallclock time a run has used, based on output lines.
+    """
+    return job_stat(lines, "wsec_total") / 3600.
+
 def job_perf(lines):
     """Return simulation current performance based on output lines
     """
@@ -120,19 +125,11 @@ def job_flags(lines, type="pflag"):
     for line in reversed(lines):
         if f"{type}: " in line:
             return int(line.split(" ")[1])
-    return 0
+    return -1
 
 def job_flag_pct(lines, type="pflag"):
     """Return total number of inverter flags"""
     for line in reversed(lines):
         if f"{type}: " in line:
             return int(line.split(" ")[2].lstrip("(").rstrip("%"))
-    return 0
-
-
-
-def job_wall_time(lines):
-    """Return wallclock time a run has been active, based on output lines.
-    Should only need last ~10 lines.
-    """
-    raise NotImplementedError("no wall time yet")
+    return -1
