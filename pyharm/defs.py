@@ -44,11 +44,13 @@ Some of this is pretty old.
 
 class JobReturn(Enum):
     RUNNING = 0
-    SUCCESS = 1
-    CRASH = 2
-    SEGFAULT = 3
-    TIMELIMIT = 4
-    KILLED = 5
+    COMPLETED = 1
+    TIMELIMIT = 2
+    KILLED = 3
+    SEGFAULT = 4
+    CRASHED = 5
+    CRASHED_FILE = 6
+    # ETC
 
 class Loci(Enum):
     """Location enumerated value.

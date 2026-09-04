@@ -108,74 +108,6 @@ def read_log(fname):
 
     return out
 
-def read_stdout(fname, nlines=None):
-    """Reads stdout capture file from KHARMA (e.g., slurm-XXXXXX.out).
-    Optionally read only X lines (negative reads backward from end)
-    """
-    with open(fname, 'rb') as f:
-        if nlines == None:
-            raise NotImplementedError("full file reads not implemented")
-        elif nlines < 0:
-            try:  # catch OSError in case of a one line file 
-                f.seek(-2, os.SEEK_END)
-                lines_read = 0
-                # Scroll back several lines
-                while lines_read <= -nlines:
-                    if f.read(1) == b'\n':
-                        lines_read += 1
-                    f.seek(-2, os.SEEK_CUR)
-            except OSError:
-                f.seek(0)
-
-            lines = []
-            for l in range(lines_read+1):
-                lines.append(f.readline().decode())
-            lines = lines[1:]
-        elif nlines > 0:
-            raise NotImplementedError("top-file reads not implemented")
-
-    return lines
-
-def job_status(lines):
-    """Return a single status for a job (running, exited, failed, etc.) from output lines.
-    Should only need last ~10 lines.
-    """
-    for line in reversed(lines):
-        if "Aborted" in line:
-            # TODO split out crashes by Parthenon error?
-            return JobReturn.CRASH
-        elif "Segmentation fault" in line:
-            # TODO search segfault stuff in last ~50
-            return JobReturn.SEGFAULT
-        elif "DUE TO TIME LIMIT" in line:
-            # TODO search DUE TO TIME LIMIT in last ~10
-            return JobReturn.TIMELIMIT
-        elif "zone-cycles/wallsecond" in line:
-            # TODO likely false positive, sometimes there are prints after
-            return JobReturn.SUCCESS
-        elif "DUE to SIGNAL Terminated" in line:
-            return JobReturn.KILLED
-
-    # If these phrases aren't in last X lines, script is probably (?) still running
-    return JobReturn.RUNNING
-
-def job_sim_time(lines):
-    """Return simulation time based on output lines.
-    Should only need last ~10 lines.
-    """
-    for line in reversed(lines):
-        if "time=" in line:
-            match = re.search(r'time=(\d+\.\d+)', line)
-            if match:
-                return float(text_match.group(1))
-
-def job_wall_time(lines):
-    """Return wallclock time a run has been active, based on output lines.
-    Should only need last ~10 lines.
-    """
-    raise NotImplementedError("no wall time yet")
-
-
 class KHARMAFile(DumpFile):
     """File filter for KHARMA files"""
     # Names which aren't directly prims.x or cons.x, but which we can translate
@@ -299,6 +231,10 @@ class KHARMAFile(DumpFile):
         if params is None:
             raise RuntimeError("No parameters could be found in KHARMA dump {}".format(self.fname))
 
+        # Set KHARMA version, since it's in headers
+        params['version'] = fil.fid['Params'].attrs['Globals/version']
+        params['branch'] = fil.fid['Params'].attrs['Globals/branch']
+        params['code_SHA1'] = fil.fid['Params'].attrs['Globals/SHA1']
         # Use Parthenon's reader for the file-specific stuff
         params['ng_file'] = fil.NGhost * fil.IncludesGhost
         # Set incidental parameters from what we've read
