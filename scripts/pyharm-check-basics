@@ -71,8 +71,9 @@ def check_dump_properties(name, check_all=True, check_divb=False, allowed_divb=1
             retcode = -1
 
     if check_nan or check_all:
-        if np.any(np.isnan(dump['prims'])):
-            print("")
+        if np.any(not np.isfinite(dump['prims'])):
+            print("NaN/inf found in dump!  Returning error.")
+            retcode = -1
 
     del dump
     return retcode
