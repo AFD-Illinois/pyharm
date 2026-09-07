@@ -109,7 +109,7 @@ def get_fnames(path, prefer_iharm3d=False):
                 return files
             # Add 'final' IF it is later than the last existing file
             final_candidate = glob(os.path.join(path, scheme[0], "*.out*.final"+scheme[2]))
-            if len(final_candidate) > 0:
+            if len(final_candidate) > 0 and get_dump_time(final_candidate[0]) is not None:
                 if get_dump_time(final_candidate[0]) > get_dump_time(files[-1]):
                     files.append(final_candidate[0])
             return files

@@ -614,27 +614,6 @@ class MKS(KS):
         dxdX[3, 3] = 1
         return dxdX
 
-
-class CMKS(MKS):
-    def __init__(self, met_params=default_met_params):
-        self.poly_xt = met_params['poly_xt']
-        self.poly_alpha = met_params['poly_alpha']
-        self.poly_norm = 0.5 * np.pi * 1. / (1. + 1. / (self.poly_alpha + 1.) *
-                                             1. / np.power(self.poly_xt, self.poly_alpha))
-        super(CMKS, self).__init__(met_params)
-
-    def th(self, x):
-        y = 2 * x[2] - 1.
-        th_j = self.poly_norm * y * (
-                    1. + np.power(y / self.poly_xt, self.poly_alpha) / (self.poly_alpha + 1.)) + 0.5 * np.pi
-        if legacy_small_th:
-            return self.correct_small_th(th_j)
-        else:
-            return th_j
-
-    # TODO TODO dxdX
-
-
 class FMKS(MKS):
     """Funky Modified Kerr-Schild coordinates.
     """

@@ -45,7 +45,6 @@ from astropy.io import ascii
 from astropy.table import Table
 
 import pyharm
-# We're practically an io function
 import pyharm.io as pio
 import pyharm.io.logs_kharma as kio
 from pyharm.parameters import parse_parthenon_dat
@@ -56,25 +55,27 @@ class SimulationRun(object):
     # Name, dtype, alignment
     # dtypes: (t)ext, (f)loat, (e)xponential, (i)nt, (a)uto
     properties = {
-        'run_name': ("Run name", "S32", "l"),
-        'code': ("Simulation code", "S32", "l"),
-        'version': ("Code version", "S32", "l"),
-        'branch': ("Code branch", "S32", "l"),
-        'code_SHA1': ("Code SHA1", "S32", "l"),
-        'spherical': ("Spherical", "?", "c"),
-        'resolution': ("Resolution", "S32", "c"),
-        'coordinates': ("Coordinate sytem", "S32", "l"),
-        'base': ("Base coordinate system", "S32", "l"),
-        'transform': ("Coordinate transform", "S32", "l"),
-        'nfiles':    ("# of dumps", "i4", "l"),
-        'output_start_time': ("Start time", "f4", "l"),
-        'output_end_time': ("End time", "f4", "l"),
+        # Run parameters
+        'run_name': ("", "S32", "l", None),
+        'sim_name': ("Name", "S32", "l", None),
+        'code': ("Simulation code", "S32", "l", None),
+        'version': ("Code version", "S32", "l", None),
+        'branch': ("Code branch", "S32", "l", None),
+        'code_SHA1': ("Code SHA1", "S32", "l", None),
+        'spherical': ("Spherical", "?", "r", None),
+        'resolution': ("Resolution", "S32", "r", None),
+        'coordinates': ("Coordinate sytem", "S32", "r", None),
+        'base': ("Base coordinate system", "S32", "r", None),
+        'transform': ("Coordinate transform", "S32", "r", None),
+        'nfiles':    ("# of dumps", "i4", "r", None),
+        'output_start_time': ("Start time", "f4", "r", None),
+        'output_end_time': ("End time", "f4", "r", None),
     }
     derivations = {
         'resolution': lambda dump: f"{dump['n1']}x{dump['n2']}x{dump['n3']}"
     }
 
-    def __init__(self, path, n_dumps_to_load=1, load_logs=True):
+    def __init__(self, path, n_dumps_to_load=1, load_logs=True, ana_fname="", arange=None):
         """Construct a SimulationRun object from the run at path.
         Should be whatever path contains
         """
@@ -92,85 +93,63 @@ class SimulationRun(object):
             self.data['folder_name'] = first_folder
             #path = "/".join(os.path.realpath(fnames[0]).split("/")[:-2])
 
-        # TODO parse tag.tex if it's there
-        self.data['run_name'] = self.data['folder_name']
+        tex_tag_path = os.path.join(os.path.realpath(path), "tag.tex")
+        if os.path.isfile(tex_tag_path):
+            with open(tex_tag_path) as f:
+                self.data['run_name'] = f.readline()[:-1]
+        else:
+            self.data['run_name'] = self.data['folder_name']
+
+        text_sim_path = os.path.join(os.path.realpath(path), "name.txt")
+        if os.path.isfile(text_sim_path):
+            with open(text_sim_path) as f:
+                self.data['sim_name'] = r"\texttt{" + f.readline()[:-1] + r"}"
+        else:
+            self.data['sim_name'] = self.data['folder_name']
 
         self.data['nfiles'] = len(fnames)
         self.data['code'] = pio.get_dump_type(fnames[0])
         self.data['output_start_time'] = pio.get_dump_time(fnames[0])
         self.data['output_end_time'] = pio.get_dump_time(fnames[-1])
 
-        initial_dump = pyharm.load_dump(fnames[0])
-        for key in self.properties.keys():
-            if key in initial_dump.params:
-                self.data[key] = initial_dump.params[key]
-            elif key in self.derivations:
-                self.data[key] = self.derivations[key](initial_dump)
+        try:
+            initial_dump = pyharm.load_dump(fnames[0])
+            for key in self.properties.keys():
+                if key in initial_dump.params:
+                    self.data[key] = initial_dump.params[key]
+                elif key in self.derivations:
+                    self.data[key] = self.derivations[key](initial_dump)
 
-        # Load SimulationDump of first dump to access more properties
-        n_dump_to_load = 1
-        self.dumps = [SimulationDump(fnames[i]) for i in range(n_dump_to_load)]
-        # Load SimulationLogs for even more properties
+            # Load SimulationDump of first dump to access more properties
+            n_dump_to_load = 1
+            self.dumps = [SimulationDump(fnames[i]) for i in range(n_dump_to_load)]
+
+        except Exception as e:
+            print(e)
+
+        # Load SimulationPrints for even more properties
         if load_logs:
-            self.logs = SimulationLogs(path)
+            try:
+                self.logs = SimulationPrints(path)
+            except Exception as e:
+                print(e)
+                self.logs = {}
         else:
             self.logs = {}
 
-        # TODO auto-add all of parameter file parameters
+        if ana_fname != "":
+            try:
+                self.ana = SimulationResults(os.path.join(path, ana_fname), arange=arange)
+            except Exception as e:
+                print(e)
+                self.ana = SimulationResults()
+        else:
+            self.ana = SimulationResults()
 
-    @classmethod
-    def table_names(cls, cols):
-        names = []
-        for col in cols:
-            if col in cls.properties:
-                names.append(cls.properties[col][0])
-            elif col in SimulationDump.properties:
-                names.append(SimulationDump.properties[col][0])
-            elif col in SimulationLogs.properties:
-                names.append(SimulationLogs.properties[col][0])
-        return names
-
-    @classmethod
-    def table_types(cls, cols):
-        types = []
-        for col in cols:
-            if col in cls.properties:
-                types.append(cls.properties[col][1])
-            elif col in SimulationDump.properties:
-                types.append(SimulationDump.properties[col][1])
-            elif col in SimulationLogs.properties:
-                types.append(SimulationLogs.properties[col][1])
-        return types
-
-    @classmethod
-    def table_alignments(cls, cols):
-        alns = []
-        for col in cols:
-            if col in cls.properties:
-                alns.append(cls.properties[col][2])
-            elif col in SimulationDump.properties:
-                alns.append(SimulationDump.properties[col][2])
-            elif col in SimulationLogs.properties:
-                alns.append(SimulationLogs.properties[col][1])
-        return alns
-
-    # Only this requires actual data
-    def table_row(self, cols):
-        row = []
-        for col in cols:
-            row.append(self[col])
-        return row
-
-    def table_mask(self, cols):
-        masks = []
-        for col in cols:
-            if col in self.logs.properties and len(self.logs.properties[col]) > 3:
-                masks.append(self.logs.properties[col][3](self.logs))
-            else:
-                masks.append(False)
-        return masks
+        # TODO auto-add all parameter file parameters to properties
 
     def __str__(self):
+        # TODO everything?
         table = Table(names=("key", "Name", "value"), dtype=('S16', 'S32', 'S32'))
         for key in self.data.keys():
             table.add_row([key, self.properties[key][0], str(self.data[key])])
@@ -178,29 +157,96 @@ class SimulationRun(object):
         ascii.write(table, ret, format='fixed_width_no_header')
         return ret.getvalue()
 
+    # Just getting properties agnostically
+    @classmethod
+    def table_names(cls, cols):
+        return [cls.get_property(col)[0] for col in cols]
+    @classmethod
+    def table_types(cls, cols):
+        return [cls.get_property(col)[1] for col in cols]
+    @classmethod
+    def table_alignments(cls, cols):
+        return [cls.get_property(col)[2] for col in cols]
+    @classmethod
+    def set_table_formats(cls, table, cols):
+        # TODO is this available at creation like the others?
+        for col, name in zip(cols, cls.table_names(cols)):
+            if cls.get_property(col)[3] is not None:
+                table[name].info.format = cls.get_property(col)[3]
+        return table
+
+    # Only this requires actual data
+    def table_row(self, cols):
+        return [self[col] for col in cols]
+
+    def table_mask(self, cols):
+        return [self.get_mask(col) for col in cols]
+
+    def __contains__(self, item):
+        # TODO check these are actually loaded!
+        if key in self.properties:
+            return True
+        elif key in self.dumps[0].properties:
+            return True
+        elif key in self.logs.properties:
+            return True
+        elif key in self.ana.properties:
+            return True
+        else:
+            return False
+
+    @classmethod
+    def get_property(cls, key):
+        if key in cls.properties:
+            return cls.properties[key]
+        elif key in SimulationDump.properties:
+            return SimulationDump.properties[key]
+        elif key in SimulationPrints.properties:
+            return SimulationPrints.properties[key]
+        elif key in SimulationResults.properties:
+            return SimulationResults.properties[key]
+        else:
+            raise KeyError
+
+    # This requires data to determine the mask values
+    def get_mask(self, key):
+        if len(self.get_property(key)) > 4:
+            if key in self.properties:
+                return self.properties[key][4](self)
+            elif key in self.dumps[0].properties:
+                return self.dumps[0].properties[key][4](self.dumps[0])
+            elif key in self.logs.properties:
+                return self.logs.properties[key][4](self.logs)
+            elif key in self.ana.properties:
+                return self.ana.properties[key][4](self.ana)
+        else:
+            return False
+
     def __getitem__(self, key):
         if key in self.properties:
             return self.data[key]
         elif key in self.dumps[0].properties:
-            return self.dumps[0].calcs[key](self.dumps[0].dump)
+            return self.dumps[0].calcs[key](self.dumps[0])
         elif key in self.logs.properties:
             return self.logs.calcs[key](self.logs)
+        elif key in self.ana.properties:
+            return self.ana.calcs[key](self.ana)
         else:
             raise KeyError
 
-class SimulationLogs(object):
+class SimulationPrints(object):
     """For retrieving and holding info from the simulation logs (history files and stdout)
     """
     properties = {
-        'jobnum': ("Job #", "i4", "c"),
-        'status_str': ("Status", "S32", "c"),
-        'walltime': ("Walltime [h]", "f4", "c"),
-        'simtime':  (r"Simtime [$t_g$]", "f4", "c"),
-        'perf':     ("Performance [ZCPS]", "f4", "c"),
-        'floors_raw': ("Floors", "i4", "c", lambda self: kio.job_flags(self.last_lines, "fflag") <= 0),
-        'floors_pct': ("Floors %", "i4", "c", lambda self: kio.job_flags(self.last_lines, "fflag") <= 0),
-        'pflags_raw':  ("PFlags", "i4", "c", lambda self: kio.job_flags(self.last_lines, "pflag") <= 0),
-        'pflags_pct':  ("PFlags %", "i4", "c", lambda self: kio.job_flags(self.last_lines, "pflag") <= 0),
+        'jobnum': ("Job #", "i4", "r", None),
+        'status_str': ("Status", "S32", "r", None),
+        'walltime': ("Walltime [h]", "f4", "r", None),
+        'simtime':  (r"Simtime [$t_g$]", "f4", "r", None),
+        'perf':     ("Performance [ZCPS]", "f4", "r", None),
+        'floors_raw': ("Floors", "i4", "r", None, lambda self: kio.job_flags(self.last_lines, "fflag") <= 0),
+        'floors_pct': ("Floors %", "i4", "r", None, lambda self: kio.job_flags(self.last_lines, "fflag") <= 0),
+        'pflags_raw':  ("PFlags", "i4", "r", None, lambda self: kio.job_flags(self.last_lines, "pflag") <= 0),
+        'pflags_pct':  ("PFlags %", "i4", "r", None, lambda self: kio.job_flags(self.last_lines, "pflag") <= 0),
     }
 
     calcs = {
@@ -241,10 +287,75 @@ class SimulationLogs(object):
         ascii.write(table, ret, format='fixed_width_no_header')
         return ret.getvalue()
 
+class SimulationLog(object):
+    """For holding properties of the simulation history file
+    """
+    properties = {
+        'log_keys': ("Log columns", "S1024", "r", None),
+        'nlines':   ("# log lines", "i4", "r", None),
+        'log_start_time': ("Log start time", "f4", "r", None),
+        'log_end_time':   ("Log end time", "f4", "r", None), 
+    }
+    calcs = {
+        'log_keys': lambda self: self.log.keys(),
+        'nlines': lambda self: len(self.log['time']),
+        'log_start_time': lambda self: self.log['time'][0],
+        'log_end_time': lambda self: self.log['time'][-1],
+    }
+
+    def __init__(self, fname):
+        # This is likely a bad idea
+        self.log = io.read_log(fname)
+        self.log_results = AnaResults(fname)
 
 class SimulationResults(object):
     """For holding properties of the analysis results on a simulation
     """
+    properties = {
+        'peak_phi_b': (r"Peak $\phi_B$", "f4", "r", ".5g", lambda self: not np.isfinite(self.op_arange('phi_b', np.max, None))),
+        'peak_eta':   (r"Peak $\eta$", "f4", "r", ".5g", lambda self: not np.isfinite(self.op_arange('eff', np.max, None))),
+
+        'avg_phi_b':  (r"Late $\phi_B$", "f4", "r", ".5g", lambda self: not np.isfinite(self.op_arange('phi_b', np.mean, self.arange))),
+        'avg_eta':    (r"Late $\eta$", "f4", "r", ".5g", lambda self: not np.isfinite(self.op_arange('eff', np.mean, self.arange))),
+    }
+
+    calcs = {
+        'peak_phi_b': lambda self: self.op_arange('phi_b', np.max, None),
+        'peak_eta': lambda self: self.op_arange('eff', np.max, None),
+
+        'avg_phi_b': lambda self: self.op_arange('phi_b', np.mean, self.arange),
+        'avg_eta': lambda self: self.op_arange('eff', np.mean, self.arange),
+    }
+
+    def __init__(self, fname=None, arange=None):
+        if fname is not None:
+            # avg_ends here sets the normalization for single-average norms
+            # TODO set with sane default
+            self.result = pyharm.load_result(fname, avg_ends=arange)
+            # Our (optional) arange for our averages
+            self.arange = arange
+
+
+    def op_arange(self, var, op, arange):
+        data = self.result[f't/{var}']
+
+        # TODO special-case somewhere else
+        if 'phi_b' in var:
+            data *= np.sqrt(4*np.pi)
+
+        if self.result.prefer_hst:
+            time = self.result['diag/time']
+        else:
+            time = self.result['t']
+
+        if arange is not None:
+            # Get the times to average
+            avg_slice = self.result.get_time_slice(*arange)
+            times = (round(time[avg_slice][0]/1000)*1000,
+                    round(time[avg_slice][-1]/1000)*1000)
+            return op(data[avg_slice])
+        else:
+            return op(data)
 
 
 class SimulationDump(object):
@@ -252,30 +363,30 @@ class SimulationDump(object):
     NOT a substitute for `pyharm analysis`!
     """
     properties = {
-        'time': ("Time", "f4", "c"),
-        'rho_min': ("Min. rho", "f4", "c"),
-        'rho_max': ("Max. rho", "f4", "c"),
-        'u_min': ("Min. u", "f4", "c"),
-        'u_max': ("Max. u", "f4", "c"),
-        'sigma_min': ("Min. sigma", "f4", "c"),
-        'sigma_max': ("Max. sigma", "f4", "c"),
-        'beta_min_true': ("Min. beta (true)", "f4", "c"),
-        'beta_max': ("Max. beta (true)", "f4", "c"),
-        'beta_min': ("Min. beta (ratio of maxima)", "f4", "c"),
+        'time': ("Time", "f4", "r", None),
+        'rho_min': ("Min. rho", "f4", "r", None),
+        'rho_max': ("Max. rho", "f4", "r", None),
+        'u_min': ("Min. u", "f4", "r", None),
+        'u_max': ("Max. u", "f4", "r", None),
+        'sigma_min': ("Min. sigma", "f4", "r", None),
+        'sigma_max': ("Max. sigma", "f4", "r", None),
+        'beta_min_true': ("Min. beta (true)", "f4", "r", None),
+        'beta_max': ("Max. beta (true)", "f4", "r", None),
+        'beta_min': (r"$P_{g,{\rm max}}/P_{b,{\rm max}}$", "f4", "r", ".5g"),
     }
 
     calcs = {
-        'rho_min': lambda dump: np.min(dump['rho']),
-        'rho_max': lambda dump: np.max(dump['rho']),
-        'u_min': lambda dump: np.min(dump['u']),
-        'u_max': lambda dump: np.max(dump['u']),
-        'sigma_min': lambda dump: np.min(dump['sigma']),
-        'sigma_max': lambda dump: np.max(dump['sigma']),
+        'rho_min': lambda self: np.min(self.dump['rho']),
+        'rho_max': lambda self: np.max(self.dump['rho']),
+        'u_min': lambda self: np.min(self.dump['u']),
+        'u_max': lambda self: np.max(self.dump['u']),
+        'sigma_min': lambda self: np.min(self.dump['sigma']),
+        'sigma_max': lambda self: np.max(self.dump['sigma']),
         # TODO(ratio of minima/maxima?)
-        'beta_min_true': lambda dump: np.min(dump['beta']),
-        'beta_max': lambda dump: np.max(dump['beta']),
-        'beta_min': lambda dump: np.max(dump['Pg']) / np.max(dump['Pb']),
-        'beta_avg': lambda dump: np.sum(dump['gdet']*dump['beta'])/np.sum(dump['gdet']*dump['1'])
+        'beta_min_true': lambda self: np.min(self.dump['beta']),
+        'beta_max': lambda self: np.max(self.dump['beta']),
+        'beta_min': lambda self: np.max(self.dump['Pg']) / np.max(self.dump['Pb']),
+        'beta_avg': lambda self: np.sum(self.dump['gdet']*self.dump['beta'])/np.sum(self.dump['gdet']*self.dump['1'])
     }
 
     basic_set = ('beta_min')
@@ -307,12 +418,10 @@ class SimulationDump(object):
         ascii.write(table, ret, format='fixed_width_no_header')
         return ret.getvalue()
 
-def print_hst_info(fname, verbose=False):
-    log = kio.read_log(fname)
-    print("KHARMA history file:")
-    print("Keys:", log.keys())
-    print("Log lines:", len(log['time']))
-    print("Time range:", log['time'][0], log['time'][-1])
+
+
+# GENERAL FUNCTIONS
+
 
 def print_dump_pars(fname):
     # TODO more flexible, not just full file contents

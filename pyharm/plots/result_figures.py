@@ -46,24 +46,24 @@ WIP.
 
 max_this_invocation = {}
 
-def _get_t_slice(result, arange):
-    """Returns a time slice corresponding to the tuple or number 'arange'
-    (optionally negative-indexed from sim end)
-    """
-    # TODO BOUNDS CORRECTLY
-    if isinstance(arange, slice) or isinstance(arange, tuple) or isinstance(arange, list):
-        try:
-            return result.get_time_slice(arange[0], arange[1])
-        except KeyError:
-            return None
-    elif arange is not None:
-        # Min only, negative offset from end accepted
-        try:
-            return result.get_time_slice(arange)
-        except KeyError:
-            return None
-    else:
-        return True, slice(None)
+# def _get_t_slice(result, arange):
+#     """Returns a time slice corresponding to the tuple or number 'arange'
+#     (optionally negative-indexed from sim end)
+#     """
+#     # TODO BOUNDS CORRECTLY
+#     if isinstance(arange, slice) or isinstance(arange, tuple) or isinstance(arange, list):
+#         try:
+#             return result.get_time_slice(*arange)
+#         except KeyError:
+#             return None
+#     elif arange is not None:
+#         # Min only, negative offset from end accepted
+#         try:
+#             return result.get_time_slice(arange)
+#         except KeyError:
+#             return None
+#     else:
+#         return True, slice(None)
 
 def _get_r_slice(result, rrange):
     """Get a slice of radial zones matching the plot window.
@@ -91,10 +91,10 @@ def _model_pretty(folder):
 
 def _radial_profile(ax, result, var, **kwargs):
 
-    # Get the times to average
-    avg_slice = _get_t_slice(result, kwargs['arange'])
-    if not isinstance(avg_slice, slice):
-        avg_slice = avg_slice[1]
+    # Get the indices/slice to average
+    avg_slice = result.get_time_slice(*kwargs['arange'])
+    # if not isinstance(avg_slice, slice):
+    #     avg_slice = avg_slice[1]
 
     # Get just the relevant radial slice so y-limits get set properly
     window = (kwargs['xmin'] if kwargs['xmin'] is not None else 1,
@@ -208,7 +208,7 @@ def disk_velocity_profile(results, kwargs):
 def _hth_profile(ax, result, var, arange=-1000, print_time=False, plot_std=False, ylim=None):
 
     # Get the times to average
-    avg_slice = _get_t_slice(result, arange)
+    avg_slice = result.get_time_slice(*arange)
     if len(np.squeeze(result['t'][avg_slice]).shape) == 0:
         return None
     times = (round(np.squeeze(result['t'][avg_slice])[0]/1000)*1000,
@@ -288,7 +288,7 @@ def _plot_time_evolution(ax, result, var, arange=None, show_arange=True, label=N
 
     if arange is not None:
         # Get the times to average
-        avg_slice = _get_t_slice(result, arange)
+        avg_slice = result.get_time_slice(*arange)
         times = (round(time[avg_slice][0]/1000)*1000,
                 round(time[avg_slice][-1]/1000)*1000)
         avg = np.mean(data[avg_slice])
@@ -424,8 +424,8 @@ def _point_per_run(axis, results, var, to_plot, plot_vs, window=None, arange=-10
     # Run through the files and suck up everything, sorting by "model" not including spin
     for result in results:
         # If this thing is even readable...
-        avg_slice = _get_t_slice(result, arange)
-        if avg_slice is None:
+        avg_slice = result.get_time_slice(*arange)
+        if len(result['t'][avg_slice]) == 0:
             print("Skipping {}: no data fround for range {}".format(result.tag, arange))
             continue
 

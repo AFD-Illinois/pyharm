@@ -192,6 +192,7 @@ class AnaResults(object):
                     'rt/FE_notdisk': lambda diag: diag['rt/FE_all'] - diag['rt/FE_disk'],
                     'rt/FM_notdisk': lambda diag: diag['rt/FM_all'] - diag['rt/FM_disk'],
                     'rt/FL_notdisk': lambda diag: diag['rt/FL_all'] - diag['rt/FL_disk'],
+
                     }
     # How to load variables from a KHARMA .hst file dictionary
     diags_hst = {'t': lambda diag: diag.file['diag/time'],
@@ -494,7 +495,7 @@ class AnaResults(object):
             elif self.avg_ends is not None and "t" in ivar:
                 #print(f"Using averaging range {self.avg_ends} for {ivar},{dvar}")
                 dvals = self.get_dvar(ivar, dvar[4:])
-                time_slice = self.get_time_slice(self.avg_ends[0], self.avg_ends[1])
+                time_slice = self.get_time_slice(*self.avg_ends)
                 ret_v = np.mean(dvals[time_slice]) * np.ones_like(dvals)
             else:
                 dvals = self.get_dvar(ivar, dvar[4:])
@@ -551,6 +552,24 @@ class AnaResults(object):
                 keylist.append(ivar+"/"+dvar)
         return keylist
     
+# def _get_t_slice(result, arange):
+#     """Returns a time slice corresponding to the tuple or number 'arange'
+#     (optionally negative-indexed from sim end)
+#     """
+#     if isinstance(arange, slice) or isinstance(arange, tuple) or isinstance(arange, list):
+#         try:
+#             return result.get_time_slice(arange[0], arange[1])
+#         except KeyError:
+#             return None
+#     elif arange is not None:
+#         # Min only, negative offset from end accepted
+#         try:
+#             return result.get_time_slice(arange)
+#         except KeyError:
+#             return None
+#     else:
+#         return True, slice(None)
+
     def get_time_slice(self, tmin, tmax=None):
         """Get the indices in the (correct, potentially reordered) timeline
         corresponding to stated tmin, tmax.

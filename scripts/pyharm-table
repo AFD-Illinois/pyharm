@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+
+__license__ = """
+ File: pyharm-plot-result
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020-2026, pyharm contributors
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
+from argparse import ArgumentError
+import sys
+import glob
+import click
+import inspect
+import textwrap
+from astropy.io import ascii
+from astropy.table import Table
+from pathlib import Path
+
+import numpy as np
+import h5py
+
+import pyharm
+# We're practically an io function
+import pyharm.io as io
+import pyharm.io.kharma as kio
+import pyharm.ana.info as info
+from pyharm.ana.info import SimulationDump, SimulationRun
+from pyharm.defs import Loci
+
+# This extends the help message to print valid plots
+class ExtensibleCmd(click.Command):
+    def format_help(self, ctx, formatter):
+        click.Command.format_help(self, ctx, formatter)
+
+        figure_list = inspect.getmembers(result_figures, \
+                predicate=lambda f: inspect.isfunction(f) and f.__module__ == result_figures.__name__)
+
+        formatter.write("\nValid figures:\n")
+        for fnname, fn in figure_list:
+            if fnname[0] != "_":
+                formatter.write("  "+fnname+":\n")
+                if result_figures.__dict__[fnname].__doc__ is not None:
+                    # Take out all whitespace from the docstring
+                    docstring = textwrap.shorten(result_figures.__dict__[fnname].__doc__, 1e6).replace("\n"," ")
+                    # Reflow and indent
+                    formatter.write(textwrap.indent(textwrap.fill(docstring), "    ") + "\n\n")
+
+@click.command(cls=ExtensibleCmd)
+@click.argument('paths', nargs=-1, type=click.Path(exists=True))
+@click.option('--type', default="fixed_width", help="Comma-separated list of variables to use")
+@click.option('--latex-type', default="table", help="Environment to use for LaTeX table")
+@click.option('--outer-border', default=False, help="Whether to use outer border in LaTeX tables")
+@click.option('--cols', default="run_name,resolution,beta_min", help="Comma-separated list of variables to use")
+@click.option('--results-file', default=None, help="Name of the results file in each dir (e.g., eht_out.h5)")
+@click.option('--prefer-hst', is_flag=True, help="Prefer KHARMA's fluxes to post-processing values")
+@click.option('-v', '--verbose', is_flag=True, help="Print debugging info")
+# Time bounds
+@click.option('--avg-min', type=float, default=None, help="Time-average minimum. Negative value counts backward from end of run")
+@click.option('--avg-max', type=float, default=None, help="Time-average maximum")
+@click.version_option(package_name='pyharm')
+def print_table(paths, **kwargs):
+    """Plot a result or set of results in a standard form, usually the contents of one or more
+    analyses done by pyharm-analysis.
+
+    Usage: pyharm-table [options] run1_dir/ [run2_dir/ ...]
+    """
+    
+    ## PROCESS ARGUMENTS
+    # Make any int/real or None into their actual types
+    if kwargs['avg_min'] is not None:
+        if kwargs['avg_max'] is not None:
+            kwargs['arange'] = (kwargs['avg_min'], kwargs['avg_max'])
+        else:
+            kwargs['arange'] = kwargs['avg_min']
+    else:
+        kwargs['arange'] = None
+    #print(f"Running with arange {kwargs['arange']}")
+
+    cols = kwargs['cols'].split(",")
+    if kwargs['type'] == "latex":
+        latexdict={'tabletype': kwargs['latex_type'],
+                    'col_align': ("","|")[kwargs['outer_border']] + \
+                    "|".join(SimulationRun.table_alignments(cols)) + \
+                    ("","|")[kwargs['outer_border']]}
+    else:
+        latexdict={}
+
+    table = Table(names=SimulationRun.table_names(cols),
+                    dtype=SimulationRun.table_types(cols))
+    for path in paths:
+        try:
+            run = SimulationRun(path, ana_fname=kwargs['results_file'], arange=kwargs['arange'])
+            table.add_row(run.table_row(cols), mask=run.table_mask(cols))
+        except Exception as e:
+            raise e
+            # print(e)
+
+    # Set preferred formatting -- TODO add overrides
+    SimulationRun.set_table_formats(table, cols)
+    ascii.write(table, sys.stdout, format=kwargs['type'], latexdict=latexdict)
+    exit()
+
+
+if __name__ == "__main__":
+    print_table()
+
